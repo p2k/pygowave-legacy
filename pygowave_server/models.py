@@ -55,7 +55,7 @@ class Wavelet(models.Model):
 	
 	id = models.CharField(max_length=42, primary_key=True)
 	wave = models.ForeignKey(Wave, related_name="wavelets")
-	creator = models.ForeignKey(Participant)
+	creator = models.ForeignKey(Participant, related_name="created_wavelets")
 	root_blip = models.OneToOneField("Blip", related_name="rootblip_wavelet")
 	created = models.DateTimeField(auto_now_add=True)
 	last_modified = models.DateTimeField(auto_now_add=True)
@@ -88,7 +88,7 @@ class Document(models.Model):
 	
 	content = models.TextField() # All the text of the wave
 	
-class Blip(models.Models):
+class Blip(models.Model):
 	"""
 	A Blip is a unit of conversation in a Wave. It is a node in a tree of
 	other nodes and may have a parent and children. It contains metadata to
@@ -97,7 +97,7 @@ class Blip(models.Models):
 	"""
 	
 	id = models.CharField(max_length=42, primary_key=True)
-	wavelet = models.ForeignKey(Wavelets, related_name="blips")
+	wavelet = models.ForeignKey(Wavelet, related_name="blips")
 	parent = models.ForeignKey("self", related_name="children", null=True)
 	creator = models.ForeignKey(Participant, related_name="created_blips")
 	version = models.IntegerField(default=0)
@@ -126,13 +126,12 @@ class Annotation(models.Model):
 class Element(models.Model):
 	"""
 	Element-objects are all the non-text things in a Document.
-	Implementation Note: This is an abstract model. No table is generated for it.
 	
 	"""
 	TYPES = (
 		(0, "NOTHING"),
 		
-		(1, "INLINE_BLIP")
+		(1, "INLINE_BLIP"),
 		
 		(2, "GADGET"),
 		
@@ -151,9 +150,6 @@ class Element(models.Model):
 	position = models.IntegerField()
 	type = models.IntegerField(choices=TYPES)
 	properties = models.TextField() # JSON is used here
-	
-	class Meta:
-		abstract = True
 
 # Now some fancy subclasses
 
