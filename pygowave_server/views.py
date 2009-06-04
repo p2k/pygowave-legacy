@@ -15,3 +15,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
+from django.shortcuts import render_to_response
+from django.template import RequestContext
+
+def index(request):
+	# Currently direct-to-template - subject to change
+	return render_to_response('pygowave_server/index.html', context_instance=RequestContext(request))

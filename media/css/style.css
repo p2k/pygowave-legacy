@@ -1,0 +1,47 @@
+
+html
+{
+	height: 100%;
+}
+
+body
+{
+	font-family: Arial, sans-serif;
+	font-size: 62.5%;
+}
+
+p, h1
+{
+	margin: 0;
+}
+
+h1
+{
+	font-size: 1.3em;
+	border-bottom: 0 none;
+	margin-left: 0;
+	padding: 0;
+}
+
+p
+{
+	padding: 0 0 1em;
+}
+
+.container_narrow
+{
+	font-size: 1.3em;
+	margin: 0 auto;
+	width: 770px;
+}
+
+.container_wide
+{
+	font-size: 1.3em;
+	margin: 0 auto; 
+}
+
+#container p
+{
+	line-height: 150%;
+}

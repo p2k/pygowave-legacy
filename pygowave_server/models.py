@@ -22,6 +22,14 @@ __author__ = "patrick.p2k.schneider@gmail.com"
 
 ROOT_WAVELET_ID_SUFFIX = '!conv+root'
 
+# Note: The term 'client' specifies all entities, that directly communicate
+#       with this server by the means of a proprietary protocol.
+#       Wave Foundation clients and servers will be treated sightly different,
+#       but that is not implemented yet.
+#
+# BIG NOTE: All models represent local Waves at the moment - they will later
+#           be extended to have a domain field which specifies external Waves.
+
 class Participant(models.Model):
 	"""
 	Represents participant information. It contains id, display name, avatar's
@@ -81,8 +89,9 @@ class Document(models.Model):
 	In fact, the Document could be merged into the Blip, but they say there
 	are Documents without Blips...
 	
-	Note: The text defines the content of the wave as well as "hook-in" points
-	for the elements. Elements are placed within the text by there position.
+	Note: The text defines the content of the wave as well as "mount points"
+	for the elements. Elements have a virtual length of one character in the
+	text. They are represented by a null char '\0'.
 	
 	"""
 	
@@ -125,10 +134,11 @@ class Annotation(models.Model):
 
 class Element(models.Model):
 	"""
-	Element-objects are all the non-text things in a Document.
+	Element-objects are all the non-text elements in a Document.
+	An element has a virtual length of one character in the text.
 	
 	"""
-	TYPES = (
+	ELEMENT_TYPES = (
 		(0, "NOTHING"),
 		
 		(1, "INLINE_BLIP"),
@@ -148,7 +158,7 @@ class Element(models.Model):
 	
 	document = models.ForeignKey(Document, related_name="elements")
 	position = models.IntegerField()
-	type = models.IntegerField(choices=TYPES)
+	type = models.IntegerField(choices=ELEMENT_TYPES)
 	properties = models.TextField() # JSON is used here
 
 # Now some fancy subclasses
@@ -156,6 +166,7 @@ class Element(models.Model):
 class InlineBlip(Element):
 	"""
 	An inline blip element.
+	
 	"""
 	
 	blip = models.ForeignKey(Blip)
@@ -163,6 +174,7 @@ class InlineBlip(Element):
 class Gadget(Element):
 	"""
 	A gadget element.
+	
 	"""
 	
 	url = models.URLField(verify_exists=False, max_length=1024)
@@ -171,6 +183,7 @@ class Gadget(Element):
 class FormElement(Element):
 	"""
 	A form element.
+	
 	"""
 	
 	label = models.CharField(max_length=255)
@@ -181,6 +194,7 @@ class FormElement(Element):
 class Image(Element):
 	"""
 	An image element.
+	
 	"""
 	
 	attachment_id = models.CharField(max_length=255)
@@ -188,4 +202,23 @@ class Image(Element):
 	url = models.URLField(verify_exists=False)
 	height = models.IntegerField()
 	width = models.IntegerField()
+
+class Delta(models.Model):
+	"""
+	A Delta object is a collection of (reversible) operations that can be
+	applied to a Wavlet. This includes operations on Blips, i.e. its text or
+	elements.
 	
+	General approach: Operations sent from a client generate a Delta -> the
+	Delta is applied internally to the Wave object model -> the Delta is then
+	convdeted into Events -> the Events are sent to the other clients.
+	
+	Note: There is currently no information available how the playback feature
+	is handled within the client.
+	
+	"""
+	
+	timestamp = models.DateTimeField(auto_now_add=True)
+	wave = models.ForeignKey(Wave, related_name="diffs")
+	
+	operations = models.TextField() # JSON again
