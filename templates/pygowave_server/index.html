@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Welcome" %}{% endblock %}
+{% block container_class %}container_narrow{% endblock %}
+{% block content %}
+<div class="loginbox">
+	<form method="post" action="">
+		{% if auth_fail %}<div class="auth_fail">{% trans "Authentification failed!" %}</div>{% endif %}
+		<table>
+		{{ login_form.as_table }}
+		<tr>
+			<th><a href="{% url registration.views.register %}" class="reg_link">{% trans "Register?" %}</a></th>
+			<td class="submit_td"><input type="submit" value="{% trans "Login" %}" /></td>
+		</tr>
+		</table>
+	</form>
+</div>
+<h1>{% trans "Welcome to PyGoWave Server!" %}</h1>
+{% blocktrans %}
+<p>You are looking at the start page of a very ambitious project. This is still
+early alpha, use at your own risk.</p>
+<p>I know, the style is a quick-and-dirty-rip-off from Google, but it serves
+the purpose right now. Google, Google Wave, and the images used here are
+copyrighted by Google Inc.</p>
+{% endblocktrans %}
+<p>
+{% blocktrans %}
+Disclaimer: This is highly experimental. By using this software you are
+completely on your own. No warranty for anything. Also note, that you are being
+tracked by Google Analytics. I am just too curious :)
+{% endblocktrans %}
+</p>
+{% endblock %}

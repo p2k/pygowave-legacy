@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load analytics %}
+
+{% block title %}{% trans "Register" %}{% endblock %}
+{% block container_class %}container_narrow{% endblock %}
+{% block content %}
+	<h1>{% trans "Register" %}</h1>
+{% if form.is_valid %}
+	<p>
+	{% blocktrans %}
+	Thank you. Now go and check your mailbox and activate your account within {{ expiration_days }} days.
+{% endblocktrans %}
+	</p>
+	{% track_event "registration" "account requested" %}
+{% else %}
+	<p>
+{% blocktrans %}
+	You wanna play around with it? Allright, then fill out this signup form.<br/>
+	You'll be sent an account activation E-Mail.
+{% endblocktrans %}
+	</p>
+	<form method="post" action="">
+		<table class="registrationform">
+		{{ form.as_table }}
+		<tr><th/><td class="submit_td"><input type="submit" value="{% trans "Register" %}" /></td></tr>
+		</table>
+	</form>
+{% endif %}
+{% endblock %}

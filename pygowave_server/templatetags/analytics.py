@@ -16,13 +16,14 @@
 # limitations under the License.
 #
 
-from django.conf.urls.defaults import *
+from django.template import Library
 
-from django.contrib import admin
-admin.autodiscover()
+register = Library()
 
-urlpatterns = patterns('',
-	(r'^admin/(.*)', admin.site.root),
-	(r'^accounts/', include('registration.urls')),
-	(r'', include('pygowave_server.urls')),
-)
+@register.simple_tag
+def track_event(category=None, action=None, opt_label=None, opt_value=None):
+	l = []
+	for arg in (category, action, opt_label, opt_value):
+		if arg != None:
+			l.append('"%s"' % (arg))
+	return "<script type=\"text/javascript\">pageTracker._trackEvent(%s);</script>" % (", ".join(l))

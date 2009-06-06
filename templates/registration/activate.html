@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load analytics %}
+
+{% block title %}{% trans "Account activation" %}{% endblock %}
+{% block container_class %}container_narrow{% endblock %}
+{% block content %}
+	<h1>{% trans "Account activation" %}</h1>
+	<p>
+	{% if account %}
+		{% trans "Congratulations! Your account was activated. Have fun." %}
+		{% track_event "registration" "account activated" %}
+	{% else %}
+		{% trans "Sorry, your account could not be activated. I don't care why this happened." %}
+	{% endif %}
+	</p>
+{% endblock %}

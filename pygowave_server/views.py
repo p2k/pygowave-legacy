@@ -19,6 +19,18 @@
 from django.shortcuts import render_to_response
 from django.template import RequestContext
 
+from django.contrib.auth.forms import AuthenticationForm
+
 def index(request):
-	# Currently direct-to-template - subject to change
-	return render_to_response('pygowave_server/index.html', context_instance=RequestContext(request))
+	auth_fail = False
+	
+	if request.method == "POST":
+		login_form = AuthenticationForm(request.POST)
+		if login_form.is_valid():
+			pass
+		else:
+			auth_fail = True
+	else:
+		login_form = AuthenticationForm()
+		
+	return render_to_response('pygowave_server/index.html', {"login_form": login_form, "auth_fail": auth_fail}, context_instance=RequestContext(request))

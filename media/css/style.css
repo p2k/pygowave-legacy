@@ -15,6 +15,11 @@ p, h1
 	margin: 0;
 }
 
+th
+{
+	text-align: left;
+}
+
 h1
 {
 	font-size: 1.3em;
@@ -41,7 +46,63 @@ p
 	margin: 0 auto; 
 }
 
+#content_div
+{
+	clear: both;
+}
+
+#lang_div
+{
+	text-align: right;
+	padding-top: 10px;
+}
+
 #container p
 {
 	line-height: 150%;
+}
+
+.gwlogo
+{
+	float: left;
+}
+
+.loginbox
+{
+	background-color: #cadef4;
+	border: 1px solid #93b4d9;
+	float: right;
+	width: 200px;
+	padding: 4px;
+	margin-left: 10px;
+	margin-bottom: 10px;
+}
+
+.loginbox form
+{
+	margin: 0;
+}
+
+.loginbox #id_password, .loginbox #id_username
+{
+	width: 88px;
+}
+
+.submit_td
+{
+	padding-top: 4px;
+	text-align: right;
+}
+
+.reg_link
+{
+	font-weight: normal;
+}
+
+.auth_fail
+{
+	color: red;
+	width: 100%;
+	text-align: center;
+	margin-bottom: 4px;
 }

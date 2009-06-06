@@ -81,27 +81,15 @@ class DataDocument(models.Model):
 	wavelet = models.ForeignKey(Wavelet, related_name="documents")
 	data = models.TextField()
 
-class Document(models.Model):
-	"""
-	A Document is the contents of a Blip. There's only the content field here,
-	as all the other things are defined in other models with a ForeignKey-field
-	pointing back to the Document.
-	In fact, the Document could be merged into the Blip, but they say there
-	are Documents without Blips...
-	
-	Note: The text defines the content of the wave as well as "mount points"
-	for the elements. Elements have a virtual length of one character in the
-	text. They are represented by a null char '\0'.
-	
-	"""
-	
-	content = models.TextField() # All the text of the wave
-	
 class Blip(models.Model):
 	"""
 	A Blip is a unit of conversation in a Wave. It is a node in a tree of
 	other nodes and may have a parent and children. It contains metadata to
 	keep track of contributors and versioning.
+	The Blip contains raw text and special non-text elements which have a
+	position within the text. Elements have no representation within the text
+	in this implementation. Note that arbitrary HTML tags are placed as normal
+	text within the Blip.
 	
 	"""
 	
@@ -115,18 +103,28 @@ class Blip(models.Model):
 	
 	contributors = models.ManyToManyField(Participant, related_name="contributed_blips")
 	
-	document = models.OneToOneField(Document)
+	text = models.TextField()
 
 class Annotation(models.Model):
 	"""
-	An annotation is metadata that augments a range of text in a Document.
+	An annotation is metadata that augments a range of text in a Blip's text.
 	Example uses of annotations include styling text, supplying spelling
-	corrections, and links to refer that area of text to another document or
+	corrections, and links to refer that area of text to another Blip or
 	web site. The size of an annotation range must be positive and non-zero.
+	
+	Note: The above is a restriction to the current Wavelet model. No annotation
+	can span multiple Blips or be outside of them although the Federation
+	Protocol allows this. The server will dissallow this even when the
+	Federation Protocol gets implemented. It will simply send out Wave
+	operations to split spanning annotations or delete the out-of-blip
+	annotations.
+	However, you can still do whatever you want in those DataDocuments in the
+	Wavelets. Note that they are not very efficiantly stored and maintained at
+	the moment.
 	
 	"""
 	
-	document = models.ForeignKey(Document, related_name="annotations")
+	blip = models.ForeignKey(Blip, related_name="annotations")
 	name = models.CharField(max_length=255)
 	start = models.IntegerField()
 	end = models.IntegerField()
@@ -134,8 +132,10 @@ class Annotation(models.Model):
 
 class Element(models.Model):
 	"""
-	Element-objects are all the non-text elements in a Document.
-	An element has a virtual length of one character in the text.
+	Element-objects are all the non-text elements in a Blip.
+	An element has no physical presence in the text of a Blip.
+	Only special Wave Client elements are treated here. Arbitrary HTML
+	is placed directly in the text stream.
 	
 	"""
 	ELEMENT_TYPES = (
@@ -156,7 +156,7 @@ class Element(models.Model):
 		(10, "IMAGE"),
 	)
 	
-	document = models.ForeignKey(Document, related_name="elements")
+	blip = models.ForeignKey(Blip, related_name="elements")
 	position = models.IntegerField()
 	type = models.IntegerField(choices=ELEMENT_TYPES)
 	properties = models.TextField() # JSON is used here
@@ -209,16 +209,16 @@ class Delta(models.Model):
 	applied to a Wavlet. This includes operations on Blips, i.e. its text or
 	elements.
 	
-	General approach: Operations sent from a client generate a Delta -> the
+	The operations placed in the Delta objects are those which result from
+	OT funcitions used in the server.
+	
+	General workflow: Operations sent from a client generate a Delta -> the
 	Delta is applied internally to the Wave object model -> the Delta is then
 	convdeted into Events -> the Events are sent to the other clients.
-	
-	Note: There is currently no information available how the playback feature
-	is handled within the client.
 	
 	"""
 	
 	timestamp = models.DateTimeField(auto_now_add=True)
-	wave = models.ForeignKey(Wave, related_name="diffs")
+	wavelet = models.ForeignKey(Wavelet, related_name="diffs")
 	
 	operations = models.TextField() # JSON again

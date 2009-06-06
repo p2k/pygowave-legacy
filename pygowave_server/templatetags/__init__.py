@@ -15,14 +15,3 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
-from django.conf.urls.defaults import *
-
-from django.contrib import admin
-admin.autodiscover()
-
-urlpatterns = patterns('',
-	(r'^admin/(.*)', admin.site.root),
-	(r'^accounts/', include('registration.urls')),
-	(r'', include('pygowave_server.urls')),
-)
