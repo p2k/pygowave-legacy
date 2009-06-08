@@ -37,14 +37,11 @@ DATABASE_PORT = ''             # Set to empty string for default. Not used with 
 import os.path
 if os.path.exists("/srv/http/pygowave_project/.local"):
     WAVE_DOMAIN = 'localhost'
+    LOGIN_URL = '/pygowave/accounts/login/'
     IS_LOCAL = True
 else:
     WAVE_DOMAIN = 'pygowave.p2k-network.org'
     IS_LOCAL = False
-
-# User login url
-if IS_LOCAL:
-    LOGIN_URL = '/pygowave/accounts/login/'
 
 # Local time zone for this installation. Choices can be found here:
 # http://en.wikipedia.org/wiki/List_of_tz_zones_by_name
@@ -70,7 +67,10 @@ MEDIA_ROOT = '/srv/http/pygowave_project/media/'
 # URL that handles the media served from MEDIA_ROOT. Make sure to use a
 # trailing slash if there is a path component (optional in other cases).
 # Examples: "http://media.lawrence.com", "http://example.com/media/"
-MEDIA_URL = 'http://' + WAVE_DOMAIN + '/pygowave/media/'
+if IS_LOCAL:
+	MEDIA_URL = '/pygowave/media/'
+else:
+	MEDIA_URL = 'http://' + WAVE_DOMAIN + '/media/'
 
 # URL prefix for admin media -- CSS, JavaScript and images. Make sure to use a
 # trailing slash.
