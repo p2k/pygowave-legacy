@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load pgw_nav %}
+
+{% block title %}{% trans "My Gadgets" %}{% endblock %}
+{% block nav %}{% pgw_navbar "gadgets" "all_gadgets" %}{% endblock %}
+
+{% block content %}
+<div class="section">
+	{% if gadgets %}
+		{% trans "Hover over a Gadget's title to see its description." %}
+		<table>
+			<tr><th>{% trans "Title" %}</th><th>{% trans "Uploaded by" %}</th><th>{% trans "Download" %}</th></tr>
+		{% for gadget in gadgets %}
+			<tr>
+				<td class="gadget_title" title="{{ gadget.description|escape }}">{{ gadget.title|escape }}</td>
+				<td>{{ gadget.by_user }}</td>
+				<td>
+					<a href="{{ gadget.url }}"><img src="{{ MEDIA_URL }}images/download.png" width="16" height="16" title="{% trans "Download" %}" alt="{% trans "Download" %}" /></a>
+				</td>
+			</tr>
+		{% endfor %}
+		</table>
+		<script type="text/javascript">
+			$(".gadget_title").tooltip({track: true, delay: 0, fade: 250, showBody: " - ", showURL: false});
+		</script>
+	{% else %}
+	{% trans "No one has submitted any Gadget. Sigh." %}
+	{% endif %}
+</div>
+{% endblock %}

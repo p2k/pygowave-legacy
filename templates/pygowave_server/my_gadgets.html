@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load pgw_nav %}
+
+{% block title %}{% trans "My Gadgets" %}{% endblock %}
+{% block nav %}{% pgw_navbar "gadgets" "my_gadgets" %}{% endblock %}
+
+{% block content %}
+<h4>{% trans "Manage my Gadgets" %}</h4>
+<div class="section">
+	{% if gadget_registered %}<span class="success_message">{% trans "Your Gadged was successfully registered." %}</span>{% endif %}
+	{% if my_gadgets %}
+		{% trans "Hover over a Gadget's title to see its description." %}
+		<table>
+		{% for gadget in my_gadgets %}
+			<tr>
+				<th class="gadget_title" title="{{ gadget.description|escape }}">{{ gadget.title|escape }}</th>
+				<td>
+					<a href="{{ gadget.url }}"><img src="{{ MEDIA_URL }}images/download.png" width="16" height="16" title="{% trans "Download" %}" alt="{% trans "Download" %}" /></a>&nbsp;
+					<a href="javascript:confirmDelete({{ gadget.id }},'{{ gadget.title|escape }}');"><img src="{{ MEDIA_URL }}images/edit-delete.png" width="16" height="16" title="{% trans "Delete" %}" alt="{% trans "Delete" %}" /></a>
+				</td>
+			</tr>
+		{% endfor %}
+		</table>
+		<script type="text/javascript">
+			$(".gadget_title").tooltip({track: true, delay: 0, fade: 250, showBody: " - ", showURL: false});
+			
+			function confirmDelete(id, title) {
+				if (confirm("{% trans 'Do you really want to delete \"%s\"?' %}".replace("%s", title)))
+					window.location = "?delete=" + id;
+			}
+		</script>
+	{% else %}
+	{% trans "You didn't submit any Gadgets. Use the form below to add one." %}
+	{% endif %}
+</div>
+<h4>{% trans "Add or upload new Gadget" %}</h4>
+<div class="section">
+	<form method="post" action="" enctype="multipart/form-data" class="gadget_form">
+		<table>
+			<tr><td colspan="2">
+				{{ form.external }}
+				<script type="text/javascript">
+					$(function () {
+						// My first steps with jQuery UI - and I like it :D
+						$("#ext_selector").tabs({
+							select: function (event, ui) {
+								$("#id_external").val(ui.index);
+							}
+						});
+						// Keep the selected tab
+						{% if form.upload.errors %}$("#ext_selector").tabs('select', 0);
+						{% else %}{% if form.url.errors %}$("#ext_selector").tabs('select', 1);
+						{% else %}$("#ext_selector").tabs('select', parseInt($("#id_external").val()));{% endif %}{% endif %}
+					});
+				</script>
+				<div id="ext_selector">
+					<ul>
+						<li><a href="#ext_selector-1">{% trans "Upload" %}</a></li>
+						<li><a href="#ext_selector-2">{% trans "External URL" %}</a></li>
+					</ul>
+					<div id="ext_selector-1">
+						{{ form.non_field_errors }}{{ form.upload.errors }}
+						{{ form.upload }}
+					</div>
+					<div id="ext_selector-2">
+						{{ form.non_field_errors }}{{ form.url.errors }}
+						{{ form.url }}
+					</div>
+				</div>
+			</td></tr>
+			<tr><th><label for="id_title">{{ form.title.label }}:</label></th><td><input id="id_title" type="text" value="{% trans "(filled in by Gadget header)" %}" disabled="disabled" /></td></tr>
+			<tr><th><label for="id_description">{{ form.description.label }}:</label></th><td>{{ form.description }}</td></tr>
+			<tr><td class="submit_td" colspan="2"><input type="submit" value="{% trans "Submit" %}" /></td></tr>
+		</table>
+	</form>
+</div>
+{% endblock %}

@@ -16,7 +16,12 @@
 # limitations under the License.
 #
 
+from django.utils.translation import ugettext_lazy as _
+
 from pygowave_server.models import Wave, Wavelet, Blip
+
+from lxml import etree
+import urllib2
 
 class Operation:
 	"""
@@ -24,6 +29,10 @@ class Operation:
 	
 	This operation class contains data that is filled in depending on the
 	operation type.
+	
+	Note: The operations listed here are on a higher level than specified by
+	the Federation Protocol. The low-level XML operations they represent are
+	hidden.
 	
 	"""
 	
@@ -110,11 +119,10 @@ class Operation:
 		self.index = index
 		self.property = prop
 
-
 class Event:
 	"""
 	An event captures changes made to a Wavelet, Blip, or Document in the Wave
-	system. In this form, it can be sent to a client.
+	system. In this form, it can be sent to a (robot) client.
 	
 	"""
 
@@ -139,3 +147,34 @@ class Event:
 		self.modified_by = modified_by
 		self.properties = properties
 
+class GadgetLoader:
+	
+	def __init__(self, url):
+		"""
+		Parses a Gadget's XML data after downloading it.
+		Throws urllib2.HTTPError if download failed.
+		Throws lxml.etree.XMLSyntaxError if not well-formatted.
+		Throws ValueError if it is not a valid (Wave-) Gadget.
+		
+		"""
+		
+		opener = urllib2.build_opener(urllib2.HTTPRedirectHandler())
+		
+		reader = opener.open(url)
+		root = etree.XML(reader.read())
+		reader.close()
+		
+		if root.tag != "Module":
+			raise ValueError(_(u'Invalid Gadget XML format (Module tag missing)'))
+		
+		title = root.xpath("//ModulePrefs/attribute::title")
+		if len(title) != 1:
+			raise ValueError(_(u'Invalid Gadget XML format (ModulePrefs/title missing)'))
+		
+		self.title = title[0]
+		
+		content = root.xpath("//Content/text()")
+		if len(content) != 1:
+			raise ValueError(_(u'Invalid Gadget XML format (Content tag missing)'))
+		
+		self.content = content[0]

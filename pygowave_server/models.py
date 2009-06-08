@@ -16,7 +16,12 @@
 # limitations under the License.
 #
 
+from datetime import datetime, timedelta
+
 from django.db import models
+from django.contrib.auth.models import User
+from django.utils.translation import ugettext_lazy as _
+from django.conf import settings
 
 __author__ = "patrick.p2k.schneider@gmail.com"
 
@@ -30,15 +35,33 @@ ROOT_WAVELET_ID_SUFFIX = '!conv+root'
 # BIG NOTE: All models represent local Waves at the moment - they will later
 #           be extended to have a domain field which specifies external Waves.
 
+class ParticipantManager(models.Manager):
+	"""
+	This class provides a method to determine the number of online users.
+	
+	"""
+	
+	def online_count(self):
+		timeout = datetime.now() - timedelta(minutes=settings.ONLINE_TIMEOUT_MINUTES)
+		return self.filter(last_contact__gte=timeout).count()
+
 class Participant(models.Model):
 	"""
 	Represents participant information. It contains id, display name, avatar's
 	URL, and an external URL to view the participant's profile page. The
-	instances may be coming from external Wave servers.
+	instances may be coming from external Wave servers (not yet).
+	
+	Note: This model also serves as user profile on this server.
 	
 	"""
 	
+	objects = ParticipantManager()
+	
 	id = models.CharField(max_length=255, primary_key=True)
+	user = models.ForeignKey(User, unique=True)
+	is_bot = models.BooleanField()
+	last_contact = models.DateTimeField()
+	
 	name = models.CharField(max_length=255, blank=True)
 	avatar = models.URLField(verify_exists=False, blank=True)
 	profile = models.URLField(verify_exists=False, blank=True)
@@ -171,7 +194,7 @@ class InlineBlip(Element):
 	
 	blip = models.ForeignKey(Blip)
 
-class Gadget(Element):
+class GadgetElement(Element):
 	"""
 	A gadget element.
 	
@@ -222,3 +245,23 @@ class Delta(models.Model):
 	wavelet = models.ForeignKey(Wavelet, related_name="diffs")
 	
 	operations = models.TextField() # JSON again
+
+class Gadget(models.Model):
+	"""
+	A gadget that has been uploaded or is referenced on this server.
+	Users can register their gadgets on this server to conveniently add them
+	to a Wave.
+	
+	Note: A uploaded gadget is never deleted as it may be used by other waves.
+	
+	"""
+	
+	by_user = models.ForeignKey(User, related_name="my_gadgets")
+	title = models.CharField(max_length=255, unique=True, verbose_name=_(u'Title'))
+	description = models.CharField(max_length=255, blank=True, verbose_name=_(u'Description'))
+	url = models.URLField(verbose_name=_(u'URL'), blank=True)
+	hosted_filename = models.CharField(max_length=255, blank=True)
+	
+	def is_hosted(self):
+		return len(self.hosted_filename) > 0
+	

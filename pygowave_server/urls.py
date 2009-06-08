@@ -18,8 +18,14 @@
 
 from django.conf.urls.defaults import *
 
-from pygowave_server.views import index
+from pygowave_server.views import index, home, settings, wave_list, my_gadgets
+from pygowave_server.views import all_gadgets
 
 urlpatterns = patterns('',
-    (r'^$', index),
+	(r'^$', index),
+	(r'^home/$', home),
+	(r'^settings/$', settings),
+	(r'^waves/$', wave_list),
+	(r'^gadgets/$', all_gadgets),
+	(r'^gadgets/mine/$', my_gadgets),
 )

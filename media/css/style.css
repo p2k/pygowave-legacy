@@ -28,6 +28,20 @@ h1
 	padding: 0;
 }
 
+h4
+{
+	background-color: #cadef4;
+	border-top: 1px solid #93b4d9;
+	margin: 4px 4px 0;
+	padding: 2px;
+	font-size: small;
+}
+
+a img
+{
+	border: 0;
+}
+
 p
 {
 	padding: 0 0 1em;
@@ -49,6 +63,7 @@ p
 #content_div
 {
 	clear: both;
+	padding: 4px;
 }
 
 #lang_div
@@ -65,6 +80,7 @@ p
 .gwlogo
 {
 	float: left;
+	margin-left: 4px;
 }
 
 .loginbox
@@ -72,7 +88,7 @@ p
 	background-color: #cadef4;
 	border: 1px solid #93b4d9;
 	float: right;
-	width: 200px;
+	width: 210px;
 	padding: 4px;
 	margin-left: 10px;
 	margin-bottom: 10px;
@@ -85,7 +101,20 @@ p
 
 .loginbox #id_password, .loginbox #id_username
 {
-	width: 88px;
+	width: 98px;
+}
+
+.errorlist
+{
+	margin: 0;
+	padding: 0;
+	list-style-type: none;
+}
+
+.errorlist li
+{
+	display: inline;
+	color: #CC0000;
 }
 
 .submit_td
@@ -105,4 +134,123 @@ p
 	width: 100%;
 	text-align: center;
 	margin-bottom: 4px;
+}
+
+#topmenu
+{
+	border-collapse: collapse;
+	width: 100%;
+	height: 20px;
+	margin-top: 5px;
+	margin-bottom: 0;
+	padding: 0;
+}
+
+#topmenu a
+{
+	text-decoration: none;
+	color: black;
+}
+
+#topmenu th
+{
+	cursor: pointer;
+	font-weight: bold;
+	text-align: center;
+	padding: 0;
+}
+
+#topmenu .tab
+{
+	margin: 0;
+	padding-top: 4px;
+	padding-left: 12px;
+	padding-bottom: 4px;
+	padding-right: 12px;
+}
+
+#topmenu .active
+{
+	background-color: #C3D9FF;
+}
+
+#topmenu .inactive
+{
+	background-color: #E5ECF9;
+}
+
+#submenu
+{
+	margin: 0;
+	padding-top: 4px;
+	padding-bottom: 4px;
+	padding-left: 8px;
+	padding-right: 8px;
+	height: 16px;
+	background-color: #C3D9FF;
+	text-align: right;
+	font-weight: bold;
+}
+
+.submenu_div
+{
+	float: left;
+}
+
+#id_profile
+{
+	width: 280px;
+}
+
+.section
+{
+	margin: 0 4px 1.6em;
+	padding: 4px;
+}
+
+.gadget_form #id_title
+{
+	width: 200px;
+}
+
+.gadget_form #id_upload
+{
+	width: 390px;
+}
+
+.gadget_form #id_url
+{
+	width: 390px;
+}
+
+.gadget_form .errorlist
+{
+	padding-bottom: 4px;
+	font-weight: bold;
+}
+
+.success_message
+{
+	color: #33CC00;
+	font-weight: bold;
+}
+
+#tooltip
+{
+	background-color: #EEEEEE;
+	border: 1px solid #111111;
+	opacity: 0.85;
+	padding: 5px;
+	position: absolute;
+	z-index: 3000;
+}
+
+#tooltip .body
+{
+	font-size: 1.2em;
+}
+
+.gadget_title
+{
+	cursor: help;
 }

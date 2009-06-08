@@ -1,0 +1,14 @@
+{% load i18n %}
+<table id="topmenu">
+	<tbody>
+		<tr>{% for nav in navigation %}
+			{% if not forloop.first %}<td>&nbsp;</td>
+			{% endif %}<th onclick="document.location='{{ nav.url }}';"><div class="tab {% ifnotequal nav.id active_nav %}in{% endifnotequal %}active"><a href="{{ nav.url }}">{{ nav.name }}</a></div></th>{% endfor %}
+			<td style="width: 100%"/>
+		</tr>
+	</tbody>
+</table>
+<div id="submenu">
+	<div class="submenu_div">{% for sub in sub_navigation %}{% if not forloop.first %} | {% endif %}{% ifequal sub.id active_sub_nav %}{{ sub.name }}{% else %}<a href="{{ sub.url }}">{{ sub.name }}</a>{% endifequal %}{% endfor %}</div>
+	<a href="{% url pygowave_server.views.index %}?logout">&raquo; {% trans "Logout" %}</a>
+</div>

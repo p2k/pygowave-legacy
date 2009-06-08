@@ -16,18 +16,18 @@
 # limitations under the License.
 #
 
-from django.template import Library
 from django.conf import settings
 
-register = Library()
-
-@register.simple_tag
-def track_event(category=None, action=None, opt_label=None, opt_value=None):
-	if settings.IS_LOCAL:
-		return ""
+def server(request):
+	"""
+	Puts IS_LOCAL setting into context.
 	
-	l = []
-	for arg in (category, action, opt_label, opt_value):
-		if arg != None:
-			l.append('"%s"' % (arg))
-	return "<script type=\"text/javascript\">pageTracker._trackEvent(%s);</script>" % (", ".join(l))
+	"""
+	return {'IS_LOCAL': settings.IS_LOCAL}
+
+def storage_urls(request):
+	"""
+	Puts AVATAR_URL and GADGET_URL into context.
+	
+	"""
+	return {'AVATAR_URL': settings.AVATAR_URL, 'GADGET_URL': settings.GADGET_URL}

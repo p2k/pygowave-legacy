@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load pgw_nav %}
+
+{% block title %}{% trans "Welcome" %}{% endblock %}
+{% block nav %}{% pgw_navbar "home" "welcome" %}{% endblock %}
+
+{% block content %}
+<div class="content_div">
+<h1>
+{% blocktrans %}
+Welcome {{ username }}, enjoy your stay!
+{% endblocktrans %}
+</h1>
+<p>
+{% blocktrans count online_count as online_count %}
+Currently, there is <b>{{ online_count }}</b> user online out of
+{{ users_count }} registred users.
+{% plural %}
+Currently, there are <b>{{ online_count }}</b> user(s) online out of
+{{ users_count }} registred users.
+{% endblocktrans %}
+</p>
+</div>
+{% endblock %}

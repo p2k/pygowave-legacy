@@ -33,6 +33,19 @@ DATABASE_PASSWORD = 'pygowave' # Not used with sqlite3.
 DATABASE_HOST = 'localhost'    # Set to empty string for localhost. Not used with sqlite3.
 DATABASE_PORT = ''             # Set to empty string for default. Not used with sqlite3.
 
+# The domain used in wave URLs (I'm using a local testing environment too)
+import os.path
+if os.path.exists("/srv/http/pygowave_project/.local"):
+    WAVE_DOMAIN = 'localhost'
+    IS_LOCAL = True
+else:
+    WAVE_DOMAIN = 'pygowave.p2k-network.org'
+    IS_LOCAL = False
+
+# User login url
+if IS_LOCAL:
+    LOGIN_URL = '/pygowave/accounts/login/'
+
 # Local time zone for this installation. Choices can be found here:
 # http://en.wikipedia.org/wiki/List_of_tz_zones_by_name
 # although not all choices may be available on all operating systems.
@@ -57,7 +70,7 @@ MEDIA_ROOT = '/srv/http/pygowave_project/media/'
 # URL that handles the media served from MEDIA_ROOT. Make sure to use a
 # trailing slash if there is a path component (optional in other cases).
 # Examples: "http://media.lawrence.com", "http://example.com/media/"
-MEDIA_URL = 'http://localhost/pygowave/media/'
+MEDIA_URL = 'http://' + WAVE_DOMAIN + '/pygowave/media/'
 
 # URL prefix for admin media -- CSS, JavaScript and images. Make sure to use a
 # trailing slash.
@@ -75,10 +88,11 @@ TEMPLATE_LOADERS = (
 )
 
 MIDDLEWARE_CLASSES = (
-    'django.middleware.common.CommonMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.locale.LocaleMiddleware',
+    'django.middleware.common.CommonMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'pygowave_server.middleware.UserOnlineMiddleware',
 )
 
 TEMPLATE_CONTEXT_PROCESSORS = (
@@ -86,7 +100,9 @@ TEMPLATE_CONTEXT_PROCESSORS = (
 	"django.core.context_processors.debug",
 	"django.core.context_processors.i18n",
 	"django.core.context_processors.media",
-	"django.core.context_processors.request",
+	#"django.core.context_processors.request",
+	"pygowave_server.context_processors.server",
+	"pygowave_server.context_processors.storage_urls",
 )
 
 ROOT_URLCONF = 'urls'
@@ -104,4 +120,15 @@ INSTALLED_APPS = (
     'pygowave_server'
 )
 
+AUTH_PROFILE_MODULE = 'pygowave_server.participant'
+
 ACCOUNT_ACTIVATION_DAYS = 7
+
+AVATAR_ROOT = MEDIA_ROOT + 'avatars/'
+AVATAR_URL = MEDIA_URL + 'avatars/'
+
+GADGET_ROOT = MEDIA_ROOT + 'gadgets/'
+GADGET_URL = MEDIA_URL + 'gadgets/'
+
+ONLINE_TIMEOUT_MINUTES = 10
+

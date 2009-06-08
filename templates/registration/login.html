@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Authentication required" %}{% endblock %}
+{% block container_class %}container_narrow{% endblock %}
+{% block content %}
+<div class="loginbox">
+	<form method="post" action="">
+		{% if auth_fail %}<div class="auth_fail">{% trans "Authentication failed!" %}</div>{% endif %}
+		<table>
+		{{ form.as_table }}
+		<tr>
+			<th><a href="{% url registration.views.register %}" class="reg_link">{% trans "Register?" %}</a></th>
+			<td class="submit_td"><input type="submit" value="{% trans "Login" %}" /></td>
+		</tr>
+		</table>
+	</form>
+</div>
+<h1>{% trans "Authentication required" %}</h1>
+<p>
+{% blocktrans %}
+The page you requested requires you to authenticate.<br/>
+Please use the login form on the right hand side.
+{% endblocktrans %}
+</p>
+{% endblock %}

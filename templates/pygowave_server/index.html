@@ -6,7 +6,7 @@
 {% block content %}
 <div class="loginbox">
 	<form method="post" action="">
-		{% if auth_fail %}<div class="auth_fail">{% trans "Authentification failed!" %}</div>{% endif %}
+		{% if auth_fail %}<div class="auth_fail">{% trans "Authentication failed!" %}</div>{% endif %}
 		<table>
 		{{ login_form.as_table }}
 		<tr>
@@ -19,11 +19,19 @@
 <h1>{% trans "Welcome to PyGoWave Server!" %}</h1>
 {% blocktrans %}
 <p>You are looking at the start page of a very ambitious project. This is still
-early alpha, use at your own risk.</p>
+early alpha and may be inreliable and inaccurate for the time being.</p>
 <p>I know, the style is a quick-and-dirty-rip-off from Google, but it serves
-the purpose right now. Google, Google Wave, and the images used here are
-copyrighted by Google Inc.</p>
+the purpose right now.</p>
 {% endblocktrans %}
+<p>
+{% blocktrans count online_count as online_count %}
+Currently, there is <b>{{ online_count }}</b> user online out of
+{{ users_count }} registred users.
+{% plural %}
+Currently, there are <b>{{ online_count }}</b> user(s) online out of
+{{ users_count }} registred users.
+{% endblocktrans %}
+</p>
 <p>
 {% blocktrans %}
 Disclaimer: This is highly experimental. By using this software you are

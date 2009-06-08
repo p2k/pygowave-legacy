@@ -1,6 +1,6 @@
 {% load i18n %}
 {% get_current_language as LANGUAGE_CODE %}
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+{% block doctype %}<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">{% endblock %}
 
 <html xmlns="http://www.w3.org/1999/xhtml">
 
@@ -8,8 +8,13 @@
 	<title>{% block title %}Untitled{% endblock %} - PyGoWave Server</title>
 	<link rel="icon" href="{{ MEDIA_URL }}images/favicon.ico" type="image/x-icon" />
 	<link rel="stylesheet" href="{{ MEDIA_URL }}css/style.css" type="text/css" />
+	<link rel="stylesheet" href="{{ MEDIA_URL }}css/jquery-ui-1.7.2.custom.css" type="text/css" />
 	<script type="text/javascript" src="{{ MEDIA_URL }}js/jquery-1.3.2.min.js"></script>
+	<script type="text/javascript" src="{{ MEDIA_URL }}js/jquery.corners.min.js"></script>
+	<script type="text/javascript" src="{{ MEDIA_URL }}js/jquery.tooltip.min.js"></script>
+	<script type="text/javascript" src="{{ MEDIA_URL }}js/jquery-ui-1.7.2.custom.min.js"></script>
 	
+{% if not IS_LOCAL %}
 	<!-- Begin Google Analytics Code-->
 	<script type="text/javascript">
 	var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
@@ -22,16 +27,22 @@
 	} catch(err) {}
 	</script>
 	<!-- End Google Analytics Code-->
+{% endif %}
 </head>
 
 <body>
 	<div id="container" class="{% block container_class %}container_wide{% endblock %}">
-		<img class="gwlogo" src="{{ MEDIA_URL }}images/wavelogo_banner.png" width="164" height="40" />
+		<img class="gwlogo" src="{{ MEDIA_URL }}images/pygowave_logo.png" width="164" height="40" alt="Google Wave" />
 		<div id="lang_div">({{ LANGUAGE_CODE }})</div>
+		{% block nav %}{% endblock %}
 		<div id="content_div">
 		{% block content %}{% endblock %}
 		</div>
 	</div>
+	<script type="text/javascript">
+		// Style helpers
+		$(".tab").corners("4px top");
+	</script>
 </body>
 
 </html>
