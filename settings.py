@@ -33,6 +33,8 @@ DATABASE_PASSWORD = 'pygowave' # Not used with sqlite3.
 DATABASE_HOST = 'localhost'    # Set to empty string for localhost. Not used with sqlite3.
 DATABASE_PORT = ''             # Set to empty string for default. Not used with sqlite3.
 
+DEFAULT_FROM_EMAIL = 'noreply@pygowave.p2k-network.org'
+
 # The domain used in wave URLs (I'm using a local testing environment too)
 import os.path
 if os.path.exists("/srv/http/pygowave_project/.local"):
@@ -75,7 +77,7 @@ else:
 # URL prefix for admin media -- CSS, JavaScript and images. Make sure to use a
 # trailing slash.
 # Examples: "http://foo.com/media/", "/media/".
-ADMIN_MEDIA_PREFIX = '/media/'
+ADMIN_MEDIA_PREFIX = '/admin/media/'
 
 # Make this unique, and don't share it with anybody.
 SECRET_KEY = 'n*hye&*_3ry)ds-6xwkp9f$u^$))nwt1j^332(+hj!qt@1mk!y'
@@ -116,6 +118,7 @@ INSTALLED_APPS = (
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.sites',
+	'django.contrib.admin',
     'registration',
     'pygowave_server'
 )

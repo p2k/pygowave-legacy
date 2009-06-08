@@ -8,9 +8,6 @@
 	<h1>{% trans "Register" %}</h1>
 {% if form.is_valid %}
 	<p>
-	{% blocktrans %}
-	Thank you. Now go and check your mailbox and activate your account within {{ expiration_days }} days.
-{% endblocktrans %}
 	</p>
 	{% track_event "registration" "account requested" %}
 {% else %}
