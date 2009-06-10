@@ -1,7 +1,27 @@
 
+#
+# PyGoWave Server - The Python Google Wave Server
+# Copyright 2009 Patrick Schneider <patrick.p2k.schneider@gmail.com>
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
 from django.core.files.uploadedfile import UploadedFile
 from django.conf import settings
 from django.db.models import get_model
+
+import string
+import random
 
 class AlreadyUploadedFile(UploadedFile):
 	"""
@@ -59,3 +79,23 @@ def get_profile_model():
 		raise SiteProfileNotAvailable
 	
 	return profile_mod
+
+RANDOM_ID_BASE = string.letters+string.digits
+def gen_random_id(length):
+	"""
+	Generate a random string with the given length.
+	Characgters are taken from RANDOM_ID_BASE.
+	
+	"""
+	return "".join([random.choice(RANDOM_ID_BASE) for x in xrange(length)])
+
+def find_random_id(manager, length, suffix=""):
+	"""
+	Generates a random id for obj, checks if it exists and retries in
+	case of collision. Returns the found number.
+	
+	"""
+	rnd_id = gen_random_id(length) + suffix
+	while manager.filter(pk=rnd_id).count() > 0:
+		rnd_id = gen_random_id(length) + suffix
+	return rnd_id

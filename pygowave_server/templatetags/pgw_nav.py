@@ -69,6 +69,11 @@ STATIC_NAVBAR = [
 				"name":	_(u'All Waves'),
 				"url":	reverse("pygowave_server.views.wave_list"),
 			},
+			{
+				"id":	"on_the_wave",
+				"name":	_(u'On the Wave'),
+				"url":	None,
+			},
 		]
 	},
 ]

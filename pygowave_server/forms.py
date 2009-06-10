@@ -108,7 +108,7 @@ class ParticipantProfileForm(forms.ModelForm):
 
 class GadgetRegistryForm(forms.ModelForm):
 	description = forms.CharField(max_length=255, required=False, widget=widgets.Textarea(attrs={"cols": 45, "rows": 4}))
-	external = forms.BooleanField(widget=widgets.HiddenInput, initial=0)
+	external = forms.IntegerField(widget=widgets.HiddenInput, initial=0)
 	upload = forms.FileField(required=False)
 	title = forms.CharField(required=False)
 	
@@ -131,7 +131,7 @@ class GadgetRegistryForm(forms.ModelForm):
 		return prefix + value.name
 	
 	def external_url(self):
-		return self.cleaned_data["external"] == "1"
+		return self.cleaned_data["external"] == 1
 
 	def clean(self):
 		if len(self.errors) > 0:
@@ -175,3 +175,7 @@ class GadgetRegistryForm(forms.ModelForm):
 	class Meta:
 		model = Gadget
 		exclude = ('by_user')
+
+class NewWaveForm(forms.Form):
+	title = forms.CharField(max_length=50, label=_(u'Title'))
+	

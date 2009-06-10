@@ -22,6 +22,9 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.utils.translation import ugettext_lazy as _
 from django.conf import settings
+from django.db import transaction
+
+from pygowave_server.utils import find_random_id, gen_random_id
 
 __author__ = "patrick.p2k.schneider@gmail.com"
 
@@ -62,9 +65,28 @@ class Participant(models.Model):
 	is_bot = models.BooleanField()
 	last_contact = models.DateTimeField()
 	
+	rx_key = models.CharField(max_length=42)
+	tx_key = models.CharField(max_length=42)
+	
 	name = models.CharField(max_length=255, blank=True)
 	avatar = models.URLField(verify_exists=False, blank=True)
 	profile = models.URLField(verify_exists=False, blank=True)
+	
+	def setup_random_access_keys(self):
+		self.rx_key = gen_random_id(10)
+		self.tx_key = gen_random_id(10)
+		self.save()
+
+class WaveManager(models.Manager):
+	
+	@transaction.commit_on_success
+	def create_and_init_new_wave(self, creator, title):
+		wave = self.create()
+		
+		wavelet = Wavelet(wave=wave, creator=creator, title=title, is_root=True)
+		wavelet.save()
+		wavelet.participants.add(creator)
+		return wave
 
 class Wave(models.Model):
 	"""
@@ -73,7 +95,19 @@ class Wave(models.Model):
 	
 	"""
 	
+	objects = WaveManager()
+	
 	id = models.CharField(max_length=42, primary_key=True) # Don't panic :P
+	
+	def root_wavelet(self):
+		return self.wavelets.get(is_root=True)
+	
+	def save(self, force_insert=False, force_update=False):
+		if not self.id:
+			self.id = find_random_id(Wave.objects, 10)
+			super(Wave, self).save(True)
+		else:
+			super(Wave, self).save(force_insert, force_update)
 
 class Wavelet(models.Model):
 	"""
@@ -87,12 +121,23 @@ class Wavelet(models.Model):
 	id = models.CharField(max_length=42, primary_key=True)
 	wave = models.ForeignKey(Wave, related_name="wavelets")
 	creator = models.ForeignKey(Participant, related_name="created_wavelets")
-	root_blip = models.OneToOneField("Blip", related_name="rootblip_wavelet")
+	is_root = models.BooleanField()
+	root_blip = models.OneToOneField("Blip", related_name="rootblip_wavelet", null=True)
 	created = models.DateTimeField(auto_now_add=True)
-	last_modified = models.DateTimeField(auto_now_add=True)
+	last_modified = models.DateTimeField(auto_now=True)
 	title = models.CharField(max_length=255, blank=True)
 	version = models.IntegerField(default=0)
-	participants = models.ManyToManyField(Participant)
+	participants = models.ManyToManyField(Participant, related_name="wavelets")
+	
+	def save(self, force_insert=False, force_update=False):
+		if not self.id:
+			if self.is_root:
+				self.id = find_random_id(Wavelet.objects, 10, ROOT_WAVELET_ID_SUFFIX)
+			else:
+				self.id = find_random_id(Wavelet.objects, 10)
+			super(Wavelet, self).save(True)
+		else:
+			super(Wavelet, self).save(force_insert, force_update)
 	
 class DataDocument(models.Model):
 	"""
@@ -127,6 +172,13 @@ class Blip(models.Model):
 	contributors = models.ManyToManyField(Participant, related_name="contributed_blips")
 	
 	text = models.TextField()
+	
+	def save(self, force_insert=False, force_update=False):
+		if not self.id:
+			self.id = find_random_id(Blip.objects, 10)
+			super(Blip, self).save(True)
+		else:
+			super(Blip, self).save(force_insert, force_update)
 
 class Annotation(models.Model):
 	"""

@@ -192,6 +192,11 @@ p
 	font-weight: bold;
 }
 
+.submenu_disabled
+{
+	color: #A0A0A0;
+}
+
 .submenu_div
 {
 	float: left;

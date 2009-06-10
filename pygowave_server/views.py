@@ -18,7 +18,7 @@
 
 from django.shortcuts import render_to_response
 from django.template import RequestContext
-from django.http import HttpResponseRedirect
+from django.http import HttpResponseRedirect, HttpResponse
 from django.core.urlresolvers import reverse
 from django.core.exceptions import ObjectDoesNotExist
 from django.contrib import auth
@@ -26,14 +26,22 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.conf import settings as django_settings
 
-from pygowave_server.forms import ParticipantProfileForm, GadgetRegistryForm
-from pygowave_server.models import Participant, Gadget
+from pygowave_server.forms import ParticipantProfileForm, GadgetRegistryForm, NewWaveForm
+from pygowave_server.models import Participant, Gadget, Wave
+
+from datetime import datetime, timedelta
 
 def index(request):
 	auth_fail = False
 	
 	# Handle logout
 	if request.user.is_authenticated() and request.GET.has_key("logout"):
+		try:
+			p = request.user.get_profile()
+			p.last_contact = datetime.now() + timedelta(minutes=django_settings.ONLINE_TIMEOUT_MINUTES+1)
+			p.save()
+		except:
+			pass
 		auth.logout(request)
 	
 	if request.user.is_authenticated(): # Kick auth'd users to home view
@@ -51,14 +59,14 @@ def index(request):
 		login_form = auth.forms.AuthenticationForm()
 	
 	online_count = Participant.objects.online_count()
-	users_count = User.objects.count()
+	users_count = User.objects.filter(is_active=True).count()
 		
 	return render_to_response('pygowave_server/index.html', {"login_form": login_form, "auth_fail": auth_fail, "online_count": online_count, "users_count": users_count}, context_instance=RequestContext(request))
 
 @login_required
 def home(request):
 	online_count = Participant.objects.online_count()
-	users_count = User.objects.count()
+	users_count = User.objects.filter(is_active=True).count()
 	return render_to_response('pygowave_server/home.html', {"username": request.user.username, "online_count": online_count, "users_count": users_count}, context_instance=RequestContext(request))
 
 @login_required
@@ -88,7 +96,27 @@ def settings(request):
 @login_required
 def wave_list(request):
 	
-	return render_to_response('pygowave_server/wave_list.html', {}, context_instance=RequestContext(request))
+	participant = request.user.get_profile()
+	
+	if request.method == "POST":
+		form = NewWaveForm(data=request.POST)
+		if form.is_valid():
+			wave = Wave.objects.create_and_init_new_wave(participant, form.cleaned_data["title"])
+			return HttpResponseRedirect(reverse("pygowave_server.views.wave", kwargs={"wave_id": wave.id}))
+	else:
+		form = NewWaveForm()
+	
+	waves = []
+	for wavelet in participant.wavelets.all():
+		wave = wavelet.wave
+		waves.append({
+			"id": wave.id,
+			"title": wavelet.title,
+			"participants_count": wavelet.participants.count(),
+			"created": wavelet.created,
+			"creator_name": wavelet.creator.name,
+		})
+	return render_to_response('pygowave_server/wave_list.html', {"waves": waves, "form": form}, context_instance=RequestContext(request))
 
 @login_required
 def my_gadgets(request):
@@ -128,3 +156,24 @@ def all_gadgets(request):
 	
 	gadgets = Gadget.objects.all()
 	return render_to_response('pygowave_server/all_gadgets.html', {"gadgets": gadgets}, context_instance=RequestContext(request))
+
+@login_required
+def wave(request, wave_id):
+	
+	try:
+		wave = Wave.objects.get(pk=wave_id)
+	except ObjectDoesNotExist:
+		return render_to_response('pygowave_server/invalid_wave.html', context_instance=RequestContext(request))
+	
+	participant = request.user.get_profile()
+	
+	wavelet = wave.root_wavelet()
+	
+	if wavelet.participants.filter(id=participant.id).count() == 0:
+		return render_to_response('pygowave_server/no_permission.html', context_instance=RequestContext(request))
+	
+	participant.setup_random_access_keys()
+	wave_access_key = {"rx": participant.rx_key, "tx": participant.tx_key}
+	
+	gadgets = Gadget.objects.all()
+	return render_to_response('pygowave_server/on_the_wave.html', {"gadgets": gadgets, "wave_access_key": wave_access_key, "wavelet_title": wavelet.title}, context_instance=RequestContext(request))

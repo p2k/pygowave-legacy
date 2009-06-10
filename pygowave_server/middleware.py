@@ -1,7 +1,7 @@
 
 from django.core.exceptions import ObjectDoesNotExist
 from django.conf import settings
-from  datetime import datetime
+from datetime import datetime
 
 from pygowave_server.models import Participant
 

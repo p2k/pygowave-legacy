@@ -33,17 +33,15 @@ DATABASE_PASSWORD = 'pygowave' # Not used with sqlite3.
 DATABASE_HOST = 'localhost'    # Set to empty string for localhost. Not used with sqlite3.
 DATABASE_PORT = ''             # Set to empty string for default. Not used with sqlite3.
 
-DEFAULT_FROM_EMAIL = 'noreply@pygowave.p2k-network.org'
+DEFAULT_FROM_EMAIL = 'noreply@localhost'
 
-# The domain used in wave URLs (I'm using a local testing environment too)
-import os.path
-if os.path.exists("/srv/http/pygowave_project/.local"):
-    WAVE_DOMAIN = 'localhost'
-    LOGIN_URL = '/pygowave/accounts/login/'
-    IS_LOCAL = True
-else:
-    WAVE_DOMAIN = 'pygowave.p2k-network.org'
-    IS_LOCAL = False
+# The domain used in wave URLs
+WAVE_DOMAIN = 'localhost'
+
+LOGIN_URL = '/pygowave/accounts/login/'
+
+# Set to False to enable some non-localhost features
+IS_LOCAL = True
 
 # Local time zone for this installation. Choices can be found here:
 # http://en.wikipedia.org/wiki/List_of_tz_zones_by_name
@@ -68,11 +66,8 @@ MEDIA_ROOT = '/srv/http/pygowave_project/media/'
 
 # URL that handles the media served from MEDIA_ROOT. Make sure to use a
 # trailing slash if there is a path component (optional in other cases).
-# Examples: "http://media.lawrence.com", "http://example.com/media/"
-if IS_LOCAL:
-	MEDIA_URL = '/pygowave/media/'
-else:
-	MEDIA_URL = 'http://' + WAVE_DOMAIN + '/media/'
+# Examples: "http://media.lawrence.com/", "http://example.com/media/"
+MEDIA_URL = '/pygowave/media/'
 
 # URL prefix for admin media -- CSS, JavaScript and images. Make sure to use a
 # trailing slash.
@@ -114,13 +109,13 @@ TEMPLATE_DIRS = (
 )
 
 INSTALLED_APPS = (
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.sites',
+	'django.contrib.auth',
+	'django.contrib.contenttypes',
+	'django.contrib.sessions',
+	'django.contrib.sites',
 	'django.contrib.admin',
-    'registration',
-    'pygowave_server'
+	'registration',
+	'pygowave_server'
 )
 
 AUTH_PROFILE_MODULE = 'pygowave_server.participant'
@@ -133,5 +128,16 @@ AVATAR_URL = MEDIA_URL + 'avatars/'
 GADGET_ROOT = MEDIA_ROOT + 'gadgets/'
 GADGET_URL = MEDIA_URL + 'gadgets/'
 
+# Used if a user doesn't log out properly
 ONLINE_TIMEOUT_MINUTES = 10
 
+# RabbitMQ settings here
+AMQP_SERVER = "localhost"
+AMQP_PORT = 5672
+AMQP_USER = "pygowave"
+AMQP_PASSWORD = "pygowave"
+AMQP_VHOST = "/"
+
+# Orbited settings here
+ORBITED_SERVER = "localhost"
+ORBITED_PORT = 9000

@@ -1,0 +1,30 @@
+{% extends "base_transitional.html" %}
+{% load i18n %}
+{% load pgw_nav %}
+
+{% block title %}{% trans "On the Wave" %}{% endblock %}
+{% block nav %}{% pgw_navbar "waves" "on_the_wave" %}{% endblock %}
+{% block additional_header %}
+	<script type="text/javascript">
+		document.domain = document.domain; // Looks weird but fixes some errors
+	</script>
+	<script type="text/javascript" src="http://{{ ORBITED_SERVER }}:{{ ORBITED_PORT }}/static/Orbited.js"></script>
+	<script type="text/javascript">
+		Orbited.settings.port = {{ ORBITED_PORT }};
+		Orbited.settings.hostname = "{{ ORBITED_SERVER }}";
+		Orbited.settings.log = true;
+		TCPSocket = Orbited.TCPSocket;
+		// Random generated access keys
+		WaveAccessKeyTx = "{{ wave_access_key.tx }}";
+		WaveAccessKeyRx = "{{ wave_access_key.rx }}";
+	</script>
+	<script type="text/javascript" src="http://{{ ORBITED_SERVER }}:{{ ORBITED_PORT }}/static/protocols/stomp/stomp.js"></script>
+	<script type="text/javascript" src="{{ MEDIA_URL }}js/pygowave-client.js"></script>
+{% endblock %}
+
+{% block content %}
+<h1>{{ wavelet_title }}</h1>
+<div class="section">
+	
+</div>
+{% endblock %}

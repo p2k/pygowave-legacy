@@ -1,0 +1,16 @@
+{% extends "base_transitional.html" %}
+{% load i18n %}
+{% load pgw_nav %}
+
+{% block title %}{% trans "Error: No Permission" %}{% endblock %}
+{% block nav %}{% pgw_navbar "waves" "on_the_wave" %}{% endblock %}
+
+{% block content %}
+<h2>{% trans "Error: No Permission" %}</h2>
+<p>
+{% blocktrans %}
+Sorry, you do not have permission to view this Wave. You must be added by the
+people who participate in this Wave.
+{% endblocktrans %}
+</p>
+{% endblock %}

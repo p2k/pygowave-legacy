@@ -1,0 +1,16 @@
+{% extends "base_transitional.html" %}
+{% load i18n %}
+{% load pgw_nav %}
+
+{% block title %}{% trans "Error: Invalid Wave ID" %}{% endblock %}
+{% block nav %}{% pgw_navbar "waves" "on_the_wave" %}{% endblock %}
+
+{% block content %}
+<h2>{% trans "Error: Invalid Wave ID" %}</h2>
+<p>
+{% blocktrans %}
+Sorry, the desired Wave could not be found. It may have been deleted or simply
+was never created before.
+{% endblocktrans %}
+</p>
+{% endblock %}

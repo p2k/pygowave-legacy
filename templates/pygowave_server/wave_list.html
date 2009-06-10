@@ -6,12 +6,31 @@
 {% block nav %}{% pgw_navbar "waves" "wave_list" %}{% endblock %}
 
 {% block content %}
-{% blocktrans %}
-<h2>Nothing is here yet, this is work-in-progress!</h2>
-<p>
-I am terribly sorry that I can't work 24/7 - this isn't easy and I refuse to
-code this part of PyGoWave just quick-and-dirty. Give me some days to make it
-right.
-</p>
-{% endblocktrans %}
+<h4>{% trans "New Wave" %}</h4>
+<div class="section">
+	<form action="" method="post">
+		<table>
+			{{ form.as_table }}
+			<tr><td class="submit_td" colspan="2"><input type="submit" value="{% trans "Create" %}" /></td></tr>
+		</table>
+	</form>
+</div>
+<h4>{% trans "Existing Waves" %}</h4>
+<div class="section">
+	{% if waves %}
+	<table>
+		<tr><th>{% trans "Title" %}</th><th>{% trans "Creator" %}</th><th>{% trans "Participants" %}</th><th>{% trans "Created" %}</th></tr>
+		{% for wave in waves %}
+		<tr>
+			<td><a href="{% url pygowave_server.views.wave wave.id %}">{{ wave.title }}</a></td>
+			<td>{{ wave.creator_name }}</td>
+			<td>{{ wave.participants_count }}</td>
+			<td>{{ wave.created|date }}</td>
+		</tr>
+		{% endfor %}
+	</table>
+	{% else %}
+		{% trans "There are currently no Waves to which you participate." %}
+	{% endif %}
+</div>
 {% endblock %}
