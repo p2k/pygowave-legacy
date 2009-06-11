@@ -25,9 +25,12 @@ from django.contrib import auth
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.conf import settings as django_settings
+from django.utils.translation import ugettext as _
+from django.utils import simplejson
 
 from pygowave_server.forms import ParticipantProfileForm, GadgetRegistryForm, NewWaveForm
 from pygowave_server.models import Participant, Gadget, Wave
+from pygowave_server.engine import GadgetLoader
 
 from datetime import datetime, timedelta
 
@@ -163,17 +166,92 @@ def wave(request, wave_id):
 	try:
 		wave = Wave.objects.get(pk=wave_id)
 	except ObjectDoesNotExist:
-		return render_to_response('pygowave_server/invalid_wave.html', context_instance=RequestContext(request))
+		if request.is_ajax():
+			return HttpResponse("Error: Invalid Wave ID")
+		else:
+			return render_to_response('pygowave_server/invalid_wave.html', context_instance=RequestContext(request))
 	
 	participant = request.user.get_profile()
-	
+
 	wavelet = wave.root_wavelet()
 	
 	if wavelet.participants.filter(id=participant.id).count() == 0:
-		return render_to_response('pygowave_server/no_permission.html', context_instance=RequestContext(request))
+		if request.is_ajax():
+			return HttpResponse("Error: No permission")
+		else:
+			return render_to_response('pygowave_server/no_permission.html', context_instance=RequestContext(request))
 	
-	participant.setup_random_access_keys()
-	wave_access_key = {"rx": participant.rx_key, "tx": participant.tx_key}
+	if request.is_ajax():
+		if request.GET.has_key("get_participant"):
+			try:
+				p_obj = wavelet.participants.get(pk=request.GET["get_participant"])
+			except ObjectDoesNotExist:
+				return HttpResponse("Error: Participant not found")
+			p = {
+				"name": p_obj.name,
+				"profile": p_obj.profile,
+			}
+			if p_obj.avatar:
+				p["avatar"] = p_obj.avatar
+			else:
+				p["avatar"] = django_settings.AVATAR_URL + "default.png"
+			return render_to_response('pygowave_server/participant_info.html', {"participant": p}, context_instance=RequestContext(request))
+		
+		return HttpResponse("Error: Unknown request")
+	else:
+		participant.setup_random_access_keys()
+		wave_access_key = {
+			"rx": "%s.%s.waveop" % (participant.rx_key, wavelet.id),
+			"tx": "%s.%s.clientop" % (participant.tx_key, wavelet.id)}
+		
+		gadgets = Gadget.objects.all()
+		return render_to_response('pygowave_server/on_the_wave.html', {"gadgets": gadgets, "wave_access_key": wave_access_key, "wavelet_title": wavelet.title, "wave_id": wave_id}, context_instance=RequestContext(request))
+
+@login_required
+def search_participants(request):
 	
-	gadgets = Gadget.objects.all()
-	return render_to_response('pygowave_server/on_the_wave.html', {"gadgets": gadgets, "wave_access_key": wave_access_key, "wavelet_title": wavelet.title}, context_instance=RequestContext(request))
+	if request.GET.has_key("q"):
+		q = request.GET["q"]
+	else:
+		q = ""
+	
+	if len(q) < 3: # TODO - Hardcoded
+		return render_to_response('pygowave_server/search_participants.html', {"too_short": 3}, context_instance=RequestContext(request))
+	
+	me = request.user.get_profile()
+
+	lst = []
+	for p in Participant.objects.filter(name__contains=q):
+		if p == me:
+			continue
+		if p.avatar:
+			avatar = p.avatar
+		else:
+			avatar = django_settings.AVATAR_URL + "default.png"
+		lst.append({"id": p.id, "avatar": avatar, "profile": p.profile, "name": p.name})
+	
+	return render_to_response('pygowave_server/search_participants.html', {"matches": lst}, context_instance=RequestContext(request))
+
+def gadget_loader(request, gadget_id):
+	
+	try:
+		gadget_obj = Gadget.objects.get(id=gadget_id)
+	except ObjectDoesNotExist:
+		return render_to_response('pygowave_server/gadget_error.html', {"error_message": _(u"Gadget not found.")})
+	
+	try:
+		gadget = GadgetLoader(gadget_obj.url)
+	except urllib2.HTTPError:
+		return render_to_response('pygowave_server/gadget_error.html', {"error_message": _(u"Gadget could not be downloaded.")})
+	except XMLSyntaxError:
+		return render_to_response('pygowave_server/gadget_error.html', {"error_message": _(u"Gadget quick-check failed: Bad XML format.")})
+	except ValueError as e:
+		return render_to_response('pygowave_server/gadget_error.html', {"error_message": _(u'Gadget quick-check failed: %s.') % (e.args[0])})
+	
+	if request.GET.has_key("gadget_id"):
+		gadget_id = request.GET["gadget_id"]
+	else:
+		gadget_id = None
+
+	return render_to_response('pygowave_server/gadget_wrapper.html', {"gadget": gadget, "url_parameters": simplejson.dumps(request.GET), "gadget_id": gadget_id})
+	

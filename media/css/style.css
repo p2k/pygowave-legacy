@@ -259,3 +259,84 @@ p
 {
 	cursor: help;
 }
+
+#participant_list
+{
+	height: 48px;
+	width: 99%;
+}
+
+.participant
+{
+	text-align: center;
+	float: left;
+	margin-right: 5px;
+}
+
+.participant label
+{
+	font-size: 0.9em;
+	font-weight: bold;
+}
+
+.participant img
+{
+	border: 1px solid #C3D9FF;
+}
+
+#add_participant_div
+{
+	float: left;
+	padding: 10px;
+}
+
+#add_participant_div img
+{
+	cursor: pointer;
+}
+
+#p_searchbox_div
+{
+	overflow: hidden;
+}
+
+#p_searchresult
+{
+	background-color: white;
+	width: 100%;
+	margin-top: 5px;
+}
+
+.searchresult_message
+{
+	padding: 3px;
+	font-weight: bold;
+}
+
+.searchresult_table
+{
+	width: 100%;
+	border-collapse: collapse;
+}
+
+.searchresult_item
+{
+	height: 50px;
+	padding: 3px;
+	cursor: pointer;
+}
+
+.searchresult_item label
+{
+	font-weight: bold;
+	font-size: 1.2em;
+	float: left;
+	margin-top: 8px;
+	margin-left: 5px;
+}
+
+.gadget_loader_fail
+{
+	color: #CC0000;
+	font-weight: bold;
+}

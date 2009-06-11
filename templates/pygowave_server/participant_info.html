@@ -1,0 +1,5 @@
+<div class="participant">
+	{% if participant.profile %}<a href="{{ participant.profile }}">{% endif %}<img id="participant-{{ participant.name }}" src="{{ participant.avatar }}" width="32" height="32" alt="{{ participant.name }}" title="{{ participant.name }}" />{% if participant.profile %}</a>{% endif %}
+	<br/>
+	<label for="participant-{{ participant.name }}">{{ participant.name }}</label>
+</div>

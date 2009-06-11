@@ -1,0 +1,30 @@
+{% load i18n %}
+
+{% if too_short %}
+<div class="searchresult_message">
+{% blocktrans %}
+Please enter at least {{ too_short }} letters.
+{% endblocktrans %}
+</div>
+{% else %}
+
+{% if matches %}
+<table class="searchresult_table">
+{% for participant in matches %}
+	<tr>
+	<td class="searchresult_item ui-state-default">
+		<div class="participant_id" >{{ participant.id }}</div>
+		<div class="participant">{% if participant.profile %}<a href="{{ participant.profile }}" target="_blank">{% endif %}<img src="{{ participant.avatar }}" width="32" height="32" />{% if participant.profile %}</a>{% endif %}</div>
+		<label>{{ participant.name }}</label>
+	</td>
+	</tr>
+{% endfor %}
+</table>
+
+{% else %}
+	<div class="searchresult_message">
+	{% trans "Sorry, your search yielded no results." %}
+	</div>
+{% endif %}
+
+{% endif %}

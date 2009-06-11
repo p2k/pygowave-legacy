@@ -115,7 +115,8 @@ INSTALLED_APPS = (
 	'django.contrib.sites',
 	'django.contrib.admin',
 	'registration',
-	'pygowave_server'
+	'pygowave_server',
+	'pygowave_client',
 )
 
 AUTH_PROFILE_MODULE = 'pygowave_server.participant'

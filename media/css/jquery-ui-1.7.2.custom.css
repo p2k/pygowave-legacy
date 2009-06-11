@@ -50,18 +50,18 @@
 ----------------------------------*/
 .ui-widget { font-family: Arial, sans-serif; /*font-size: 1.1em;*/ }
 .ui-widget input, .ui-widget select, .ui-widget textarea, .ui-widget button { font-family: Arial, sans-serif; font-size: 1em; }
-.ui-widget-content { /*border: 1px solid #dddddd;*/ background: #cadef4 url(../images/ui-bg_flat_100_C3D9FF_40x100.png) 50% 50% repeat-x; color: #000000; }
+.ui-widget-content { border: 1px solid #dddddd; background: #c8e2fb url(../images/ui-bg_flat_100_c8e2fb_40x100.png) 50% 50% repeat-x; color: #000000; }
 .ui-widget-content a { color: #000000; }
-.ui-widget-header { /*border: 1px solid #C3D9FF;*/ background: #ffffff url(../images/ui-bg_flat_35_ffffff_40x100.png) 50% 50% repeat-x; color: #000000; font-weight: bold; }
-.ui-widget-header a { color: #000000; }
+.ui-widget-header { border: 1px solid #C3D9FF; background: #5997db url(../images/ui-bg_highlight-soft_35_5997db_1x100.png) 50% 50% repeat-x; color: #ffffff; font-weight: bold; }
+.ui-widget-header a { color: #ffffff; }
 
 /* Interaction states
 ----------------------------------*/
-.ui-state-default, .ui-widget-content .ui-state-default { border: 1px solid #93b4d9; background: #E5ECF9 url(../images/ui-bg_flat_100_E5ECF9_40x100.png) 50% 50% repeat-x; font-weight: bold; color: #000000; outline: none; }
+.ui-state-default, .ui-widget-content .ui-state-default { border: 1px solid #93b4d9; background: #E5ECF9 url(../images/ui-bg_glass_100_E5ECF9_1x400.png) 50% 50% repeat-x; font-weight: bold; color: #000000; outline: none; }
 .ui-state-default a, .ui-state-default a:link, .ui-state-default a:visited { color: #000000; text-decoration: none; outline: none; }
-.ui-state-hover, .ui-widget-content .ui-state-hover, .ui-state-focus, .ui-widget-content .ui-state-focus { border: 1px solid #93b4d9; background: #E5ECF9; font-weight: bold; color: #000000; outline: none; }
+.ui-state-hover, .ui-widget-content .ui-state-hover, .ui-state-focus, .ui-widget-content .ui-state-focus { border: 1px solid #607daf; background: #cadef4 url(../images/ui-bg_glass_100_cadef4_1x400.png) 50% 50% repeat-x; font-weight: bold; color: #000000; outline: none; }
 .ui-state-hover a, .ui-state-hover a:hover { color: #000000; text-decoration: none; outline: none; }
-.ui-state-active, .ui-widget-content .ui-state-active { border: 1px solid #93b4d9; background: #cadef4 url(../images/ui-bg_flat_65_C3D9FF_40x100.png) 50% 50% repeat-x; font-weight: bold; color: #000000; outline: none; }
+.ui-state-active, .ui-widget-content .ui-state-active { border: 1px solid #93b4d9; background: #C3D9FF url(../images/ui-bg_glass_65_C3D9FF_1x400.png) 50% 50% repeat-x; font-weight: bold; color: #000000; outline: none; }
 .ui-state-active a, .ui-state-active a:link, .ui-state-active a:visited { color: #000000; outline: none; text-decoration: none; }
 
 /* Interaction Cues
@@ -81,9 +81,9 @@
 /* states and images */
 .ui-icon { width: 16px; height: 16px; background-image: url(../images/ui-icons_949494_256x240.png); }
 .ui-widget-content .ui-icon {background-image: url(../images/ui-icons_949494_256x240.png); }
-.ui-widget-header .ui-icon {background-image: url(../images/ui-icons_949494_256x240.png); }
+.ui-widget-header .ui-icon {background-image: url(../images/ui-icons_ffffff_256x240.png); }
 .ui-state-default .ui-icon { background-image: url(../images/ui-icons_949494_256x240.png); }
-.ui-state-hover .ui-icon, .ui-state-focus .ui-icon {background-image: url(../images/ui-icons_949494_256x240.png); }
+.ui-state-hover .ui-icon, .ui-state-focus .ui-icon {background-image: url(../images/ui-icons_607daf_256x240.png); }
 .ui-state-active .ui-icon {background-image: url(../images/ui-icons_949494_256x240.png); }
 .ui-state-highlight .ui-icon {background-image: url(../images/ui-icons_228ef1_256x240.png); }
 .ui-state-error .ui-icon, .ui-state-error-text .ui-icon {background-image: url(../images/ui-icons_ffd27a_256x240.png); }
@@ -268,15 +268,15 @@
 ----------------------------------*/
 
 /* Corner radius */
-.ui-corner-tl { -moz-border-radius-topleft: 0px; -webkit-border-top-left-radius: 0px; }
-.ui-corner-tr { -moz-border-radius-topright: 0px; -webkit-border-top-right-radius: 0px; }
-.ui-corner-bl { -moz-border-radius-bottomleft: 0px; -webkit-border-bottom-left-radius: 0px; }
-.ui-corner-br { -moz-border-radius-bottomright: 0px; -webkit-border-bottom-right-radius: 0px; }
-.ui-corner-top { -moz-border-radius-topleft: 0px; -webkit-border-top-left-radius: 0px; -moz-border-radius-topright: 0px; -webkit-border-top-right-radius: 0px; }
-.ui-corner-bottom { -moz-border-radius-bottomleft: 0px; -webkit-border-bottom-left-radius: 0px; -moz-border-radius-bottomright: 0px; -webkit-border-bottom-right-radius: 0px; }
-.ui-corner-right {  -moz-border-radius-topright: 0px; -webkit-border-top-right-radius: 0px; -moz-border-radius-bottomright: 0px; -webkit-border-bottom-right-radius: 0px; }
-.ui-corner-left { -moz-border-radius-topleft: 0px; -webkit-border-top-left-radius: 0px; -moz-border-radius-bottomleft: 0px; -webkit-border-bottom-left-radius: 0px; }
-.ui-corner-all { -moz-border-radius: 0px; -webkit-border-radius: 0px; }
+.ui-corner-tl { -moz-border-radius-topleft: 3px; -webkit-border-top-left-radius: 3px; }
+.ui-corner-tr { -moz-border-radius-topright: 3px; -webkit-border-top-right-radius: 3px; }
+.ui-corner-bl { -moz-border-radius-bottomleft: 3px; -webkit-border-bottom-left-radius: 3px; }
+.ui-corner-br { -moz-border-radius-bottomright: 3px; -webkit-border-bottom-right-radius: 3px; }
+.ui-corner-top { -moz-border-radius-topleft: 3px; -webkit-border-top-left-radius: 3px; -moz-border-radius-topright: 3px; -webkit-border-top-right-radius: 3px; }
+.ui-corner-bottom { -moz-border-radius-bottomleft: 3px; -webkit-border-bottom-left-radius: 3px; -moz-border-radius-bottomright: 3px; -webkit-border-bottom-right-radius: 3px; }
+.ui-corner-right {  -moz-border-radius-topright: 3px; -webkit-border-top-right-radius: 3px; -moz-border-radius-bottomright: 3px; -webkit-border-bottom-right-radius: 3px; }
+.ui-corner-left { -moz-border-radius-topleft: 3px; -webkit-border-top-left-radius: 3px; -moz-border-radius-bottomleft: 3px; -webkit-border-bottom-left-radius: 3px; }
+.ui-corner-all { -moz-border-radius: 3px; -webkit-border-radius: 3px; }
 
 /* Overlays */
 .ui-widget-overlay { background: #666666 url(../images/ui-bg_diagonals-thick_20_666666_40x40.png) 50% 50% repeat; opacity: .50;filter:Alpha(Opacity=50); }
@@ -351,7 +351,7 @@
     height: 200px; /*must have*/
 }/* Dialog
 ----------------------------------*/
-.ui-dialog { position: relative; padding: .2em; width: 300px; }
+.ui-dialog { font-size: 1.1em; position: relative; padding: .2em; width: 300px; }
 .ui-dialog .ui-dialog-titlebar { padding: .5em .3em .3em 1em; position: relative;  }
 .ui-dialog .ui-dialog-title { float: left; margin: .1em 0 .2em; } 
 .ui-dialog .ui-dialog-titlebar-close { position: absolute; right: .3em; top: 50%; width: 19px; margin: -10px 0 0 0; padding: 1px; height: 18px; }
@@ -395,12 +395,12 @@
 .ui-slider-vertical .ui-slider-range-min { bottom: 0; }
 .ui-slider-vertical .ui-slider-range-max { top: 0; }/* Tabs
 ----------------------------------*/
-/*.ui-tabs { padding: .2em; zoom: 1; }*/
-.ui-tabs .ui-tabs-nav { list-style: none; position: relative; /*padding: .2em .2em 0;*/ }
+.ui-tabs { border: 0; background: transparent; }
+.ui-tabs .ui-tabs-nav { border: 0; background: transparent; list-style: none; position: relative; /*padding: .2em .2em 0;*/ }
 .ui-tabs .ui-tabs-nav li { position: relative; float: left; border-bottom-width: 0 !important; margin: 0 .5em -1px 0; padding: 0; }
 .ui-tabs .ui-tabs-nav li a { float: left; text-decoration: none; padding: 2px 8px; }
 .ui-tabs .ui-tabs-nav li.ui-tabs-selected { padding-bottom: 1px; border-bottom-width: 0; }
 .ui-tabs .ui-tabs-nav li.ui-tabs-selected a, .ui-tabs .ui-tabs-nav li.ui-state-disabled a, .ui-tabs .ui-tabs-nav li.ui-state-processing a { cursor: text; }
 .ui-tabs .ui-tabs-nav li a, .ui-tabs.ui-tabs-collapsible .ui-tabs-nav li.ui-tabs-selected a { cursor: pointer; } /* first selector in group seems obsolete, but required to overcome bug in Opera applying cursor: text overall if defined elsewhere... */
-.ui-tabs .ui-tabs-panel { padding: 8px; display: block; border: 1px solid #93B4D9; background: none; }
+.ui-tabs .ui-tabs-panel { background: #C8E2FB; padding: 8px; display: block; border: 1px solid #93B4D9; }
 .ui-tabs .ui-tabs-hide { display: none !important; }

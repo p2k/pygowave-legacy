@@ -6,11 +6,6 @@
 {% block container_class %}container_narrow{% endblock %}
 {% block content %}
 	<h1>{% trans "Register" %}</h1>
-{% if form.is_valid %}
-	<p>
-	</p>
-	{% track_event "registration" "account requested" %}
-{% else %}
 	<p>
 {% blocktrans %}
 	You wanna play around with it? Allright, then fill out this signup form.<br/>
@@ -23,5 +18,4 @@
 		<tr><th/><td class="submit_td"><input type="submit" value="{% trans "Register" %}" /></td></tr>
 		</table>
 	</form>
-{% endif %}
 {% endblock %}

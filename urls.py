@@ -21,8 +21,13 @@ from django.conf.urls.defaults import *
 from django.contrib import admin
 admin.autodiscover()
 
+js_info_dict = {
+    'packages': ('pygowave_client',),
+}
+
 urlpatterns = patterns('',
 	(r'^admin/(.*)', admin.site.root),
 	(r'^accounts/', include('registration.urls')),
+	(r'^jsi18n/$', 'django.views.i18n.javascript_catalog', js_info_dict),
 	(r'', include('pygowave_server.urls')),
 )

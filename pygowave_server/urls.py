@@ -18,7 +18,7 @@
 
 from django.conf.urls.defaults import *
 
-from pygowave_server.views import index, home, settings, wave_list, my_gadgets, wave
+from pygowave_server.views import *
 from pygowave_server.views import all_gadgets
 
 urlpatterns = patterns('',
@@ -26,7 +26,9 @@ urlpatterns = patterns('',
 	(r'^home/$', home),
 	(r'^settings/$', settings),
 	(r'^waves/$', wave_list),
-	(r'^waves/(?P<wave_id>\w+)$', wave),
+	(r'^waves/(?P<wave_id>\w+)/$', wave),
+	(r'^participants/search$', search_participants),
 	(r'^gadgets/$', all_gadgets),
 	(r'^gadgets/mine/$', my_gadgets),
+	(r'^gadgets/load/(?P<gadget_id>\w+$', gadget_loader),
 )

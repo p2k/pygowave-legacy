@@ -1,0 +1,12 @@
+{% extends "gadget_wrapper.html" %}
+{% load i18n %}
+{% block title %}{% trans "Gadget Loader Error" %}{% endblock %}
+{% block additional_header %}
+	<link rel="stylesheet" href="{{ MEDIA_URL }}css/style.css" type="text/css" />
+{% endblock %}
+{% block content %}
+<p class="gadget_loader_fail">
+{% trans "Error while loading Gadget:" %}<br/>
+{{ error_message }}
+</p>
+{% endblock %}
