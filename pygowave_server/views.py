@@ -245,7 +245,7 @@ def gadget_loader(request, gadget_id):
 		return render_to_response('pygowave_server/gadget_error.html', {"error_message": _(u"Gadget could not be downloaded.")})
 	except XMLSyntaxError:
 		return render_to_response('pygowave_server/gadget_error.html', {"error_message": _(u"Gadget quick-check failed: Bad XML format.")})
-	except ValueError as e:
+	except ValueError, e:
 		return render_to_response('pygowave_server/gadget_error.html', {"error_message": _(u'Gadget quick-check failed: %s.') % (e.args[0])})
 	
 	if request.GET.has_key("gadget_id"):

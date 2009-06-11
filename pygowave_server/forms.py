@@ -164,7 +164,7 @@ class GadgetRegistryForm(forms.ModelForm):
 			raise forms.ValidationError(_(u'Gadget could not be downloaded.'))
 		except XMLSyntaxError:
 			raise forms.ValidationError(_(u'Gadget quick-check failed: Bad XML format.'))
-		except ValueError as e:
+		except ValueError, e:
 			raise forms.ValidationError(_(u'Gadget quick-check failed: %s.') % (e.args[0]))
 		
 		# Get title

@@ -30,5 +30,5 @@ urlpatterns = patterns('',
 	(r'^participants/search$', search_participants),
 	(r'^gadgets/$', all_gadgets),
 	(r'^gadgets/mine/$', my_gadgets),
-	(r'^gadgets/load/(?P<gadget_id>\w+$', gadget_loader),
+	(r'^gadgets/load/(?P<gadget_id>\w+)$', gadget_loader),
 )
