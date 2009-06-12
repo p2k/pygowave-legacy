@@ -62,7 +62,7 @@ Again, this application is experimental and may not work as expected.
 		<option value="{{ gadget.id }}">{{ gadget.title }}</option>{% endfor %}
 	</select>
 	<div id="gadget_container">
-		<iframe id="gadget_frame" onload="gadgetFrameOnLoad();" src="about:blank"></iframe>
+		<iframe id="gadget_frame" name="gadget_frame" src="about:blank"></iframe>
 	</div>
 </div>
 {% endblock %}

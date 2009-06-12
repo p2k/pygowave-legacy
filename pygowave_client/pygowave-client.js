@@ -232,6 +232,9 @@ $(document).ready(function() {
 		}
 	};
 	
+	$("#gadget_frame").attr("onload", function () {
+		alert("x");
+	});
 	gadgetFrameOnLoad = function () {
 		invokeOnLoadCallbacks();
 		invokeRPCCallbacks("wave_participants", getParticipantsForGadget());
