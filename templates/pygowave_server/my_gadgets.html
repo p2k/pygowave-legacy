@@ -8,7 +8,7 @@
 {% block content %}
 <h4>{% trans "Manage my Gadgets" %}</h4>
 <div class="section">
-	{% if gadget_registered %}<span class="success_message">{% trans "Your Gadget was successfully registered." %}</span>{% endif %}
+	{% if gadget_registered %}<span class="success_message">{% trans "Your Gadget was successfully registered." %}</span><br/>{% endif %}
 	{% if my_gadgets %}
 		{% trans "Hover over a Gadget's title to see its description." %}
 		<table>
@@ -17,7 +17,7 @@
 				<th class="gadget_title" title="{{ gadget.description|escape }}">{{ gadget.title|escape }}</th>
 				<td>
 					<a href="{{ gadget.url }}"><img src="{{ MEDIA_URL }}images/download.png" width="16" height="16" title="{% trans "Download" %}" alt="{% trans "Download" %}" /></a>&nbsp;
-					<a href="javascript:confirmDelete({{ gadget.id }},'{{ gadget.title|escape }}');"><img src="{{ MEDIA_URL }}images/edit-delete.png" width="16" height="16" title="{% trans "Delete" %}" alt="{% trans "Delete" %}" /></a>
+					<a href="javascript:confirmDelete({{ gadget.id }},'{{ gadget.title|escapejs }}');"><img src="{{ MEDIA_URL }}images/edit-delete.png" width="16" height="16" title="{% trans "Delete" %}" alt="{% trans "Delete" %}" /></a>
 				</td>
 			</tr>
 		{% endfor %}

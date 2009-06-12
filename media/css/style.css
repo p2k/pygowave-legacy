@@ -340,3 +340,37 @@ p
 	color: #CC0000;
 	font-weight: bold;
 }
+
+#leave_button
+{
+	float: right;
+	height: 22px;
+	padding: 4px;
+	cursor: pointer;
+}
+
+#leave_button img
+{
+	float: left;
+}
+
+#leave_button label
+{
+	float: left;
+	margin-left: 4px;
+	margin-top: 4px;
+	cursor: pointer;
+}
+
+#gadget_container
+{
+	margin-top: 10px;
+	padding: 5px;
+}
+
+#gadget_frame
+{
+	height: 100%;
+	width: 100%;
+	border: 1px solid black;
+}

@@ -33,6 +33,8 @@ from pygowave_server.models import Participant, Gadget, Wave
 from pygowave_server.engine import GadgetLoader
 
 from datetime import datetime, timedelta
+import urllib2
+from lxml.etree import XMLSyntaxError
 
 def index(request):
 	auth_fail = False
@@ -205,7 +207,13 @@ def wave(request, wave_id):
 			"tx": "%s.%s.clientop" % (participant.tx_key, wavelet.id)}
 		
 		gadgets = Gadget.objects.all()
-		return render_to_response('pygowave_server/on_the_wave.html', {"gadgets": gadgets, "wave_access_key": wave_access_key, "wavelet_title": wavelet.title, "wave_id": wave_id}, context_instance=RequestContext(request))
+		return render_to_response('pygowave_server/on_the_wave.html', {
+			"gadgets": gadgets,
+			"wave_access_key": wave_access_key,
+			"wavelet_title": wavelet.title,
+			"wave_id": wave_id,
+			"participant_id": participant.id
+			}, context_instance=RequestContext(request))
 
 @login_required
 def search_participants(request):
@@ -232,26 +240,38 @@ def search_participants(request):
 	
 	return render_to_response('pygowave_server/search_participants.html', {"matches": lst}, context_instance=RequestContext(request))
 
-def gadget_loader(request, gadget_id):
+def gadget_loader(request):
+	"""
+	Load a gadget from any URL.
 	
+	"""
+	
+	if not request.GET.has_key("url"):
+		return render_to_response('pygowave_server/gadget_error.html', {"error_message": _(u"No URL specified.")})
+	
+	url = request.GET["url"]
+
+	# Directly load hosted gadgets
 	try:
-		gadget_obj = Gadget.objects.get(id=gadget_id)
+		gadget_obj = Gadget.objects.get(url=url)
+		if gadget_obj.is_hosted():
+			url = "file://%s%s" % (django_settings.GADGET_ROOT, gadget_obj.hosted_filename)
 	except ObjectDoesNotExist:
-		return render_to_response('pygowave_server/gadget_error.html', {"error_message": _(u"Gadget not found.")})
+		pass
 	
 	try:
-		gadget = GadgetLoader(gadget_obj.url)
+		gadget = GadgetLoader(url)
 	except urllib2.HTTPError:
-		return render_to_response('pygowave_server/gadget_error.html', {"error_message": _(u"Gadget could not be downloaded.")})
+		return render_to_response('pygowave_server/gadget_error.html', {"error_message": _(u"Gadget could not be downloaded.")}, context_instance=RequestContext(request))
 	except XMLSyntaxError:
-		return render_to_response('pygowave_server/gadget_error.html', {"error_message": _(u"Gadget quick-check failed: Bad XML format.")})
+		return render_to_response('pygowave_server/gadget_error.html', {"error_message": _(u"Gadget quick-check failed: Bad XML format.")}, context_instance=RequestContext(request))
 	except ValueError, e:
-		return render_to_response('pygowave_server/gadget_error.html', {"error_message": _(u'Gadget quick-check failed: %s.') % (e.args[0])})
+		return render_to_response('pygowave_server/gadget_error.html', {"error_message": _(u'Gadget quick-check failed: %s.') % (e.args[0])}, context_instance=RequestContext(request))
 	
 	if request.GET.has_key("gadget_id"):
 		gadget_id = request.GET["gadget_id"]
 	else:
 		gadget_id = None
 
-	return render_to_response('pygowave_server/gadget_wrapper.html', {"gadget": gadget, "url_parameters": simplejson.dumps(request.GET), "gadget_id": gadget_id})
+	return render_to_response('pygowave_server/gadget_wrapper.html', {"gadget": gadget, "url_parameters": simplejson.dumps(request.GET), "gadget_id": gadget_id}, context_instance=RequestContext(request))
 	

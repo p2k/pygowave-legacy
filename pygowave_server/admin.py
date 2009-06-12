@@ -16,19 +16,15 @@
 # limitations under the License.
 #
 
-from django.conf.urls.defaults import *
+from pygowave_server.models import Wave, Wavelet, Blip, GadgetElement, Gadget
+from pygowave_server.models import Participant, Element
+from django.contrib import admin
 
-from pygowave_server.views import *
-from pygowave_server.views import all_gadgets
+admin.site.register(Participant)
+admin.site.register(Gadget)
 
-urlpatterns = patterns('',
-	(r'^$', index),
-	(r'^home/$', home),
-	(r'^settings/$', settings),
-	(r'^waves/$', wave_list),
-	(r'^waves/(?P<wave_id>\w+)/$', wave),
-	(r'^participants/search$', search_participants),
-	(r'^gadgets/$', all_gadgets),
-	(r'^gadgets/mine/$', my_gadgets),
-	(r'^gadgets/load/$', gadget_loader),
-)
+admin.site.register(Wave)
+admin.site.register(Wavelet)
+admin.site.register(Blip)
+admin.site.register(Element)
+admin.site.register(GadgetElement)

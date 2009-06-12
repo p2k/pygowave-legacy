@@ -24,6 +24,8 @@ from django.utils.translation import ugettext_lazy as _
 from django.conf import settings
 from django.db import transaction
 
+from django.utils import simplejson
+
 from pygowave_server.utils import find_random_id, gen_random_id
 
 __author__ = "patrick.p2k.schneider@gmail.com"
@@ -76,6 +78,18 @@ class Participant(models.Model):
 		self.rx_key = gen_random_id(10)
 		self.tx_key = gen_random_id(10)
 		self.save()
+	
+	def serialize(self):
+		"""
+		Serialize participant into Google's format (taken from Gadgets API).
+		
+		"""
+		return {
+			"id": self.id,
+			"displayName": self.name,
+			"thumbnailUrl": self.avatar,
+			"profileUrl": self.profile,
+		}
 
 class WaveManager(models.Manager):
 	
@@ -86,6 +100,11 @@ class WaveManager(models.Manager):
 		wavelet = Wavelet(wave=wave, creator=creator, title=title, is_root=True)
 		wavelet.save()
 		wavelet.participants.add(creator)
+		
+		blip = Blip(wavelet=wavelet, creator=creator)
+		blip.save()
+		wavelet.root_blip = blip
+		wavelet.save()
 		return wave
 
 class Wave(models.Model):
@@ -235,6 +254,13 @@ class Element(models.Model):
 	position = models.IntegerField()
 	type = models.IntegerField(choices=ELEMENT_TYPES)
 	properties = models.TextField() # JSON is used here
+	
+	def to_gadget(self):
+		"""
+		Returns a GadgetElement for this Element if possible.
+		
+		"""
+		return GadgetElement.objects.get(pk=self.id)
 
 # Now some fancy subclasses
 
@@ -248,12 +274,46 @@ class InlineBlip(Element):
 
 class GadgetElement(Element):
 	"""
-	A gadget element.
+	A gadget element. Note that these are individual instances unlike Gadget
+	objects which act like classes for GadgetElements.
 	
 	"""
 	
 	url = models.URLField(verify_exists=False, max_length=1024)
 	fields = models.TextField() # JSON is used here
+	
+	def apply_delta(self, delta, save=True):
+		"""
+		Apply a delta map to the fields.
+		Also saves the object.
+		
+		"""
+		d = self.get_data()
+		d.update(delta)
+		self.set_data(d)
+		if save:
+			self.save()
+	
+	def get_data(self):
+		"""
+		Return data as python map (JSON decoded).
+		
+		"""
+		if self.fields == "":
+			return {}
+		else:
+			return simplejson.loads(self.fields)
+	
+	def set_data(self, data):
+		"""
+		Set data by a python map (encoding to JSON).
+		
+		"""
+		self.fields = simplejson.dumps(data)
+
+	def save(self, force_insert=False, force_update=False):
+		self.type = 2
+		super(GadgetElement, self).save(force_insert, force_update)
 
 class FormElement(Element):
 	"""
@@ -316,4 +376,11 @@ class Gadget(models.Model):
 	
 	def is_hosted(self):
 		return len(self.hosted_filename) > 0
+		
+	def instantiate(self):
+		"""
+		Create a GadgetElement from this Gadget.
+		
+		"""
+		return GadgetElement(url=self.url)
 	

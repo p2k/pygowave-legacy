@@ -21,7 +21,7 @@ from carrot.messaging import Messaging, Consumer, Publisher
 from carrot.backends import DefaultBackend
 from django.core.exceptions import ObjectDoesNotExist
 
-from pygowave_server.models import Participant
+from pygowave_server.models import Participant, Gadget, GadgetElement
 
 class TopicConsumer(Consumer):
 	exchange_type = "topic"
@@ -31,13 +31,18 @@ class TopicPublisher(Publisher):
 
 # Progress tracker - implemented messages
 # Legend:
-# (sync) - message is handled synchronously i.e. the client does not perform
-#          any actions and waits for the server's response
-# (OT)   - full Operational Transformation implemented
+# (sync)  - message is handled synchronously i.e. the client does not perform
+#           any actions and waits for the server's response
+# (async) - message is handled asynchronously and the server does not care if
+#           there are inconsistencies
+# (OT)    - full Operational Transformation implemented
 #
 # --------
 #
 # WAVELET_ADD_PARTICIPANT (sync)
+# WAVELET_REMOVE_SELF (sync)
+# DOCUMENT_ELEMENT_REPLACE (sync)
+# DOCUMENT_ELEMENT_DELTA (async)
 
 class PyGoWaveMessageProcessor(Messaging):
 	"""
@@ -70,72 +75,17 @@ class PyGoWaveMessageProcessor(Messaging):
 		
 		self.out_queue = {}
 	
-	def receive(self, message_data, message):
-		participant_key, wavelet_id, message_category = message.amqp_message.routing_key.split(".")
-		
-		if message_category != "clientop":
-			return
-		
-		print "Received Message from %s.%s.%s:\n%s" % (participant_key, wavelet_id, message_category, repr(message_data))
-		
-		# Get participant
-		try:
-			participant = Participant.objects.get(tx_key=participant_key)
-		except ObjectDoesNotExist:
-			print "-- Participant not found"
-			return # Fail silently
-		
-		# Get wavelet
-		try:
-			wavelet = participant.wavelets.get(id=wavelet_id)
-		except ObjectDoesNotExist:
-			print "-- Wavelet not found"
-			return # Fail silently
-		
-		# Handle message and reply to sender
-		self.out_queue = {}
-		if isinstance(message_data, list): # multi-message?
-			for sub_message in message_data:
-				self.handle_participant_message(wavelet, participant, sub_message)
-		else:
-			self.handle_participant_message(wavelet, participant, message_data)
-		for receiver, messages in self.out_queue.iteritems():
-			self.send(messages, "%s.%s.waveop" % (receiver, wavelet_id))
-		self.out_queue = {}
-		
-		message.ack()
-	
-	def handle_participant_message(self, wavelet, participant, message):
-		if message.has_key(u"pygowave"): # Special message
-			if message["pygowave"] == "hi": # Login message
-				# Emit participant added messages
-				for p in wavelet.participants.all():
-					self.emit(participant, "WAVELET_ADD_PARTICIPANT", p.id)
-		elif message.has_key(u"type"): # Regular message
-			if message["type"] == "WAVELET_ADD_PARTICIPANT":
-				# Find participant
-				try:
-					p = Participant.objects.get(id=message["property"])
-				except ObjectDoesNotExist:
-					print "-- Target participant not found"
-					return # Fail silently (TODO: report error to user)
-				# Check if already participating
-				if wavelet.participants.filter(id=message["property"]).count() > 0:
-					print "-- Target participant already there"
-					return # Fail silently (TODO: report error to user)
-				wavelet.participants.add(p)
-				print "-- Added new participant"
-				self.broadcast(wavelet, "WAVELET_ADD_PARTICIPANT", message["property"])
-	
-	def broadcast(self, wavelet, type, property):
+	def broadcast(self, wavelet, type, property, except_participants=[]):
 		"""
 		Send messages to all participants. Should only be used with synchronous
 		events.
 		`wavelet` must be a Wavelet object.
+		`except_participants` is a list of Participant objects to be excluded from the broadcast.
 		
 		"""
 		for p in wavelet.participants.all():
-			self.emit(p, type, property)
+			if p not in except_participants:
+				self.emit(p, type, property)
 	
 	def emit(self, to, type, property):
 		"""
@@ -157,6 +107,125 @@ class PyGoWaveMessageProcessor(Messaging):
 	
 	def send(self, message_data, routing_key):
 		self.publisher.send(message_data, routing_key=routing_key, delivery_mode=1)
+	
+	def receive(self, message_data, message):
+		rkey = message.amqp_message.routing_key
+		participant_key, wavelet_id, message_category = rkey.split(".")
+		
+		if message_category != "clientop":
+			return
+		
+		print "Received Message from %s.%s.%s:\n%s" % (participant_key, wavelet_id, message_category, repr(message_data))
+		
+		# Get participant
+		try:
+			participant = Participant.objects.get(tx_key=participant_key)
+		except ObjectDoesNotExist:
+			print "-- {%s} Error: Participant not found" % (rkey)
+			return # Fail silently
+		
+		# Get wavelet
+		try:
+			wavelet = participant.wavelets.get(id=wavelet_id)
+		except ObjectDoesNotExist:
+			print "-- {%s} Error: Wavelet not found" % (rkey)
+			return # Fail silently
+		
+		# Handle message and reply to sender and/or broadcast an event
+		self.out_queue = {}
+		if isinstance(message_data, list): # multi-message?
+			for sub_message in message_data:
+				if not self.handle_participant_message(wavelet, participant, sub_message): break
+		else:
+			self.handle_participant_message(wavelet, participant, message_data)
+		for receiver, messages in self.out_queue.iteritems():
+			self.send(messages, "%s.%s.waveop" % (receiver, wavelet_id))
+		self.out_queue = {}
+		
+		message.ack()
+	
+	def handle_participant_message(self, wavelet, participant, message):
+		"""
+		Handle a participant's operation.
+		If True is returned, go on with processing the next message.
+		If False is returned, discard any following messages.
+		
+		"""
+		if message.has_key(u"pygowave"): # Special message
+			if message["pygowave"] == "hi": # Login message
+				print "-- [%s@%s] Hi!" % (participant.name, wavelet.wave.id)
+				# Emit participant added messages
+				for p in wavelet.participants.all():
+					self.emit(participant, "WAVELET_ADD_PARTICIPANT", p.serialize())
+				# Emit gadget
+				if wavelet.root_blip.elements.count() > 0:
+					ge = wavelet.root_blip.elements.all()[0].to_gadget()
+					self.emit(participant, "DOCUMENT_ELEMENT_REPLACE", {"url": ge.url, "id": ge.id, "data": ge.get_data()})
+		elif message.has_key(u"type"): # Regular message
+			
+			if message["type"] == "WAVELET_ADD_PARTICIPANT":
+				# Find participant
+				try:
+					p = Participant.objects.get(id=message["property"])
+				except ObjectDoesNotExist:
+					print "-- [%s@%s] Target participant '%s' not found" % (participant.name, wavelet.wave.id, message["property"])
+					return # Fail silently (TODO: report error to user)
+				# Check if already participating
+				if wavelet.participants.filter(id=message["property"]).count() > 0:
+					print "-- [%s@%s] Target participant '%s' already there" % (participant.name, wavelet.wave.id, message["property"])
+					return # Fail silently (TODO: report error to user)
+				wavelet.participants.add(p)
+				print "-- [%s@%s] Added new participant '%s'" % (participant.name, wavelet.wave.id, message["property"])
+				# Hand over info in Google's format
+				self.broadcast(wavelet, "WAVELET_ADD_PARTICIPANT", p.serialize())
+				
+			elif message["type"] == "WAVELET_REMOVE_SELF":
+				self.broadcast(wavelet, "WAVELET_REMOVE_PARTICIPANT", participant.id)
+				wavelet.participants.remove(participant) # Bye bye
+				print "-- [%s@%s] Participant removed himself" % (participant.name, wavelet.wave.id)
+				if wavelet.participants.count() == 0: # Oh my god, you killed the Wave! You bastard!
+					print "-- [%s@%s] Wave got killed!" % (participant.name, wavelet.wave.id)
+					wavelet.wave.delete()
+				return False
+			
+			elif message["type"] == "DOCUMENT_ELEMENT_REPLACE":
+				# Find Gadget
+				try:
+					g = Gadget.objects.get(pk=message["property"])
+				except ObjectDoesNotExist:
+					print "-- [%s@%s] Gadget #%s not found" % (participant.name, wavelet.wave.id, message["property"])
+					return # Fail silently (TODO: report error to user)
+				
+				blip = wavelet.root_blip
+				if blip.elements.count() > 0:
+					blip.elements.all().delete()
+				
+				ge = g.instantiate()
+				ge.blip = blip
+				ge.position = 0
+				ge.save()
+				
+				print "-- [%s@%s] Gadget #%s set" % (participant.name, wavelet.wave.id, message["property"])
+				
+				self.broadcast(wavelet, "DOCUMENT_ELEMENT_REPLACE", {"url": ge.url, "id": ge.id, "data": {}})
+			
+			elif message["type"] == "DOCUMENT_ELEMENT_DELTA":
+				elt_id = int(message["property"]["id"])
+				delta = message["property"]["delta"]
+				# Find GadgetElement
+				try:
+					ge = GadgetElement.objects.get(pk=elt_id, blip=wavelet.root_blip)
+				except ObjectDoesNotExist:
+					print "-- [%s@%s] GadgetElement #%d not found (or not accessible)" % (participant.name, wavelet.wave.id, elt_id)
+					return # Fail silently (TODO: report error to user)
+				
+				ge.apply_delta(delta) # Apply delta and save
+				print "-- [%s@%s] Applied delta to GadgetElement #%d" % (participant.name, wavelet.wave.id, elt_id)
+				
+				# Asynchronous event, so send to all part. except the sender
+				self.broadcast(wavelet, "DOCUMENT_ELEMENT_DELTA", {"id": elt_id, "delta": delta}, [participant])
+		
+		return True
 
 # Single threaded for now
 

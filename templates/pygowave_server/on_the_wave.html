@@ -6,7 +6,13 @@
 {% block nav %}{% pgw_navbar "waves" "on_the_wave" %}{% endblock %}
 {% block additional_header %}
 	<script type="text/javascript">
-		document.domain = document.domain; // Looks weird but fixes some errors
+		// Cut to minimum to allow cross-subdomain access
+		try {
+			document.domain = document.domain.split('.').slice(1).join('.');
+		}
+		catch (e){
+			document.domain = document.domain;
+		}
 	</script>
 	<script type="text/javascript" src="http://{{ ORBITED_SERVER }}:{{ ORBITED_PORT }}/static/Orbited.js"></script>
 	<script type="text/javascript">
@@ -21,8 +27,11 @@
 		WaveAccessKeyRx = "{{ wave_access_key.rx }}";
 		
 		// Constants
+		MyID = "{{ participant_id }}";
 		WaveURL = "{% url pygowave_server.views.wave wave_id %}";
 		ParticipantSearchURL = "{% url pygowave_server.views.search_participants %}?q=";
+		GadgetLoaderURL = "{% url pygowave_server.views.gadget_loader %}?wave&";
+		AvatarURL = "{{ AVATAR_URL }}";
 	</script>
 	<script type="text/javascript" src="http://{{ ORBITED_SERVER }}:{{ ORBITED_PORT }}/static/protocols/stomp/stomp.js"></script>
 	<script type="text/javascript" src="{% url django.views.i18n.javascript_catalog %}"></script>
@@ -32,9 +41,28 @@
 {% block content %}
 <h1>{{ wavelet_title }}</h1>
 <h4>{% trans "Participants" %}</h4>
+<div class="section">
+	<div id="leave_button" class="ui-state-default ui-corner-all"><img src="{{ MEDIA_URL }}images/leave.png" height="22" width="22" /><label>{% trans "Leave Wave" %}</label></div>
+{% blocktrans %}
+Some quick documentation: Click on the "+" to add a friend to your wave. The
+search currently covers the whole database of users.<br/>
+Any user can be added by everyone who participates in the wave. No one can
+remove any other participant than him/herself. You can remove yourself from a
+wave by clicking the "Leave Wave" button on the right hand side.<br/>
+Again, this application is experimental and may not work as expected.
+{% endblocktrans %}
+</div>
 <div id="participant_list" class="section"><div id="add_participant_div"><img src="{{ MEDIA_URL }}images/list-add.png" width="22" height="22" alt="{% trans "Add participant" %}" title="{% trans "Add participant" %}" /></div></div>
 <h4>{% trans "Playground" %}</h4>
 <div class="section">
-	
+	{% trans "Select a gadget" %}:
+	<select id="gadget_selector">
+		<option value="">{% trans "(none)" %}</option>
+{% for gadget in gadgets %}
+		<option value="{{ gadget.id }}">{{ gadget.title }}</option>{% endfor %}
+	</select>
+	<div id="gadget_container">
+		<iframe id="gadget_frame" onload="gadgetFrameOnLoad();" src="about:blank"></iframe>
+	</div>
 </div>
 {% endblock %}

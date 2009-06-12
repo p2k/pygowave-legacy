@@ -9,9 +9,10 @@
 	<script type="text/javascript" src="{{ MEDIA_URL }}js/jquery-1.3.2.min.js"></script>
 	<script type="text/javascript" src="{{ MEDIA_URL }}js/gadget-wrapper.js"></script>
 	<script type="text/javascript">
+		//document.domain = document.domain; // Looks weird but fixes some errors
 		jQuery.noConflict();
 		gadgets._gadgetID = {% if gadget_id %}{{ gadget_id }}{% else %}null{% endif %};
-		gadgets._urlParameters = {% if url_parameters %}{{ url_parameters }}{% else %}{}{% endif %};
+		gadgets._urlParameters = {% if url_parameters %}{{ url_parameters|safe }}{% else %}{}{% endif %};
 	</script>
 {% block additional_header %}{% endblock %}
 </head>

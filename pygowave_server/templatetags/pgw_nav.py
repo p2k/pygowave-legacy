@@ -59,23 +59,23 @@ STATIC_NAVBAR = [
 			}
 		]
 	},
-	{
-		"id":	"waves",
-		"name":	_(u'Waves'),
-		"url":	reverse("pygowave_server.views.wave_list"),
-		"sub":	[
-			{
-				"id":	"wave_list",
-				"name":	_(u'All Waves'),
-				"url":	reverse("pygowave_server.views.wave_list"),
-			},
-			{
-				"id":	"on_the_wave",
-				"name":	_(u'On the Wave'),
-				"url":	None,
-			},
-		]
-	},
+	#{
+	#	"id":	"waves",
+	#	"name":	_(u'Waves'),
+	#	"url":	reverse("pygowave_server.views.wave_list"),
+	#	"sub":	[
+	#		{
+	#			"id":	"wave_list",
+	#			"name":	_(u'All Waves'),
+	#			"url":	reverse("pygowave_server.views.wave_list"),
+	#		},
+	#		{
+	#			"id":	"on_the_wave",
+	#			"name":	_(u'On the Wave'),
+	#			"url":	None,
+	#		},
+	#	]
+	#},
 ]
 
 @register.inclusion_tag('pygowave_server/nav.html', takes_context=True)
