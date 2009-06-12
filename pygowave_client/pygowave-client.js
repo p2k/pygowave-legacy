@@ -34,6 +34,8 @@
 $(document).ready(function() {
 	
 	var logger = Orbited.getLogger();
+	var rpc_callbacks = Array();
+	var rpc_load_callbacks = Array();
 	
 	// --- User Interface Setup ---
 	
@@ -66,8 +68,8 @@ $(document).ready(function() {
 	.appendTo(document.body)
 	.dialog({
 		autoOpen: false,
-		width: 210,
-		minWidth: 210,
+		width: 220,
+		minWidth: 220,
 		height: 410,
 		buttons: okcancel,
 		resize: setSearchboxHeight
@@ -219,10 +221,9 @@ $(document).ready(function() {
 					break;
 				case "DOCUMENT_ELEMENT_REPLACE":
 					gadgetData = msg.property.data;
-					$("#gadget_frame").attr("src", GadgetLoaderURL + "url=" + encodeURIComponent(msg.property.url) + "&gadget_id=" + msg.property.id);
-					$("#gadget_frame").ready(function () {
-						// Dummy
-					});
+					while (rpc_callbacks.length) rpc_callbacks.pop();
+					while (rpc_load_callbacks.length) rpc_load_callbacks.pop();
+					$("#gadget_frame").get(0).contentDocument.location.replace(GadgetLoaderURL + "url=" + encodeURIComponent(msg.property.url) + "&gadget_id=" + msg.property.id);
 					break;
 				case "DOCUMENT_ELEMENT_DELTA":
 					$.extend(gadgetData, msg.property.delta); // Apply delta
@@ -231,15 +232,6 @@ $(document).ready(function() {
 			}
 		}
 	};
-	
-	$("#gadget_frame").attr("onload", function () {
-		alert("x");
-	});
-	gadgetFrameOnLoad = function () {
-		invokeOnLoadCallbacks();
-		invokeRPCCallbacks("wave_participants", getParticipantsForGadget());
-		invokeRPCCallbacks("wave_gadget_state", gadgetData);
-	}
 	
 	// --- User actions ---
 	var addParticipant = function (id) {
@@ -262,20 +254,25 @@ $(document).ready(function() {
 	};
 	
 	// --- Gadget callback routines ---
-	var rpc_callbacks = Array();
-	var rpc_load_callbacks = Array();
 	window.gadget_rpc = {
 		call: function (gadgetId, targetId, serviceName, callback, var_args) {
 			if (targetId == null) {
 				switch (serviceName) {
 					case "wave_gadget_state":
-						// TODO
+						$.extend(gadgetData, var_args); // Apply delta
+						stomp.send_json({
+							type: "DOCUMENT_ELEMENT_DELTA",
+							property: {
+								id: gadgetId,
+								delta: var_args
+							}
+						});
 						break;
 					case "wave_log":
-						logger.info(var_args);
+						logger.info("Gadget says: " + var_args);
 						break;
 					case "wave_enable":
-						// TODO
+						// TODO?
 						break;
 				}
 			}
@@ -284,7 +281,7 @@ $(document).ready(function() {
 			rpc_callbacks.push({gadgetId: gadgetId, serviceName: serviceName, handler: handler});
 		},
 		registerOnLoadHandler: function (gadgetId, handler) {
-			rpc_callbacks.push({gadgetId: gadgetId, handler: handler});
+			rpc_load_callbacks.push({gadgetId: gadgetId, handler: handler});
 		}
 	}
 	
@@ -298,4 +295,15 @@ $(document).ready(function() {
 		for (var i = 0; i < rpc_load_callbacks.length; i++)
 			rpc_load_callbacks[i].handler();
 	};
+
+	window.gadgetFrameOnLoad = function () {
+		invokeOnLoadCallbacks();
+		invokeRPCCallbacks("wave_participants", getParticipantsForGadget());
+		invokeRPCCallbacks("wave_gadget_state", gadgetData);
+	};
 });
+
+window.gadgetFrameOnLoad = function () {
+	// Dummy
+};
+

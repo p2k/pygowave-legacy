@@ -30,7 +30,7 @@
 		MyID = "{{ participant_id }}";
 		WaveURL = "{% url pygowave_server.views.wave wave_id %}";
 		ParticipantSearchURL = "{% url pygowave_server.views.search_participants %}?q=";
-		GadgetLoaderURL = "{% url pygowave_server.views.gadget_loader %}?wave&";
+		GadgetLoaderURL = "{% url pygowave_server.views.gadget_loader %}?wave=1&";
 		AvatarURL = "{{ AVATAR_URL }}";
 	</script>
 	<script type="text/javascript" src="http://{{ ORBITED_SERVER }}:{{ ORBITED_PORT }}/static/protocols/stomp/stomp.js"></script>
@@ -62,7 +62,7 @@ Again, this application is experimental and may not work as expected.
 		<option value="{{ gadget.id }}">{{ gadget.title }}</option>{% endfor %}
 	</select>
 	<div id="gadget_container">
-		<iframe id="gadget_frame" name="gadget_frame" src="about:blank"></iframe>
+		<iframe id="gadget_frame" name="gadget_frame" onload="gadgetFrameOnLoad();" src="about:blank"></iframe>
 	</div>
 </div>
 {% endblock %}

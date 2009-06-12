@@ -266,6 +266,11 @@ p
 	width: 99%;
 }
 
+.participant_id
+{
+	font-size: 0.9em;
+}
+
 .participant
 {
 	text-align: center;
