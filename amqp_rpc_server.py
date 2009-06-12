@@ -16,7 +16,7 @@
 # limitations under the License.
 #
 
-import sys
+import sys, datetime
 
 from carrot.connection import DjangoAMQPConnection
 from carrot.messaging import Messaging, Consumer, Publisher
@@ -35,9 +35,29 @@ verbose = False
 quiet = False
 if "--verbose" in sys.argv:
 	verbose = True
-if "--quiet" in sys.argv:
+
+class Logger:
+	def __init__(self, std, err):
+		self.std = std
+		self.err = err
+	
+	def __log_to(self, f, text):
+		f.write("%s -- %s\n" % (datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), text))
+		f.flush()
+
+	def error(self, text):
+		self.__log_to(self.err, text)
+	
+	def info(self, text):
+		self.__log_to(self.std, text)
+
+if "--logfile" in sys.argv:
+	logger = Logger(open("/var/log/pygowave/info","a"), open("/var/log/pygowave/error","a"))
+elif "--quiet" in sys.argv:
 	verbose = False
-	quiet = True
+	logger = Logger(open("/dev/null"), open("/dev/null"))
+else:
+	logger = Logger(sys.stdout, sys.stderr)
 
 # Progress tracker - implemented messages
 # Legend:
@@ -131,14 +151,14 @@ class PyGoWaveMessageProcessor(Messaging):
 		try:
 			participant = Participant.objects.get(tx_key=participant_key)
 		except ObjectDoesNotExist:
-			sys.stderr.write("-- {%s} Error: Participant not found\n" % (rkey))
+			logger.error("{%s} Error: Participant not found\n" % (rkey))
 			return # Fail silently
 		
 		# Get wavelet
 		try:
 			wavelet = participant.wavelets.get(id=wavelet_id)
 		except ObjectDoesNotExist:
-			sys.stderr.write("-- {%s} Error: Wavelet not found\n" % (rkey))
+			logger.error("{%s} Error: Wavelet not found\n" % (rkey))
 			return # Fail silently
 		
 		# Handle message and reply to sender and/or broadcast an event
@@ -163,7 +183,7 @@ class PyGoWaveMessageProcessor(Messaging):
 		"""
 		if message.has_key(u"pygowave"): # Special message
 			if message["pygowave"] == "hi": # Login message
-				print "-- [%s@%s] Hi!" % (participant.name, wavelet.wave.id)
+				logger.info("[%s@%s] Hi!" % (participant.name, wavelet.wave.id))
 				# Emit participant added messages
 				for p in wavelet.participants.all():
 					self.emit(participant, "WAVELET_ADD_PARTICIPANT", p.serialize())
@@ -178,23 +198,23 @@ class PyGoWaveMessageProcessor(Messaging):
 				try:
 					p = Participant.objects.get(id=message["property"])
 				except ObjectDoesNotExist:
-					if not quiet: print "-- [%s@%s] Target participant '%s' not found" % (participant.name, wavelet.wave.id, message["property"])
+					logger.error("[%s@%s] Target participant '%s' not found" % (participant.name, wavelet.wave.id, message["property"]))
 					return # Fail silently (TODO: report error to user)
 				# Check if already participating
 				if wavelet.participants.filter(id=message["property"]).count() > 0:
-					if not quiet: print "-- [%s@%s] Target participant '%s' already there" % (participant.name, wavelet.wave.id, message["property"])
+					logger.error("[%s@%s] Target participant '%s' already there" % (participant.name, wavelet.wave.id, message["property"]))
 					return # Fail silently (TODO: report error to user)
 				wavelet.participants.add(p)
-				if not quiet: print "-- [%s@%s] Added new participant '%s'" % (participant.name, wavelet.wave.id, message["property"])
+				logger.info("[%s@%s] Added new participant '%s'" % (participant.name, wavelet.wave.id, message["property"]))
 				# Hand over info in Google's format
 				self.broadcast(wavelet, "WAVELET_ADD_PARTICIPANT", p.serialize())
 				
 			elif message["type"] == "WAVELET_REMOVE_SELF":
 				self.broadcast(wavelet, "WAVELET_REMOVE_PARTICIPANT", participant.id)
 				wavelet.participants.remove(participant) # Bye bye
-				if not quiet: print "-- [%s@%s] Participant removed himself" % (participant.name, wavelet.wave.id)
+				logger.info("[%s@%s] Participant removed himself" % (participant.name, wavelet.wave.id))
 				if wavelet.participants.count() == 0: # Oh my god, you killed the Wave! You bastard!
-					if not quiet: print "-- [%s@%s] Wave got killed!" % (participant.name, wavelet.wave.id)
+					logger.info("[%s@%s] Wave got killed!" % (participant.name, wavelet.wave.id))
 					wavelet.wave.delete()
 				return False
 			
@@ -203,7 +223,7 @@ class PyGoWaveMessageProcessor(Messaging):
 				try:
 					g = Gadget.objects.get(pk=message["property"])
 				except ObjectDoesNotExist:
-					if not quiet: print "-- [%s@%s] Gadget #%s not found" % (participant.name, wavelet.wave.id, message["property"])
+					logger.error("[%s@%s] Gadget #%s not found" % (participant.name, wavelet.wave.id, message["property"]))
 					return # Fail silently (TODO: report error to user)
 				
 				blip = wavelet.root_blip
@@ -215,7 +235,7 @@ class PyGoWaveMessageProcessor(Messaging):
 				ge.position = 0
 				ge.save()
 				
-				if not quiet: print "-- [%s@%s] Gadget #%s set" % (participant.name, wavelet.wave.id, message["property"])
+				logger.info("[%s@%s] Gadget #%s set" % (participant.name, wavelet.wave.id, message["property"]))
 				
 				self.broadcast(wavelet, "DOCUMENT_ELEMENT_REPLACE", {"url": ge.url, "id": ge.id, "data": {}})
 			
@@ -226,11 +246,11 @@ class PyGoWaveMessageProcessor(Messaging):
 				try:
 					ge = GadgetElement.objects.get(pk=elt_id, blip=wavelet.root_blip)
 				except ObjectDoesNotExist:
-					if not quiet: print "-- [%s@%s] GadgetElement #%d not found (or not accessible)" % (participant.name, wavelet.wave.id, elt_id)
+					logger.error("[%s@%s] GadgetElement #%d not found (or not accessible)" % (participant.name, wavelet.wave.id, elt_id))
 					return # Fail silently (TODO: report error to user)
 				
 				ge.apply_delta(delta) # Apply delta and save
-				if not quiet: print "-- [%s@%s] Applied delta to GadgetElement #%d" % (participant.name, wavelet.wave.id, elt_id)
+				logger.info("[%s@%s] Applied delta to GadgetElement #%d" % (participant.name, wavelet.wave.id, elt_id))
 				
 				# Asynchronous event, so send to all part. except the sender
 				self.broadcast(wavelet, "DOCUMENT_ELEMENT_DELTA", {"id": elt_id, "delta": delta}, [participant])
@@ -240,7 +260,7 @@ class PyGoWaveMessageProcessor(Messaging):
 # Single threaded for now
 
 if __name__ == '__main__':
-	print "=> RabbitMQ RPC Server starting <="
+	logger.info("=> RabbitMQ RPC Server starting <=")
 	
 	import signal
 	# Python Ctrl-C handler
