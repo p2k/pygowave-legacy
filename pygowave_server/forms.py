@@ -44,18 +44,21 @@ class AvatarWidget(widgets.FileInput):
 		v = files.get(name, None)
 		if v == None: # Nothing uploaded, look for already uploaded file
 			oldfile = self.prefix + data.get(name + "_old", None)
-			path = settings.AVATAR_ROOT + oldfile
-			if os.path.exists(path):
-				return AlreadyUploadedFile(path, oldfile, os.path.getsize(path))
+			if oldfile.startswith(settings.AVATAR_URL):
+				oldfile = oldfile[len(settings.AVATAR_URL):]
+				path = settings.AVATAR_ROOT + oldfile
+				open("/tmp/test", "w").write(path+"\n")
+				if os.path.exists(path):
+					return AlreadyUploadedFile(path, oldfile, os.path.getsize(path))
 		return v
 	
 	def render(self, name, value, attrs=None):
 		if value == "" or value == None:
-			value = "default.png"
+			value = settings.AVATAR_URL + "default.png"
 		elif isinstance(value, UploadedFile):
-			value = self.prefix + value.name
+			value = settings.AVATAR_URL + self.prefix + value.name
 		imgattrs = self.build_attrs(
-			src=settings.AVATAR_URL + value,
+			src=value,
 			alt=_(u'(Avatar)'),
 			width=self.size[0],
 			height=self.size[1]
@@ -94,9 +97,9 @@ class AvatarField(forms.ImageField):
 				# Set prefix
 				self.widget.prefix = prefix
 			
-			return prefix + value.name
+			return settings.AVATAR_URL + prefix + value.name
 		
-		return value.name
+		return settings.AVATAR_URL + value.name
 
 class ParticipantProfileForm(forms.ModelForm):
 	avatar = AvatarField(required=False)
