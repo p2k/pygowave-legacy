@@ -235,7 +235,7 @@ class PyGoWaveMessageProcessor(Messaging):
 				ge.position = 0
 				ge.save()
 				
-				logger.info("[%s@%s] Gadget #%s set" % (participant.name, wavelet.wave.id, message["property"]))
+				logger.info("[%s@%s] Gadget #%s (%s) set -> GadgetElement #%d" % (participant.name, wavelet.wave.id, message["property"], g.title, ge.id))
 				
 				self.broadcast(wavelet, "DOCUMENT_ELEMENT_REPLACE", {"url": ge.url, "id": ge.id, "data": {}})
 			

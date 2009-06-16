@@ -20,6 +20,7 @@ from django.conf.urls.defaults import *
 
 from pygowave_server.views import *
 from pygowave_server.views import all_gadgets
+from django.conf import settings as django_settings
 
 urlpatterns = patterns('',
 	(r'^$', index),
@@ -32,3 +33,8 @@ urlpatterns = patterns('',
 	(r'^gadgets/mine/$', my_gadgets),
 	(r'^gadgets/load/$', gadget_loader),
 )
+
+if 'rosetta' in django_settings.INSTALLED_APPS:
+	urlpatterns += patterns('',
+		url(r'^rosetta/', include('rosetta.urls')),
+	)

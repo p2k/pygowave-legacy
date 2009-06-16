@@ -25,7 +25,7 @@ from django.utils.safestring import mark_safe
 from django.core.files.uploadedfile import UploadedFile
 from django.utils.hashcompat import sha_constructor
 
-import os
+import os, urllib2
 from random import random
 from lxml.etree import XMLSyntaxError
 

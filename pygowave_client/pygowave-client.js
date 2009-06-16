@@ -124,8 +124,8 @@ $(document).ready(function() {
 	
 	// Gadget frame
 	$("#gadget_container")
-	.css("height", "400px")
-	.css("width", "600px");
+	.css("height", "600px")
+	.css("width", "800px");
 	
 	// --- Message Queue Connection ---
 	var stomp = new STOMPClient();
@@ -223,10 +223,14 @@ $(document).ready(function() {
 					gadgetData = msg.property.data;
 					while (rpc_callbacks.length) rpc_callbacks.pop();
 					while (rpc_load_callbacks.length) rpc_load_callbacks.pop();
-					$("#gadget_frame").get(0).contentDocument.location.replace(GadgetLoaderURL + "url=" + encodeURIComponent(msg.property.url) + "&gadget_id=" + msg.property.id);
+					document.frames["gadget_frame"].location.replace(GadgetLoaderURL + "url=" + encodeURIComponent(msg.property.url) + "&gadget_id=" + msg.property.id);
 					break;
 				case "DOCUMENT_ELEMENT_DELTA":
 					$.extend(gadgetData, msg.property.delta); // Apply delta
+					$.each(gadgetData, function (key, value) { // Delete keys with null values
+						if (value == null)
+							delete gadgetData[key];
+					});
 					invokeRPCCallbacks("wave_gadget_state", gadgetData); // Callback
 					break;
 			}
@@ -260,6 +264,10 @@ $(document).ready(function() {
 				switch (serviceName) {
 					case "wave_gadget_state":
 						$.extend(gadgetData, var_args); // Apply delta
+						$.each(gadgetData, function (key, value) { // Delete keys with null values
+							if (value == null)
+								delete gadgetData[key];
+						});
 						stomp.send_json({
 							type: "DOCUMENT_ELEMENT_DELTA",
 							property: {

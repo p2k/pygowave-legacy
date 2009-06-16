@@ -1,0 +1,84 @@
+
+body
+{
+	direction: rtl;
+}
+
+
+.ui-tabs
+{
+	direction: rtl;
+}
+
+.ui-tabs .ui-tabs-nav li.ui-tabs-selected,
+.ui-tabs .ui-tabs-nav li.ui-state-default
+{
+	float: right;
+}
+
+.ui-tabs .ui-tabs-nav li a
+{
+	float: right;
+}
+
+.ui-dialog .ui-dialog-title
+{
+	float: right;
+}
+
+.ui-dialog .ui-dialog-titlebar-close
+{
+	right: auto;
+	left: 0.3em;
+}
+
+.ui-dialog .ui-dialog-buttonpane button
+{
+	float: left;
+}
+
+.ui-dialog .ui-dialog-buttonpane
+{
+	padding:0.3em 0.4em 0.5em 1em;
+}
+
+
+.content_div_rtl
+{
+	text-align: right;
+}
+
+.submenu_rtl
+{
+	text-align: left !important;
+}
+
+.submenu_div_rtl
+{
+	float: right;
+}
+
+#leave_button
+{
+	float: left;
+}
+
+.participant
+{
+	float: right;
+	margin-right: 0;
+	margin-left: 5px;
+}
+
+.searchresult_item label
+{
+	float: right;
+	margin-top: 8px;
+	margin-left: 0;
+	margin-right: 5px;
+}
+
+#add_participant_div
+{
+	float: right;
+}

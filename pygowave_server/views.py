@@ -83,7 +83,7 @@ def settings(request):
 		profile_obj = None
 	
 	if request.method == "POST":
-		profile_form = ParticipantProfileForm(data=request.POST, instance=profile_obj)
+		profile_form = ParticipantProfileForm(data=request.POST, files=request.FILES, instance=profile_obj)
 		if profile_form.is_valid():
 			if profile_obj == None:
 				profile_obj = form.save(commit=False)
@@ -229,7 +229,7 @@ def search_participants(request):
 	me = request.user.get_profile()
 
 	lst = []
-	for p in Participant.objects.filter(name__contains=q):
+	for p in Participant.objects.filter(name__icontains=q):
 		if p == me:
 			continue
 		if p.avatar:

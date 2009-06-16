@@ -36,7 +36,7 @@
 </div>
 <h4>{% trans "Add or upload new Gadget" %}</h4>
 <div class="section">
-	<form method="post" action="" enctype="multipart/form-data" class="gadget_form">
+	<form method="post" action="{% url pygowave_server.views.my_gadgets %}" enctype="multipart/form-data" class="gadget_form">
 		<table>
 			<tr><td colspan="2">
 				{{ form.external }}

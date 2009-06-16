@@ -1,4 +1,5 @@
 {% load i18n %}
+{% get_current_language_bidi as LANGUAGE_BIDI %}
 <table id="topmenu">
 	<tbody>
 		<tr>{% for nav in navigation %}
@@ -8,7 +9,12 @@
 		</tr>
 	</tbody>
 </table>
+{% if not LANGUAGE_BIDI %}
 <div id="submenu">
 	<div class="submenu_div">{% for sub in sub_navigation %}{% if not forloop.first %} | {% endif %}{% ifequal sub.id active_sub_nav %}{{ sub.name }}{% else %}{% if sub.url %}<a href="{{ sub.url }}">{{ sub.name }}</a>{% else %}<span class="submenu_disabled">{{ sub.name }}</span>{% endif %}{% endifequal %}{% endfor %}</div>
+{% else %}
+<div id="submenu" class="submenu_rtl">
+	<div class="submenu_div_rtl">{% for sub in sub_navigation reversed %}{% if not forloop.first %} | {% endif %}{% ifequal sub.id active_sub_nav %}{{ sub.name }}{% else %}{% if sub.url %}<a href="{{ sub.url }}">{{ sub.name }}</a>{% else %}<span class="submenu_disabled">{{ sub.name }}</span>{% endif %}{% endifequal %}{% endfor %}</div>
+{% endif %}
 	<a href="{% url pygowave_server.views.index %}?logout">&raquo; {% trans "Logout" %}</a>
 </div>

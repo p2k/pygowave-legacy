@@ -1,5 +1,6 @@
 {% load i18n %}
 {% get_current_language as LANGUAGE_CODE %}
+{% get_current_language_bidi as LANGUAGE_BIDI %}
 {% block doctype %}<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">{% endblock %}
 
 <html xmlns="http://www.w3.org/1999/xhtml">
@@ -8,7 +9,8 @@
 	<title>{% block title %}Untitled{% endblock %} - PyGoWave Server</title>
 	<link rel="icon" href="{{ MEDIA_URL }}images/favicon.ico" type="image/x-icon" />
 	<link rel="stylesheet" href="{{ MEDIA_URL }}css/style.css" type="text/css" />
-	<link rel="stylesheet" href="{{ MEDIA_URL }}css/jquery-ui-1.7.2.custom.css" type="text/css" />
+	<link rel="stylesheet" href="{{ MEDIA_URL }}css/jquery-ui-1.7.2.custom.css" type="text/css" />{% if LANGUAGE_BIDI %}
+	<link rel="stylesheet" href="{{ MEDIA_URL }}css/style-rtl.css" type="text/css" />{% endif %}
 	<script type="text/javascript" src="{{ MEDIA_URL }}js/jquery-1.3.2.min.js"></script>
 	<script type="text/javascript" src="{{ MEDIA_URL }}js/jquery.json-1.3.js"></script>
 	<script type="text/javascript" src="{{ MEDIA_URL }}js/jquery.corners.min.js"></script>
@@ -35,15 +37,44 @@
 <body>
 	<div id="container" class="{% block container_class %}container_wide{% endblock %}">
 		<img class="gwlogo" src="{{ MEDIA_URL }}images/pygowave_logo.png" width="164" height="40" alt="Google Wave" />
-		<div id="lang_div">({{ LANGUAGE_CODE }})</div>
+		<div id="lang_div">(<a href="javascript:setLanguage();" title="{% trans "Change language" %}">{{ LANGUAGE_CODE }}</a>)</div>
 		{% block nav %}{% endblock %}
-		<div id="content_div">
+		<div id="content_div"{% if LANGUAGE_BIDI %} class="content_div_rtl"{% endif %}>
 		{% block content %}{% endblock %}
 		</div>
+	</div>
+	<div id="languagebox" title="{% trans "Select language" %}">
+		<p>{% trans "Please select your language:" %}</p>
+		<form id="languageform" method="post" action="{% url django.views.i18n.set_language %}">
+			<div><select name="language">
+			{% for lang in LANGUAGES %}
+			<option value="{{ lang.0 }}"{% ifequal lang.0 LANGUAGE_CODE %} selected="selected"{% endifequal %}>{{ lang.1 }}</option>
+			{% endfor %}
+			</select></div>
+		</form>
 	</div>
 	<script type="text/javascript">
 		// Style helpers
 		$(".tab").corners("4px top");
+		// Language selector
+		$("#languagebox").dialog({
+			autoOpen: false,
+			width: 280,
+			height: 140,
+			buttons: {
+				"{% trans "OK" %}": function () {
+						$("#languageform").submit();
+					},
+				"{% trans "Cancel" %}": function () {
+						$(this).dialog("close");
+					}
+			},
+			resizable: false,
+			modal: true
+		});
+		function setLanguage() {
+			$("#languagebox").dialog("open");
+		}
 	</script>
 </body>
 

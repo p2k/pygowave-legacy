@@ -20,12 +20,13 @@ from django.conf import settings
 
 def server(request):
 	"""
-	Puts IS_LOCAL setting and the Orbited configuration into context.
+	Puts IS_LOCAL setting, the VERSION and the Orbited configuration into context.
 	
 	"""
 	return {'IS_LOCAL': settings.IS_LOCAL,
 			'ORBITED_SERVER': settings.ORBITED_SERVER,
-			'ORBITED_PORT': settings.ORBITED_PORT}
+			'ORBITED_PORT': settings.ORBITED_PORT,
+			'VERSION': settings.VERSION}
 
 def storage_urls(request):
 	"""

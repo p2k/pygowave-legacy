@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 # Django settings for pygowave_project project.
 
 #
@@ -53,6 +55,14 @@ TIME_ZONE = 'Europe/Berlin'
 # Language code for this installation. All choices can be found here:
 # http://www.i18nguy.com/unicode/language-identifiers.html
 LANGUAGE_CODE = 'en-us'
+
+LANGUAGES = (
+	('de', 'German - Deutsch'),
+	('en', 'English - English'),
+	('ar', u'Arabic - al-ʿarabīyah'),
+)
+
+VERSION = 'alpha-0.2'
 
 SITE_ID = 1
 
@@ -115,6 +125,7 @@ INSTALLED_APPS = (
 	'django.contrib.sites',
 	'django.contrib.admin',
 	'registration',
+	'rosetta',
 	'pygowave_server',
 	'pygowave_client',
 )

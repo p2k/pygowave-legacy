@@ -2,5 +2,5 @@
 
 export DJANGO_SETTINGS_MODULE=settings
 
-/usr/bin/env python amqp_rpc_server.py
+/usr/bin/env python amqp_rpc_server.py $*
 

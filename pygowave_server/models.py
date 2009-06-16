@@ -90,6 +90,9 @@ class Participant(models.Model):
 			"thumbnailUrl": self.avatar,
 			"profileUrl": self.profile,
 		}
+	
+	def __unicode__(self):
+		return u"Participant '%s'" % (self.id)
 
 class WaveManager(models.Manager):
 	
@@ -127,6 +130,9 @@ class Wave(models.Model):
 			super(Wave, self).save(True)
 		else:
 			super(Wave, self).save(force_insert, force_update)
+	
+	def __unicode__(self):
+		return u"Wave %s" % (self.id)
 
 class Wavelet(models.Model):
 	"""
@@ -157,6 +163,9 @@ class Wavelet(models.Model):
 			super(Wavelet, self).save(True)
 		else:
 			super(Wavelet, self).save(force_insert, force_update)
+	
+	def __unicode__(self):
+		return u"Wavelet '%s' (%s)" % (self.title, self.id)
 	
 class DataDocument(models.Model):
 	"""
@@ -198,6 +207,9 @@ class Blip(models.Model):
 			super(Blip, self).save(True)
 		else:
 			super(Blip, self).save(force_insert, force_update)
+	
+	def __unicode__(self):
+		return u"Blip %s on %s" % (self.id, unicode(self.wavelet))
 
 class Annotation(models.Model):
 	"""
@@ -289,8 +301,16 @@ class GadgetElement(Element):
 		
 		"""
 		d = self.get_data()
+		
 		d.update(delta)
+		
+		# Check for null-value keys and delete them
+		for key in delta.iterkeys():
+			if delta[key] == None:
+				del d[key]
+		
 		self.set_data(d)
+		
 		if save:
 			self.save()
 	
@@ -314,6 +334,13 @@ class GadgetElement(Element):
 	def save(self, force_insert=False, force_update=False):
 		self.type = 2
 		super(GadgetElement, self).save(force_insert, force_update)
+		
+	def __unicode__(self):
+		if self.url.rindex("/") != -1:
+			desc = "...%s" % (self.url[self.url.rindex("/"):])
+		else:
+			desc = "?"
+		return u"GadgetElement #%s (%s)" % (self.id, desc)
 
 class FormElement(Element):
 	"""
@@ -364,7 +391,8 @@ class Gadget(models.Model):
 	Users can register their gadgets on this server to conveniently add them
 	to a Wave.
 	
-	Note: A uploaded gadget is never deleted as it may be used by other waves.
+	Note: A uploaded gadget is never deleted from disk as it may be used by
+	other waves.
 	
 	"""
 	
@@ -383,4 +411,7 @@ class Gadget(models.Model):
 		
 		"""
 		return GadgetElement(url=self.url)
+	
+	def __unicode__(self):
+		return u"Gadget '%s' by '%s'" % (self.title, self.by_user.username)
 	

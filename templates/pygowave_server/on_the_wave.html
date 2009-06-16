@@ -1,5 +1,6 @@
 {% extends "base_transitional.html" %}
 {% load i18n %}
+{% get_current_language_bidi as LANGUAGE_BIDI %}
 {% load pgw_nav %}
 
 {% block title %}{% trans "On the Wave" %}{% endblock %}
@@ -42,7 +43,11 @@
 <h1>{{ wavelet_title }}</h1>
 <h4>{% trans "Participants" %}</h4>
 <div class="section">
-	<div id="leave_button" class="ui-state-default ui-corner-all"><img src="{{ MEDIA_URL }}images/leave.png" height="22" width="22" /><label>{% trans "Leave Wave" %}</label></div>
+	<div id="leave_button" class="ui-state-default ui-corner-all">
+		{% if LANGUAGE_BIDI %}<label>{% trans "Leave Wave" %}</label>{% endif %}
+		<img src="{{ MEDIA_URL }}images/leave.png" height="22" width="22" />
+		{% if not LANGUAGE_BIDI %}<label>{% trans "Leave Wave" %}</label>{% endif %}
+	</div>
 {% blocktrans %}
 Some quick documentation: Click on the "+" to add a friend to your wave. The
 search currently covers the whole database of users.<br/>

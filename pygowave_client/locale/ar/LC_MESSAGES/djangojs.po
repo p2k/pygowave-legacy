@@ -3,6 +3,7 @@
 # This file is distributed under the same license as the PACKAGE package.
 # FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
 #
+#, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
@@ -14,27 +15,26 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"X-Language: de_DE\n"
 
 #: pygowave-client.js:43
 msgid "Cancel"
-msgstr "Abbrechen"
+msgstr ""
 
 #: pygowave-client.js:48
 msgid "OK"
-msgstr "OK"
+msgstr ""
 
 #: pygowave-client.js:50
 msgid "Please search and select a participant from the list."
-msgstr "Bitte suche und wähle dann einen Teilnehmer aus der Liste."
+msgstr ""
 
 #: pygowave-client.js:65
 msgid "Add participant"
-msgstr "Teilnehmer hinzufügen"
+msgstr ""
 
 #: pygowave-client.js:65
 msgid "Search"
-msgstr "Suche"
+msgstr ""
 
 #: pygowave-client.js:108
 msgid ""
@@ -43,7 +43,3 @@ msgid ""
 "Warning: If you do so, you cannot come back\n"
 "to this wave unless someone adds you again."
 msgstr ""
-"Willst du die Wave wirklich verlassen?\n"
-"\n"
-"Warnung: Wenn du das tust kannst du nicht mehr zu dieser\n"
-"Wave zurückkehren, es sei denn, jemand fügt dich wieder hinzu."

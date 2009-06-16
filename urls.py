@@ -29,5 +29,6 @@ urlpatterns = patterns('',
 	(r'^admin/(.*)', admin.site.root),
 	(r'^accounts/', include('registration.urls')),
 	(r'^jsi18n/$', 'django.views.i18n.javascript_catalog', js_info_dict),
+	(r'^i18n/', include('django.conf.urls.i18n')),
 	(r'', include('pygowave_server.urls')),
 )
