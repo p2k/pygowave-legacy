@@ -223,7 +223,14 @@ $(document).ready(function() {
 					gadgetData = msg.property.data;
 					while (rpc_callbacks.length) rpc_callbacks.pop();
 					while (rpc_load_callbacks.length) rpc_load_callbacks.pop();
-					document.frames["gadget_frame"].location.replace(GadgetLoaderURL + "url=" + encodeURIComponent(msg.property.url) + "&gadget_id=" + msg.property.id);
+					var loc = null;
+					try {
+						loc = $("#gadget_frame").get(0).contentDocument.location;
+					}
+					catch (e) {
+						loc = document.frames["gadget_frame"].location;
+					}
+					loc.replace(GadgetLoaderURL + "url=" + encodeURIComponent(msg.property.url) + "&gadget_id=" + msg.property.id);
 					break;
 				case "DOCUMENT_ELEMENT_DELTA":
 					$.extend(gadgetData, msg.property.delta); // Apply delta
