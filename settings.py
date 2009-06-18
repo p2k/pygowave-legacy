@@ -60,6 +60,7 @@ LANGUAGES = (
 	('de', 'German - Deutsch'),
 	('en', 'English - English'),
 	('ar', u'Arabic - al-ʿarabīyah'),
+	('ja', u'Japanese - 日本語'),
 )
 
 VERSION = 'alpha-0.2'

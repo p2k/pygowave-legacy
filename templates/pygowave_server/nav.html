@@ -5,7 +5,7 @@
 		<tr>{% for nav in navigation %}
 			{% if not forloop.first %}<td>&nbsp;</td>
 			{% endif %}<th onclick="document.location='{{ nav.url }}';"><div class="tab {% ifnotequal nav.id active_nav %}in{% endifnotequal %}active"><a href="{{ nav.url }}">{{ nav.name }}</a></div></th>{% endfor %}
-			<td style="width: 100%"/>
+			<td style="width: 100%"></td>
 		</tr>
 	</tbody>
 </table>
