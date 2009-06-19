@@ -5,6 +5,25 @@ body
 }
 
 
+.mochaButton {
+	float: left;
+}
+
+.mochaMinimizeButton, .mochaMaximizeButton, .mochaCloseButton {
+	float: left;
+	margin-left: 0;
+	margin-right: 5px;
+}
+
+.mochaControls {
+	right: auto;
+}
+
+.mochaCanvasControls {
+	right: auto;
+}
+
+
 .ui-tabs
 {
 	direction: rtl;

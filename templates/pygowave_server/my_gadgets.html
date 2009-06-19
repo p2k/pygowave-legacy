@@ -23,7 +23,7 @@
 		{% endfor %}
 		</table>
 		<script type="text/javascript">
-			$(".gadget_title").tooltip({track: true, delay: 0, fade: 250, showBody: " - ", showURL: false});
+			//TODO$(".gadget_title").tooltip({track: true, delay: 0, fade: 250, showBody: " - ", showURL: false});
 			
 			function confirmDelete(id, title) {
 				if (confirm("{% trans 'Do you really want to delete \"%s\"?' %}".replace("%s", title)))
@@ -40,34 +40,33 @@
 		<table>
 			<tr><td colspan="2">
 				{{ form.external }}
-				<script type="text/javascript">
-					$(function () {
-						// My first steps with jQuery UI - and I like it :D
-						$("#ext_selector").tabs({
-							select: function (event, ui) {
-								$("#id_external").val(ui.index);
-							}
-						});
-						// Keep the selected tab
-						{% if form.upload.errors %}$("#ext_selector").tabs('select', 0);
-						{% else %}{% if form.url.errors %}$("#ext_selector").tabs('select', 1);
-						{% else %}$("#ext_selector").tabs('select', parseInt($("#id_external").val()));{% endif %}{% endif %}
-					});
-				</script>
 				<div id="ext_selector">
 					<ul>
-						<li><a href="#ext_selector-1">{% trans "Upload" %}</a></li>
-						<li><a href="#ext_selector-2">{% trans "External URL" %}</a></li>
+						<li><a href="#ext_selector-0">{% trans "Upload" %}</a></li>
+						<li><a href="#ext_selector-1">{% trans "External URL" %}</a></li>
 					</ul>
-					<div id="ext_selector-1">
+					<div id="ext_selector-0">
 						{{ form.non_field_errors }}{{ form.upload.errors }}
 						{{ form.upload }}
 					</div>
-					<div id="ext_selector-2">
+					<div id="ext_selector-1">
 						{{ form.non_field_errors }}{{ form.url.errors }}
 						{{ form.url }}
 					</div>
 				</div>
+				<script type="text/javascript">
+					(function () {
+						// Switched to MooTools - looks fine too
+						MochaUI.tabify('ext_selector', function (index) {
+							$("id_external").set("value", index);
+						});
+						
+						// Keep the selected tab
+						{% if form.upload.errors %}MochaUI.tabSelect("ext_selector", 0);
+						{% else %}{% if form.url.errors %}MochaUI.tabSelect("ext_selector", 1);
+						{% else %}MochaUI.tabSelect("ext_selector", parseInt($("id_external").get("value")));{% endif %}{% endif %}
+					})();
+				</script>
 			</td></tr>
 			<tr><th><label for="id_title">{{ form.title.label }}:</label></th><td><input id="id_title" type="text" value="{% trans "(filled in by Gadget header)" %}" disabled="disabled" /></td></tr>
 			<tr><th><label for="id_description">{{ form.description.label }}:</label></th><td>{{ form.description }}</td></tr>

@@ -63,7 +63,7 @@ LANGUAGES = (
 	('ja', u'Japanese - 日本語'),
 )
 
-VERSION = 'alpha-0.2'
+VERSION = 'alpha-0.3'
 
 SITE_ID = 1
 

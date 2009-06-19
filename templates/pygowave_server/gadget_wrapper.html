@@ -6,10 +6,8 @@
 <head>
 	<title>{% block title %}{{ gadget.title }}{% endblock %}</title>
 	<link rel="icon" href="{{ MEDIA_URL }}images/favicon.ico" type="image/x-icon" />
-	<script type="text/javascript" src="{{ MEDIA_URL }}js/jquery-1.3.2.min.js"></script>
 	<script type="text/javascript" src="{{ MEDIA_URL }}js/gadget-wrapper.js"></script>
 	<script type="text/javascript">
-		jQuery.noConflict();
 		gadgets._gadgetID = {% if gadget_id %}{{ gadget_id }}{% else %}null{% endif %};
 		gadgets._urlParameters = {% if url_parameters %}{{ url_parameters|safe }}{% else %}{}{% endif %};
 	</script>

@@ -19,8 +19,6 @@
  *
  */
 
-gadgets = {};
-
 // Cut to minimum to allow cross-subdomain access
 try {
 	document.domain = document.domain.split('.').slice(1).join('.');
@@ -29,27 +27,27 @@ catch (e){
 	document.domain = document.domain;
 }
 
-jQuery.extend(gadgets, {
-	rpc: {
-		call: function (targetId, serviceName, callback, var_args) {
-			if (gadgets._gadgetID != null)
-				window.parent.gadget_rpc.call(gadgets._gadgetID, targetId, serviceName, callback, var_args);
-		},
-		register: function (serviceName, handler) {
-			if (gadgets._gadgetID != null)
-				window.parent.gadget_rpc.register(gadgets._gadgetID, serviceName, handler);
-		}
-	},
-
-	util: {
-		getUrlParameters: function () {
-			return gadgets._urlParameters;
-		},
-		registerOnLoadHandler: function(callback) {
-			window.parent.gadget_rpc.registerOnLoadHandler(gadgets._gadgetID, callback);
-		}
-	},
-	
+gadgets = {
 	_urlParameters: null,
 	_gadgetID: null
-});
+};
+
+gadgets.rpc = {
+	call: function (targetId, serviceName, callback, var_args) {
+		if (gadgets._gadgetID != null)
+			window.parent.gadget_rpc.call(gadgets._gadgetID, targetId, serviceName, callback, var_args);
+	},
+	register: function (serviceName, handler) {
+		if (gadgets._gadgetID != null)
+			window.parent.gadget_rpc.register(gadgets._gadgetID, serviceName, handler);
+	}
+};
+
+gadgets.util = {
+	getUrlParameters: function () {
+		return gadgets._urlParameters;
+	},
+	registerOnLoadHandler: function(callback) {
+		window.parent.gadget_rpc.registerOnLoadHandler(gadgets._gadgetID, callback);
+	}
+};

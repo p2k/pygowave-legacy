@@ -1,0 +1,273 @@
+
+.mocha {
+	position: absolute;
+	top: 0;
+	left: 0;
+	display: none;
+	overflow: hidden;
+}
+
+.mocha.isFocused {	
+}	
+
+.mochaOverlay {
+	position: absolute;
+	top: 0;
+	left: 0;	
+}
+	
+.mochaTitlebar {
+	width: 100%;
+	overflow: hidden;
+}
+
+.mochaTitlebar h3 {
+	font-size: 12px;
+	font-weight: normal;
+	line-height: 15px;
+	margin: 5px 10px 4px 10px;
+	padding: 0;
+	color: #CCCCCC;
+}
+
+.mocha.isFocused .mochaTitlebar h3 {
+	color: #ffffff;
+}
+
+.mochaToolbarWrapper {
+	width: 100%; /* For IE */
+	position: relative;
+	height: 29px;
+	background: #f1f1f1;	
+	overflow: hidden;
+	border-top: 1px solid #d9d9d9;
+}
+
+div.mochaToolbarWrapper.bottom {
+	border: 0;
+	border-bottom: 1px solid #d9d9d9;
+}
+
+.mochaToolbar {
+	width: 100%; /* For IE */
+	border-top: 1px solid #fff;
+}
+
+.mochaContentBorder {
+	border-top: 1px solid #adb9c9;
+	border-bottom: 1px solid #b8c6d9;
+}
+
+.mochaContentWrapper { /* Has a fixed height and scrollbars if required. */
+	font-size: 12px;
+	overflow: auto;
+}
+	
+.mochaContent {
+	padding: 10px 12px;
+}
+
+.mocha .handle {
+	position: absolute;
+	background: #0f0;
+	width: 3px;
+	height: 3px;
+	z-index: 2;
+	opacity: .0;
+	filter: alpha(opacity=0);
+	-moz-opacity: .0;
+	overflow: hidden;
+	font-size: 1px; /* For IE6 */
+}
+
+.mocha .corner { /* Corner resize handles */
+	background: #f00;
+	width: 10px;
+	height: 10px;
+}
+
+.mocha .cornerSE { /* Bottom right resize handle */
+	background: #f00;
+	width: 20px;
+	height: 20px;
+}
+
+.mochaCanvasHeader {
+	position: absolute;
+	top: 0;
+	left: 0;
+	background: transparent;
+	z-index: -1;
+	display: none;
+	overflow: hidden;
+}
+
+.mochaControls {
+	position: absolute;
+	width: 52px;
+	top: 8px;
+	right: 8px;
+	height: 14px;
+	z-index: 4;
+	background: transparent;
+}
+
+.mochaCanvasControls {
+	position: absolute;	
+	top: 8px;
+	right: 8px;
+	z-index: 3;
+	background: transparent;
+}
+
+/*
+	To use images for these buttons:
+	1. Set the useCanvasControls window option to false.
+	2. If you use a different button size you may need to reposition the controls.
+	   Modify the controlsOffset window option.		
+	2. Add background images to each button.
+
+*/
+.mochaMinimizeButton, .mochaMaximizeButton, .mochaCloseButton {
+	float: right;
+	width: 14px;
+	height: 14px;
+	font-size: 1px;	
+	cursor: pointer;
+	z-index: 4;
+	background: #f00;
+	margin-left: 5px;
+}
+
+.mochaMinimizeButton {
+	margin-left: 0;
+}
+
+.mochaMaximizeButton {
+}
+
+.mochaCloseButton {
+}
+
+.mochaSpinner {
+	visibility: hidden;	
+	position: absolute;
+	bottom: 7px;
+	left: 6px;
+	width: 16px;
+	height: 16px;
+	background: url(../images/spinner.gif) no-repeat;
+}
+
+.mochaButtonbox {
+	padding: 4px;
+}
+
+.mochaButton {
+	background: #E5ECF9 url(../images/ui-bg_glass_100_E5ECF9_1x400.png) repeat-x scroll 50% 50%;
+	border: 1px solid #93B4D9;
+	cursor: pointer;
+	float: right;
+	line-height: 1.4em;
+	margin: 0 0.4em 0.5em 0;
+	overflow: visible;
+	padding: 0.1em 0.6em;
+	width: auto;
+	font-weight: bold;
+}
+
+.mochaTabsNav {
+	border: 0 none;
+	list-style-image: none;
+	list-style-position: outside;
+	list-style-type: none;
+	position: relative;
+	display: block;
+	margin: 0;
+	padding: 0;
+	color: #000000;
+	font-weight: bold;
+}
+
+.mochaTabsNav li {
+	border-bottom-width:0 !important;
+	float:left;
+	margin:0 0.5em -1px 0;
+	padding:0;
+	position:relative;
+	-moz-border-radius-topleft: 3px;
+	-moz-border-radius-topright: 3px;
+}
+
+.mochaTabsNav a:link, .mochaTabsNav a:visited {
+	color: #000000;
+	text-decoration: none;
+}
+
+.mochaTabsNav li a {
+	float: left;
+	padding: 3px 8px;
+	text-decoration: none;
+	outline-style: none;
+}
+
+.mochaTab {
+	background: #E5ECF9 url(../images/ui-bg_glass_100_E5ECF9_1x400.png) repeat-x scroll 50% 50%;
+	border: 1px solid #93B4D9;
+}
+
+.mochaTabSelected {
+	background: #C3D9FF url(../images/ui-bg_glass_65_C3D9FF_1x400.png) repeat-x scroll 50% 50%;
+	padding-bottom: 1px !important;
+	border-bottom-width: 0;
+}
+
+.mochaTabContent {
+	clear: both;
+	background: #C8E2FB none repeat scroll 0 0;
+	border: 1px solid #93B4D9;
+	display: block;
+	padding: 8px;
+	-moz-border-radius-bottomleft: 3px;
+	-moz-border-radius-bottomright: 3px;
+}
+
+.mochaIframe {
+	width: 100%;
+}  
+
+/* Fix for IE6 select z-index issue */
+.zIndexFix {
+	display: block;
+	position: absolute;
+	top: 0;
+	left: 0;
+	z-index: -1;
+	filter: mask();
+	width: 100px;
+	height: 100px;
+	border: 1px solid transparent;
+}
+
+/* Modals */
+
+.modal2 {
+	border: 8px solid #fff;		
+}
+
+.modal2 .mochaContentBorder {
+	border-width: 0px;
+}
+
+/* Overlay */
+
+#modalOverlay {
+	background: #666666 url(../images/ui-bg_diagonals-thick_20_666666_40x40.png) repeat scroll 50% 50%;
+	display: none;
+	left: 0;
+	top: 0;
+	opacity: 0;
+	position: fixed;
+	width: 100%;
+	z-index: 10000;
+}
