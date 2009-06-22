@@ -29,17 +29,21 @@ catch (e){
 
 gadgets = {
 	_urlParameters: null,
-	_gadgetID: null
+	_prefs: {},
+	_country: "us",
+	_lang: "en"
 };
+
+window.__MODULE_ID__ = null;
 
 gadgets.rpc = {
 	call: function (targetId, serviceName, callback, var_args) {
-		if (gadgets._gadgetID != null)
-			window.parent.gadget_rpc.call(gadgets._gadgetID, targetId, serviceName, callback, var_args);
+		if (window.__MODULE_ID__ != null)
+			window.parent.gadget_rpc.call(window.__MODULE_ID__, targetId, serviceName, callback, var_args);
 	},
 	register: function (serviceName, handler) {
-		if (gadgets._gadgetID != null)
-			window.parent.gadget_rpc.register(gadgets._gadgetID, serviceName, handler);
+		if (window.__MODULE_ID__ != null)
+			window.parent.gadget_rpc.register(window.__MODULE_ID__, serviceName, handler);
 	}
 };
 
@@ -48,6 +52,148 @@ gadgets.util = {
 		return gadgets._urlParameters;
 	},
 	registerOnLoadHandler: function(callback) {
-		window.parent.gadget_rpc.registerOnLoadHandler(gadgets._gadgetID, callback);
+		window.parent.gadget_rpc.registerOnLoadHandler(window.__MODULE_ID__, callback);
 	}
 };
+
+gadgets.window = {
+	adjustHeight: function (opt_height) {
+		window.parent.gadget_rpc.adjustHeight(window.__MODULE_ID__, opt_height);
+	},
+	getViewportDimensions: function () {
+		var w = 0, h = 0;
+		try {
+			w = window.innerWidth;
+			h = window.innerHeight;
+		}
+		catch (e) {
+			w = document.documentElement.clientWidth;
+			h = document.documentElement.clientHeight;
+		}
+		return {width: w, height: h};
+	},
+	setTitle: function (title) {
+		// Ignored in Waves
+	}
+};
+
+function _IG_Prefs(opt_moduleId) {
+	if (opt_moduleId == undefined || opt_moduleId == window.__MODULE_ID__) {
+		this._moduleId = window.__MODULE_ID__;
+		this._prefs = gadgets._prefs;
+	}
+	else {
+		this._moduleId = opt_moduleId;
+		this._prefs = {};
+	}
+	
+	this.getArray = function (key) {
+		if (key in this._prefs) {
+			var pref = this._prefs[key];
+			if (pref.datatype == "list") {
+				if ("value" in pref)
+					return pref.value;
+				else if ("default_value" in pref)
+					return pref.default_value;
+				else
+					return [];
+			}
+			else {
+				if ("value" in pref)
+					return [pref.value];
+				else if ("default_value" in pref)
+					return [pref.default_value];
+				else
+					return [];
+			}
+		}
+		else
+			return [];
+	};
+	
+	this.getBool = function (key) {
+		if (key in this._prefs) {
+			var pref = this._prefs[key];
+			if ("value" in pref)
+				return !!pref.value;
+			else if ("default_value" in pref)
+				return pref.default_value;
+			else
+				return false;
+		}
+		else
+			return false;
+	};
+	
+	this.getCountry = function () {
+		return gadgets._country;
+	};
+	
+	this.getLang = function () {
+		return gadgets._lang;
+	};
+	
+	this.getFloat = function (key) {
+		if (key in this._prefs) {
+			var pref = this._prefs[key];
+			if ("value" in pref)
+				return parseFloat(pref.value);
+			else if ("default_value" in pref)
+				return parseFloat(pref.default_value);
+			else
+				return 0;
+		}
+		else
+			return 0;
+	};
+	
+	this.getInt = function (key) {
+		if (key in this._prefs) {
+			var pref = this._prefs[key];
+			if ("value" in pref)
+				return parseInt(pref.value);
+			else if ("default_value" in pref)
+				return parseInt(pref.default_value);
+			else
+				return 0;
+		}
+		else
+			return 0;
+	};
+	
+	this.getModuleId = function () {
+		return window.__MODULE_ID__;
+	};
+	
+	this.getMsg = function (key) {
+		return "";
+	};
+	
+	this.getString = function (key) {
+		if (key in this._prefs) {
+			var pref = this._prefs[key];
+			if ("value" in pref)
+				return String(pref.value);
+			else if ("default_value" in pref)
+				return pref.default_value;
+			else
+				return "";
+		}
+		else
+			return "";
+	};
+	
+	// --- setprefs ---
+	this.set = function (key, val) {
+		if (key in this._prefs)
+			this._prefs[key].value = val;
+		else
+			this._prefs[key] = {value: val};
+		
+		window.parent.gadget_rpc.set_pref(this._moduleId, key, val);
+	};
+	
+	this.setArray = this.set;
+}
+
+gadgets.Prefs = _IG_Prefs;

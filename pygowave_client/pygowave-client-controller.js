@@ -17,7 +17,7 @@
  */
 
 /**
- * <p>This collection of JavaScript libraries represents the PyGoWave Client
+ * <p>This collection of JavaScript libraries represent the PyGoWave Client
  * interface for web browsers. It communicates seamlessly with any PyGoWave
  * Server instance.</p>
  * <p>PyGoWave Client is designed with the Model-View-Controller design
@@ -33,69 +33,88 @@
  */
 
 /**
+ * Root object of the namespace.
+ *
+ * @namespace pygowave
+ */
+window.pygowave = $defined(window.pygowave) ? window.pygowave : {};
+
+/**@scope pygowave*/
+
+/**
  * Controller module.
  * @module pygowave.controller
  */
-
-/**
- * Controller class; handles all user input and server-communication.
- * 
- * @class {public} pygowave.controller.PyGoWaveClient
- */
-PyGoWaveClient = new Class({
-	Implements: [Options, Events],
-	options: {
-		stompServer: "localhost",
-		stompPort: 61613,
-		stompUsername: "pygowave",
-		stompPassword: "pygowave",
-		
-		waveAccessKeyRx: "",
-		waveAccessKeyTx: ""
-	},
-	initialize: function(options) {
-		this.setOptions(options);
-		
-		// The connection object must be stored in this.conn and must have a sendJson method.
-		this.conn = new STOMPClient(); // STOMP is used as communication protocol
-		var self = this;
-		$extend(this.conn, {
-			onclose: function(c) {self.onConnClose(c);},
-			onerror: function(e) {self.onConnError(e);},
-			onconnectedframe: function() {this.subscribe(self.options.waveAccessKeyRx, {exchange: "wavelet.topic"}); this.sendJson({"pygowave": "hi"});},
-			onmessageframe: function(frame) {self.onConnReceive(JSON.decode(frame.body));},
-			sendJson: function (obj) {this.send(JSON.encode(obj), self.options.waveAccessKeyTx, {exchange: "wavelet.topic"});}
-		});
-	},
+pygowave.controller = function () {
+	// -- Private classes --
+	
+	// -- Public classes --
 	
 	/**
-	 * Callback for server connection socket.
-	 * Handles connection close.
+	 * Controller class; handles all user input and server-communication.
 	 * 
-	 * @function onConnClose
-	 * @param {int} code Error code provided by socket API.
+	 * @class {public} pygowave.controller.PyGoWaveClient
 	 */
-	onConnClose: function (code) {
-		alert('Lost Connection, Code: ' + c);
-	},
-	/**
-	 * Callback for server connection socket.
-	 * Handles connection errors.
-	 * 
-	 * @function onConnError
-	 * @param {int} code Error code provided by socket API.
-	 */
-	onConnError: function (code) {
-		alert("Error: " + code);
-	},
-	/**
-	 * Callback for server connection socket.
-	 * Dispatches incoming server messages.
-	 * 
-	 * @function onConnReceive
-	 * @param {object} obj JSON-decoded message object for processing.
-	 */
-	onConnReceive: function (obj) {
+	var PyGoWaveClient = new Class({
+		Implements: [Options, Events],
+		options: {
+			stompServer: "localhost",
+			stompPort: 61613,
+			stompUsername: "pygowave",
+			stompPassword: "pygowave",
+			
+			waveAccessKeyRx: "",
+			waveAccessKeyTx: ""
+		},
+		initialize: function(options) {
+			this.setOptions(options);
+			
+			// The connection object must be stored in this.conn and must have a sendJson method (defined below).
+			this.conn = new STOMPClient(); // STOMP is used as communication protocol
+			var self = this;
+			$extend(this.conn, {
+				onclose: function(c) {self.onConnClose(c);},
+				onerror: function(e) {self.onConnError(e);},
+				onconnectedframe: function() {this.subscribe(self.options.waveAccessKeyRx, {exchange: "wavelet.topic"}); this.sendJson({"pygowave": "hi"});},
+				onmessageframe: function(frame) {self.onConnReceive(JSON.decode(frame.body));},
+				sendJson: function (obj) {this.send(JSON.encode(obj), self.options.waveAccessKeyTx, {exchange: "wavelet.topic"});}
+			});
+		},
 		
-	}
-});
+		/**
+		 * Callback for server connection socket.
+		 * Handles connection close.
+		 * 
+		 * @function onConnClose
+		 * @param {int} code Error code provided by socket API.
+		 */
+		onConnClose: function (code) {
+			alert('Lost Connection, Code: ' + c);
+		},
+		/**
+		 * Callback for server connection socket.
+		 * Handles connection errors.
+		 * 
+		 * @function onConnError
+		 * @param {int} code Error code provided by socket API.
+		 */
+		onConnError: function (code) {
+			alert("Error: " + code);
+		},
+		/**
+		 * Callback for server connection socket.
+		 * Dispatches incoming server messages.
+		 * 
+		 * @function onConnReceive
+		 * @param {object} obj JSON-decoded message object for processing.
+		 */
+		onConnReceive: function (obj) {
+			
+		}
+	});
+	
+	return {
+		PyGoWaveClient: PyGoWaveClient
+	};
+	
+}();

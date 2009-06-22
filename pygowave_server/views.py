@@ -29,7 +29,7 @@ from django.utils.translation import ugettext as _
 from django.utils import simplejson
 
 from pygowave_server.forms import ParticipantProfileForm, GadgetRegistryForm, NewWaveForm
-from pygowave_server.models import Participant, Gadget, Wave
+from pygowave_server.models import Participant, Gadget, Wave, GadgetElement
 from pygowave_server.engine import GadgetLoader
 
 from datetime import datetime, timedelta
@@ -270,6 +270,11 @@ def gadget_loader(request):
 	
 	if request.GET.has_key("gadget_id"):
 		gadget_id = request.GET["gadget_id"]
+		try:
+			ge = GadgetElement.objects.get(pk=gadget_id)
+			gadget.update_prefs(ge.get_userprefs())
+		except:
+			return render_to_response('pygowave_server/gadget_error.html', {"error_message": _(u"GadgetElement could not be found.")}, context_instance=RequestContext(request))
 	else:
 		gadget_id = None
 

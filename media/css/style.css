@@ -387,17 +387,3 @@ p
 	width: 100%;
 	height: 600px;
 }
-
-.wavelet_widget
-{
-	border: 1px solid black;
-	width: 100%;
-	height: 100%;
-}
-
-.wavelet_participants_div
-{
-	height: 48px;
-	width: 100%;
-	background-color: rgb(201, 226, 252);
-}

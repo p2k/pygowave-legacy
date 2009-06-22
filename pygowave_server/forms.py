@@ -34,7 +34,7 @@ from pygowave_server.models import Gadget
 from pygowave_server.engine import GadgetLoader
 
 class AvatarWidget(widgets.FileInput):
-	def __init__(self, size=(32, 32), prefix="", attrs=None):
+	def __init__(self, size=(40, 40), prefix="", attrs=None):
 		super(AvatarWidget, self).__init__(attrs)
 		self.size = tuple(size)
 		self.hidden_input = widgets.HiddenInput()

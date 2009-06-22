@@ -10,9 +10,10 @@
 	<link rel="icon" href="{{ MEDIA_URL }}images/favicon.ico" type="image/x-icon" />
 	<link rel="stylesheet" href="{{ MEDIA_URL }}css/style.css" type="text/css" />
 	<link rel="stylesheet" href="{{ MEDIA_URL }}css/mocha.css" type="text/css" />
+	<link rel="stylesheet" href="{{ MEDIA_URL }}css/pygowave-client-style.css" type="text/css" />
 	<link rel="stylesheet" href="{{ MEDIA_URL }}css/jquery-ui-1.7.2.custom.css" type="text/css" />{% if LANGUAGE_BIDI %}
 	<link rel="stylesheet" href="{{ MEDIA_URL }}css/style-rtl.css" type="text/css" />{% endif %}
-	<script type="text/javascript" src="{{ MEDIA_URL }}js/mootools-1.2-core.js"></script>
+	<script type="text/javascript" src="{{ MEDIA_URL }}js/mootools-1.2-core-nc.js"></script>
 	<script type="text/javascript" src="{{ MEDIA_URL }}js/mootools-1.2-more.js"></script>
 	<script type="text/javascript" src="{{ MEDIA_URL }}js/mootools-corners.js"></script>
 	<!--[if IE]>
@@ -102,22 +103,6 @@
 				}
 			});
 		}
-		/*
-		$("#languagebox").dialog({
-			autoOpen: false,
-			width: 280,
-			height: 140,
-			buttons: {
-				"{% trans "OK" %}": function () {
-						$("#languageform").submit();
-					},
-				"{% trans "Cancel" %}": function () {
-						$(this).dialog("close");
-					}
-			},
-			resizable: false,
-			modal: true
-		});*/
 	</script>
 </body>
 

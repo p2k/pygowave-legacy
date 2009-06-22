@@ -254,6 +254,23 @@ class PyGoWaveMessageProcessor(Messaging):
 				
 				# Asynchronous event, so send to all part. except the sender
 				self.broadcast(wavelet, "DOCUMENT_ELEMENT_DELTA", {"id": elt_id, "delta": delta}, [participant])
+			
+			elif message["type"] == "DOCUMENT_ELEMENT_SETPREF":
+				elt_id = int(message["property"]["id"])
+				key = message["property"]["key"]
+				value = message["property"]["value"]
+				# Find GadgetElement
+				try:
+					ge = GadgetElement.objects.get(pk=elt_id, blip=wavelet.root_blip)
+				except ObjectDoesNotExist:
+					logger.error("[%s@%s] GadgetElement #%d not found (or not accessible)" % (participant.name, wavelet.wave.id, elt_id))
+					return # Fail silently (TODO: report error to user)
+				
+				ge.set_userpref(key, value)
+				logger.info("[%s@%s] Set UserPref '%s' on GadgetElement #%d" % (participant.name, wavelet.wave.id, key, elt_id))
+				
+				# Asynchronous event, so send to all part. except the sender
+				self.broadcast(wavelet, "DOCUMENT_ELEMENT_SETPREF", {"id": elt_id, "key": key, "value": value}, [participant])
 		
 		return True
 

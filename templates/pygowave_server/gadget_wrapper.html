@@ -1,4 +1,5 @@
 {% load i18n %}
+{% get_current_language as LANGUAGE_CODE %}
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 
 <html xmlns="http://www.w3.org/1999/xhtml">
@@ -6,10 +7,14 @@
 <head>
 	<title>{% block title %}{{ gadget.title }}{% endblock %}</title>
 	<link rel="icon" href="{{ MEDIA_URL }}images/favicon.ico" type="image/x-icon" />
-	<script type="text/javascript" src="{{ MEDIA_URL }}js/gadget-wrapper.js"></script>
+	<style type="text/css">html,body{height:100%;width:100%;margin:0;padding:0;}</style>
+	<script type="text/javascript" src="{{ MEDIA_URL }}js/gadget-wrapper.js"></script>{% if gadget.features.wave_preview %}
+	<script type="text/javascript" src="http://wave-api.appspot.com/public/wave.js"></script>{% endif %}
 	<script type="text/javascript">
-		gadgets._gadgetID = {% if gadget_id %}{{ gadget_id }}{% else %}null{% endif %};
+		__MODULE_ID__ = {% if gadget_id %}{{ gadget_id }}{% else %}null{% endif %};
 		gadgets._urlParameters = {% if url_parameters %}{{ url_parameters|safe }}{% else %}{}{% endif %};
+		gadgets._prefs = {{ gadget.prefs_json|safe }};
+		gadgets._lang = "{{ LANGUAGE_CODE|slice:":2"|upper }}";
 	</script>
 {% block additional_header %}{% endblock %}
 </head>

@@ -89,6 +89,7 @@ class Participant(models.Model):
 			"displayName": self.name,
 			"thumbnailUrl": self.avatar,
 			"profileUrl": self.profile,
+			"isBot": self.is_bot
 		}
 	
 	def __unicode__(self):
@@ -293,6 +294,7 @@ class GadgetElement(Element):
 	
 	url = models.URLField(verify_exists=False, max_length=1024)
 	fields = models.TextField() # JSON is used here
+	userprefs = models.TextField() # ditto
 	
 	def apply_delta(self, delta, save=True):
 		"""
@@ -330,6 +332,36 @@ class GadgetElement(Element):
 		
 		"""
 		self.fields = simplejson.dumps(data)
+
+	def set_userpref(self, key, value, save=True):
+		"""
+		Set a UserPref value.
+		Also saves the object.
+		
+		"""
+		prefs = self.get_userprefs()
+		prefs[key] = value
+		self.set_userprefs(prefs)
+		
+		if save:
+			self.save()
+
+	def set_userprefs(self, data):
+		"""
+		Set userprefs (name:value) by a python map (encoding to JSON).
+		
+		"""
+		self.userprefs = simplejson.dumps(data)
+	
+	def get_userprefs(self):
+		"""
+		Return userprefs (name:value) as python map (JSON decoded).
+		
+		"""
+		if self.userprefs == "":
+			return {}
+		else:
+			return simplejson.loads(self.userprefs)
 
 	def save(self, force_insert=False, force_update=False):
 		self.type = 2
