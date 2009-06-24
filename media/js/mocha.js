@@ -1837,7 +1837,7 @@ MochaUI.Window = new Class({
 			cache.buttonsWrapperEl = new Element('div', {
 				'id': id + '_buttonsWrapper',
 				'styles': {
-					'width': width + 'px',
+					'width': (width - (options.resizable ? 20 : 0)) + 'px',
 					'height': options.footerHeight + 'px'
 				}
 			}).inject(cache.overlayEl, 'bottom');
@@ -2028,6 +2028,10 @@ MochaUI.Window = new Class({
 			'width': width - shadowBlur2x,
 			'height': options.headerHeight
 		});
+		
+		// Resize button bar
+		if ($defined(this.buttonsWrapperEl))
+			this.buttonsWrapperEl.setStyle('width', (width - shadowBlur2x - (options.resizable ? 20 : 0)));
 
 		// Make sure loading icon is placed correctly.
 		if (options.useSpinner == true && options.shape != 'gauge' && options.type != 'notification'){

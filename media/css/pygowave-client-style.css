@@ -1,4 +1,6 @@
 
+/* This stylesheet is shamelessly ripped of the Google Wave screenshots. */
+
 .wavelet_widget
 {
 	border: 1px solid black;
@@ -22,10 +24,20 @@
 	margin-top: 7px;
 	padding: 0;
 }
+.wavelet_participant.small
+{
+	margin-top: 0;
+	width: 32px;
+	height: 30px;
+}
 
 .wavelet_participant:first-child
 {
 	margin-left: 5px;
+}
+.wavelet_participant.small:first-child
+{
+	margin-left: 0;
 }
 
 .wavelet_participant .thumbnail
@@ -35,6 +47,11 @@
 	border: 1px solid #b8c6d9;
 	background-color: #ffffff;
 }
+.wavelet_participant.small .thumbnail
+{
+	height: 27px;
+	width: 27px;
+}
 
 .wavelet_participant .indicator
 {
@@ -43,15 +60,121 @@
 	left: 34px;
 	width: 11px;
 	height: 11px;
+	background-image: url(../images/user-online.png);
+}
+.wavelet_participant.small .indicator
+{
+	top: -6px;
+	left: 23px;
+	width: 8px;
+	height: 8px;
+	background-image: url(../images/user-online-small.png);
 }
 
 .wavelet_participant .indicator.online
 {
 	display: block;
-	background-image: url(../images/user-online.png);
 }
 
 .wavelet_participant .indicator.offline
 {
 	display: none;
+}
+
+.wavelet_add_participant_widget
+{
+	background-image: url(../images/list-add.png);
+	width: 22px;
+	height: 22px;
+	cursor: pointer;
+	float: left;
+	margin-top: 17px;
+	margin-left: 8px;
+}
+
+.wavelet_add_participant_searchbar
+{
+	background-color: rgb(201, 226, 252);
+	height: 24px;
+	padding: 4px 8px 4px 4px;
+	border-bottom: 1px solid #b8c6d9;
+}
+
+.blip_widget hr
+{
+	height: 1px;
+	background-image: url(../images/dot-hr.gif);
+	background-repeat: repeat-x;
+	border: none;
+	background-color: transparent;
+	margin-left: 1px;
+	margin-right: 1px;
+}
+
+.search_widget
+{
+	height: 24px;
+	display: table;
+	table-layout: fixed;
+	border-collapse: collapse;
+	border-spacing: 0;
+	width: 100%;
+}
+
+.search_widget .input_wrapper
+{
+	display: table-cell;
+	vertical-align: top;
+}
+.search_widget input
+{
+	border: none;
+	background-repeat: repeat-x;
+	height: 20px;
+	padding-top: 4px;
+	padding-bottom: 0;
+	padding-right: 0;
+	padding-left: 0;
+	width: 100%;
+	vertical-align: top;
+	outline: none;
+	margin: 0;
+}
+.search_widget input.active 
+{
+	background-image: url(../images/searchbox_active_c.gif);
+}
+.search_widget input.inactive
+{
+	background-image: url(../images/searchbox_inactive_c.gif);
+}
+
+.search_widget .left_corner
+{
+	display: table-cell;
+	width: 12px;
+	height: 24px;
+}
+.search_widget .left_corner.active
+{
+	background-image: url(../images/searchbox_active_l.gif);
+}
+.search_widget .left_corner.inactive
+{
+	background-image: url(../images/searchbox_inactive_l.gif);
+}
+
+.search_widget .right_corner
+{
+	display: table-cell;
+	width: 21px;
+	height: 24px;
+}
+.search_widget .right_corner.active
+{
+	background-image: url(../images/searchbox_active_r.gif);
+}
+.search_widget .right_corner.inactive
+{
+	background-image: url(../images/searchbox_inactive_r.gif);
 }

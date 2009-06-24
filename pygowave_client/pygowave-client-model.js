@@ -101,7 +101,7 @@ pygowave.model = function () {
 		
 		/**
 		 * Returns weather the participant is a online.
-		 * @function {public Boolean} isBot
+		 * @function {public Boolean} isOnline
 		 */
 		isOnline: function () {return this.options.isOnline},
 		

@@ -41,7 +41,7 @@
 <div class="section">
 	<div id="leave_button" class="ui-state-default ui-corner-all">
 		{% if LANGUAGE_BIDI %}<label>{% trans "Leave Wave" %}</label>{% endif %}
-		<img src="{{ MEDIA_URL }}images/leave.png" height="22" width="22" />
+		<img src="{{ MEDIA_URL }}images/leave.png" height="22" width="22" alt="{% trans "Leave Wave" %}" />
 		{% if not LANGUAGE_BIDI %}<label>{% trans "Leave Wave" %}</label>{% endif %}
 	</div>
 {% blocktrans %}
@@ -56,7 +56,7 @@ Again, this application is experimental and may not work as expected.
 <h4>{% trans "Playground" %}</h4>
 <div class="section">
 	<div id="wave_container">
-		
+		<!-- The content is dynamically rendered through our client script. -->
 	</div>
 	<script type="text/javascript">
 		(function () {
@@ -75,7 +75,7 @@ Again, this application is experimental and may not work as expected.
 			});
 			me = new pygowave.model.Participant("nobody@localhost", {displayName: "nobody"});
 			awavelet.addParticipant(me);
-			me.setOnline(true);
+			//me.setOnline(true);
 		})();
 	</script>
 </div>

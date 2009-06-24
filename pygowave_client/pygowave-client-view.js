@@ -46,11 +46,14 @@ pygowave.view = function () {
 		 * Called on instantiation.
 		 * @constructor {public} initialize
 		 * @param {Element} parentElement Parent DOM element to insert the widget
-		 * @param {Element} contentElement DOM element to be inserted into the parent element
+		 * @param {Element} contentElement DOM element to be inserted into the
+		 *        parent element
+		 * @param {String} where Where to inject the contentElement relative to
+		 *        the parent element. Can be 'top', 'bottom', 'after', or 'before'.
 		 */
-		initialize: function(parentElement, contentElement) {
+		initialize: function(parentElement, contentElement, where) {
 			this.contentElement = contentElement;
-			this.inject(parentElement);
+			this.inject(parentElement, where);
 		},
 		
 		/**
@@ -68,11 +71,96 @@ pygowave.view = function () {
 		 * Inject this widget somewhere else. Sets the parent element.
 		 * @function {public Widget} inject
 		 * @param {Element} parentElement New parent element
+		 * @param {String} where Where to inject the contentElement relative to
+		 *        the parent element. Can be 'top', 'bottom', 'after', or 'before'.
 		 * @return Returns a reference to this widget.
 		 */
-		inject: function (parentElement) {
+		inject: function (parentElement, where) {
 			this.parentElement = parentElement;
-			this.contentElement.inject(this.parentElement);
+			this.contentElement.inject(this.parentElement, where);
+		}
+	});
+	
+	/**
+	 * Renders a fancy search box.
+	 *
+	 * @class {public} pygowave.view.SearchWidget
+	 * @extends pygowave.view.Widget
+	 */
+	var SearchWidget = new Class({
+		Extends: Widget,
+		
+		// --- Event documentation ---
+		/**
+		 * Fired when the content of the search field changes.
+		 * @event onChange
+		 * @param {String} text The current (and recently changed) text of the
+		 *        search field
+		 */
+		// ---------------------------
+		
+		/**
+		 * Called on instantiation.
+		 * @constructor {public} initialize
+		 * @param {Element} parentElement Parent DOM element to insert the widget
+		 * @param {String} where Where to inject the widget relative to the
+		 *        parent element. Can be 'top', 'bottom', 'after', or 'before'.
+		 */
+		initialize: function (parentElement, where) {
+			var contentElement = new Element('div', {'class': 'search_widget'});
+			this._lcorner = new Element('div', {'class': 'left_corner inactive'}).inject(contentElement);
+			this._iwrapper = new Element('div', {'class': 'input_wrapper'}).inject(contentElement);
+			this._input = new Element('input', {'type': 'text', 'class': 'inactive'}).inject(this._iwrapper);
+			this._input.addEvent('focus', this._onFocus.bind(this));
+			this._input.addEvent('blur', this._onBlur.bind(this));
+			this._rcorner = new Element('div', {'class': 'right_corner inactive'}).inject(contentElement);
+			this.parent(parentElement, contentElement, where);
+		},
+		
+		/**
+		 * Called when the input box receives focus. Toggles
+		 * active/inactive style classes.
+		 * @function {private} _onFocus
+		 */
+		_onFocus: function () {
+			this._lcorner.addClass('active').removeClass('inactive');
+			this._input.addClass('active').removeClass('inactive');
+			this._rcorner.addClass('active').removeClass('inactive');
+		},
+		
+		/**
+		 * Called when the input box looses focus. Toggles
+		 * active/inactive style classes.
+		 * @function {private} _onBlur
+		 */
+		_onBlur: function () {
+			this._lcorner.addClass('inactive').removeClass('active');
+			this._input.addClass('inactive').removeClass('active');
+			this._rcorner.addClass('inactive').removeClass('active');
+		},
+		
+		/**
+		 * Forwards the onChange event.
+		 * @function {private} _onChanged
+		 */
+		_onChange: function () {
+			this.fireEvent('change', this.text());
+		},
+		
+		/**
+		 * Set focus to the input box.
+		 * @function {public} setFocus
+		 */
+		setFocus: function () {
+			this._input.focus();
+		},
+		
+		/**
+		 * Returns the text of the search field.
+		 * @function {public String} text
+		 */
+		text: function () {
+			return this._input.get('value');
 		}
 	});
 	
@@ -91,11 +179,14 @@ pygowave.view = function () {
 		 * @param {WaveView} view A reference back to the main view
 		 * @param {Element} parentElement Parent DOM element to insert the widget
 		 * @param {pygowave.model.Participant} participant Participant object
-		 * @param {Boolean} online True if the participant is online; renders a online indicator
+		 * @param {Boolean} small True to render a small version of the widget
+		 * @param {String} where Where to inject the widget relative to the
+		 *        parent element. Can be 'top', 'bottom', 'after', or 'before'.
 		 */
-		initialize: function (view, parentElement, participant, online) {
+		initialize: function (view, parentElement, participant, small, where) {
 			this._view = view;
 			var contentElement = new Element('div', {'class': 'wavelet_participant'});
+			if (small) contentElement.addClass('small');
 			var tn = participant.thumbnailUrl();
 			if (tn == "")
 				tn = view.defaultThumbnailUrl();
@@ -104,34 +195,141 @@ pygowave.view = function () {
 				'class': 'thumbnail',
 				'alt': participant.displayName(),
 				'title': participant.displayName()
-			}).inject(contentElement, 'bottom');
-			this.parent(parentElement, contentElement);
+			}).inject(contentElement);
+			if (small) this._pImage.addClass('small');
+			this.parent(parentElement, contentElement, where);
 			participant.addEvent('onlineStateChanged', this._onOnlineStateChanged.bind(this));
-			this._onOnlineStateChanged(online);
+			this._onOnlineStateChanged(participant.isOnline());
 		},
 		
 		/**
-		 * Callback for {@link pygowave.model.Participant.onOnlineStateChanged onOnlineStateChanged}.
-		 * Shows/hides the online indicator.<br/>
+		 * Callback for {@link pygowave.model.Participant.onOnlineStateChanged
+		 * onOnlineStateChanged}. Shows/hides the online indicator.<br/>
 		 * Note: The behaviour depends on your stylesheet. This method toggles
 		 * between the 'offline' and 'online' classes of the element.
-		 * @function {public} _onOnlineStateChanged
+		 * @function {private} _onOnlineStateChanged
 		 * @param {Boolean} online True if the participant is online
 		 */
 		_onOnlineStateChanged: function (online) {
-			this._online = online;
 			if (!$defined(this._oImage))
 				this._oImage = new Element('div', {'class': 'indicator'}).inject(this.contentElement, 'bottom');
 			
 			this._oImage.addClass(online ? 'online' : 'offline').removeClass(online ? 'offline' : 'online');
+		}
+	});
+	
+	/**
+	 * Add participant window.
+	 *
+	 * @class {private} pygowave.view.AddParticipantWindow
+	 * @extends MochaUI.Window
+	 */
+	var AddParticipantWindow = new Class({
+		Extends: MochaUI.Window,
+		/**
+		 * Called on instantiation.
+		 * @constructor {public} initialize
+		 * @param {WaveView} view A reference back to the main view
+		 */
+		initialize: function (view) {
+			this._view = view;
+			var buttons = {};
+			buttons[gettext("Cancel")] = this._onCancel.bind(this);
+			buttons[gettext("OK")] = this._onOK.bind(this);
+			this._content = new Element('div');
+			this._topBar = new Element('div', {'class': 'wavelet_add_participant_searchbar'}).inject(this._content);
+			this._searchbox = new SearchWidget(this._topBar);
+			this.parent({
+				title: gettext("Add participant"),
+				content: this._content,
+				width: 240,
+				height: 410,
+				headerStartColor: [95, 163, 237],
+				headerStopColor: [85, 144, 210],
+				bodyBgColor: [201, 226, 252],
+				closeBgColor: [66, 114, 166],
+				closeColor: [255, 255, 255],
+				cornerRadius: 4,
+				resizable: true,
+				footerHeight: 34,
+				rtl: this._view.options.rtl,
+				buttons: buttons,
+				padding: {top: 0, right: 0, bottom: 0, left: 0}
+			});
+			this._searchbox.setFocus.delay(350, this._searchbox);
+			this._searchbox.addEvent('change', this._onQueryChange.bind(this));
 		},
 		
 		/**
-		 * Return if the participant is online.
-		 * @function {public Boolean} isOnline
+		 * Called if the users presses cancel.
+		 * @function {private} _onCancel
 		 */
-		isOnline: function () {
-			return this._online;
+		_onCancel: function () {
+			MochaUI.closeWindow(this.windowEl);
+		},
+		
+		/**
+		 * Called if the user presses OK.
+		 * @function {private} _onOK
+		 */
+		_onOK: function () {
+			
+		},
+		
+		/**
+		 * Called if the user enters a query. Forwards event to view.
+		 * @function {private} _onQueryChange
+		 * @param {String} text Entered query text
+		 */
+		_onQueryChange: function (text) {
+			this._view.fireEvent('searchForParticipant', text);
+		}
+	});
+	
+	/**
+	 * Represents the "Add participant" button.
+	 *
+	 * @class {private} pygowave.view.AddParticipantWidget
+	 * @extends pygowave.view.Widget
+	 */
+	var AddParticipantWidget = new Class({
+		Extends: Widget,
+		/**
+		 * Called on instantiation.
+		 * @constructor {public} initialize
+		 * @param {WaveView} view A reference back to the main view
+		 * @param {Element} parentElement Parent DOM element to insert the widget
+		 */
+		initialize: function (view, parentElement) {
+			this._view = view;
+			var contentElement = new Element('div', {
+				'class': 'wavelet_add_participant_widget',
+				'title': gettext("Add participant")
+			});
+			this.parent(parentElement, contentElement);
+			contentElement.addEvent('click', this._onClick.bind(this));
+			this._addParticipantWindow = null;
+		},
+		
+		/**
+		 * Callback on click.
+		 * @function {private} _onClick
+		 */
+		_onClick: function () {
+			if (this._addParticipantWindow == null) {
+				this._addParticipantWindow = new AddParticipantWindow(this._view);
+				this._addParticipantWindow.addEvent('closeComplete', this._onClose.bind(this));
+			}
+			else
+				MochaUI.focusWindow(this._addParticipantWindow.windowEl);
+		},
+		
+		/**
+		 * Callback if the search window is closed.
+		 * @function {private} _onClose
+		 */
+		_onClose: function () {
+			this._addParticipantWindow = null;
 		}
 	});
 	
@@ -159,6 +357,7 @@ pygowave.view = function () {
 			this.parent(parentElement, contentElement);
 			this._wavelet = wavelet;
 			this._participantWidgets = new Hash();
+			this._addParticipantWidget = new AddParticipantWidget(this._view, this._participantsDiv);
 			this.updateParticipants();
 		},
 		
@@ -172,7 +371,11 @@ pygowave.view = function () {
 			var ids = this._wavelet.allParticipantIDs();
 			ids.each(function (id) {
 				if (!this._participantWidgets.has(id)) {
-					var wgt = new ParticipantWidget(this._view, this._participantsDiv, this._wavelet.participant(id), false);
+					var wgt = new ParticipantWidget(this._view,
+						this._addParticipantWidget.contentElement,
+						this._wavelet.participant(id),
+						false,
+						'before');
 					this._participantWidgets.set(id, wgt);
 				}
 			}, this);
@@ -197,8 +400,18 @@ pygowave.view = function () {
 		options: {
 			participantSearchUrl: "about:blank",
 			gadgetLoaderUrl: "about:blank",
-			defaultThumbnailUrl: "about:blank"
+			defaultThumbnailUrl: "about:blank",
+			rtl: false
 		},
+		
+		// --- Event documentation ---
+		/**
+		 * Fired if the user enters something into the participant search box.
+		 * <br/>Note: This event is fired by a AddParticipantWindow instance.
+		 * @event onSearchForParticipant
+		 * @param {String} text Entered search query
+		 */
+		// ---------------------------
 		
 		/**
 		 * Called on instantiation.
@@ -212,6 +425,8 @@ pygowave.view = function () {
 		 *      to have the gadget URL appended
 		 * @... {String} defaultThumbnailUrl URL to a thumbnail image to be used
 		 *      if the participant has not uploaded his own.
+		 * @... {Boolean} rtl Set to true, if you want to enable rendering
+		 *      for right-to-left languages.
 		 */
 		initialize: function (model, container, options) {
 			this.setOptions(options);
@@ -267,7 +482,8 @@ pygowave.view = function () {
 	});
 	
 	return {
-		WaveView: WaveView
+		WaveView: WaveView,
+		SearchWidget: SearchWidget
 	};
 
 }();
