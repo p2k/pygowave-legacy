@@ -33,8 +33,10 @@ from pygowave_server.models import Participant, Gadget, Wave, GadgetElement
 from pygowave_server.engine import GadgetLoader
 
 from datetime import datetime, timedelta
-import urllib2
+import urllib2, os.path
 from lxml.etree import XMLSyntaxError
+
+from pycow import translate_file
 
 def index(request):
 	auth_fail = False
@@ -201,10 +203,11 @@ def wave(request, wave_id):
 		
 		return HttpResponse("Error: Unknown request")
 	else:
-		participant.setup_random_access_keys()
+		conn = participant.create_new_connection()
 		wave_access_key = {
-			"rx": "%s.%s.waveop" % (participant.rx_key, wavelet.id),
-			"tx": "%s.%s.clientop" % (participant.tx_key, wavelet.id)}
+			"rx": conn.rx_key,
+			"tx": conn.tx_key,
+		}
 		
 		gadgets = Gadget.objects.all()
 		return render_to_response('pygowave_server/on_the_wave.html', {
@@ -212,8 +215,9 @@ def wave(request, wave_id):
 			"wave_access_key": wave_access_key,
 			"wavelet_title": wavelet.title,
 			"wave_id": wave_id,
+			"wavelet_id": wavelet.id,
 			"participant_id": participant.id
-			}, context_instance=RequestContext(request))
+		}, context_instance=RequestContext(request))
 
 @login_required
 def search_participants(request):
@@ -279,4 +283,19 @@ def gadget_loader(request):
 		gadget_id = None
 
 	return render_to_response('pygowave_server/gadget_wrapper.html', {"gadget": gadget, "url_parameters": simplejson.dumps(request.GET), "gadget_id": gadget_id}, context_instance=RequestContext(request))
+
+COMMON_FOLDER = os.path.dirname(os.path.abspath(__file__)) + os.path.sep + "common" + os.path.sep
+def pycow(request, filename):
+	"""
+	Translate a Python file on-the-fly or use a cached version if possible.
 	
+	"""
+	
+	module = "pygowave." + filename[:-3]
+	cachefile = django_settings.PYCOW_CACHE_ROOT + filename
+	srcfile = COMMON_FOLDER + filename[:-2] + "py"
+	
+	if not os.path.exists(cachefile) or  os.path.getmtime(srcfile) > os.path.getmtime(cachefile):
+		translate_file(srcfile, cachefile, namespace=module, warnings=False)
+	
+	return HttpResponse(open(cachefile, "r").read(), mimetype="text/javascript")

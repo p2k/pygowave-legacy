@@ -126,9 +126,10 @@ INSTALLED_APPS = (
 	'django.contrib.sites',
 	'django.contrib.admin',
 	'registration',
-	'rosetta',
 	'pygowave_server',
 	'pygowave_client',
+# Uncomment the following line for translation support with django-rosetta
+	#'rosetta',
 )
 
 AUTH_PROFILE_MODULE = 'pygowave_server.participant'
@@ -141,16 +142,22 @@ AVATAR_URL = MEDIA_URL + 'avatars/'
 GADGET_ROOT = MEDIA_ROOT + 'gadgets/'
 GADGET_URL = MEDIA_URL + 'gadgets/'
 
+PYCOW_CACHE_ROOT = MEDIA_ROOT + 'pycow/'
+PYCOW_CACHE_URL = MEDIA_URL + 'pycow/'
+
 # Used if a user doesn't log out properly
 ONLINE_TIMEOUT_MINUTES = 10
+
+# Used if a user somehow doesn't use his generated access key in time
+ACCESS_KEY_TIMEOUT_MINUTES = 5
 
 # RabbitMQ settings here
 AMQP_SERVER = "localhost"
 AMQP_PORT = 5672
-AMQP_USER = "pygowave"
-AMQP_PASSWORD = "pygowave"
+AMQP_USER = "pygowave_server"
+AMQP_PASSWORD = "pygowave_server"
 AMQP_VHOST = "/"
 
 # Orbited settings here
 ORBITED_SERVER = "localhost"
-ORBITED_PORT = 9000
+ORBITED_PORT = 80

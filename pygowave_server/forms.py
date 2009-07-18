@@ -33,6 +33,20 @@ from pygowave_server.utils import AlreadyUploadedFile, get_profile_model
 from pygowave_server.models import Gadget
 from pygowave_server.engine import GadgetLoader
 
+from registration.forms import RegistrationForm
+
+class MyRegistrationForm(RegistrationForm):
+	
+	def clean_username(self):
+		"""
+		Validate that the username is at least three characters long.
+		
+		"""
+		username = super(MyRegistrationForm, self).clean_username()
+		if len(username) < 3:
+			raise forms.ValidationError(_(u'Your desired username is too short. Please enter at least three characters.'))
+		return username
+
 class AvatarWidget(widgets.FileInput):
 	def __init__(self, size=(40, 40), prefix="", attrs=None):
 		super(AvatarWidget, self).__init__(attrs)

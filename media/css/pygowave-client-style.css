@@ -178,3 +178,37 @@
 {
 	background-image: url(../images/searchbox_inactive_r.gif);
 }
+
+.debug_window
+{
+	display: table;
+	width: 100%;
+	height: 100%;
+}
+
+.debug_window_row
+{
+	display: table-row;
+}
+
+.debug_window_bar
+{
+	display: table-cell;
+	background-color: rgb(201, 226, 252);
+	border-bottom: 1px solid #b8c6d9;
+	width: 100%;
+	height: 20px;
+	padding: 4px;
+}
+
+.debug_window_table_container
+{
+	display: table-cell;
+	width: 100%;
+	height: auto;
+}
+
+.debug_window_table
+{
+	
+}

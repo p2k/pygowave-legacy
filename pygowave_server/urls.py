@@ -32,6 +32,7 @@ urlpatterns = patterns('',
 	(r'^gadgets/$', all_gadgets),
 	(r'^gadgets/mine/$', my_gadgets),
 	(r'^gadgets/load/$', gadget_loader),
+	(r'^pycow/(?P<filename>\w+\.js)', pycow),
 )
 
 if 'rosetta' in django_settings.INSTALLED_APPS:

@@ -1206,7 +1206,7 @@ MochaUI.Window = new Class({
 				.injectInside(this.buttonsEl);
 			}, this);
 		}
-		else if ($type(options.buttons) == 'element')
+		else if ($type(this.options.buttons) == 'element')
 			this.buttonsEl.injectInside(this.options.buttons);
 		
 		// Add content to window toolbar.

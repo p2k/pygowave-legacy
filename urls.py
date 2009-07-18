@@ -21,12 +21,16 @@ from django.conf.urls.defaults import *
 from django.contrib import admin
 admin.autodiscover()
 
+from registration.views import register
+from pygowave_server.forms import MyRegistrationForm
+
 js_info_dict = {
     'packages': ('pygowave_client',),
 }
 
 urlpatterns = patterns('',
 	(r'^admin/(.*)', admin.site.root),
+	url(r'^accounts/register/$', register, name='registration_register', kwargs={"form_class": MyRegistrationForm}),
 	(r'^accounts/', include('registration.urls')),
 	(r'^jsi18n/$', 'django.views.i18n.javascript_catalog', js_info_dict),
 	(r'^i18n/', include('django.conf.urls.i18n')),

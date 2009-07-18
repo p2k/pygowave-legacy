@@ -22,7 +22,7 @@ from django.utils import simplejson
 from pygowave_server.models import Wave, Wavelet, Blip
 
 from lxml import etree
-import urllib2
+import urllib2, time
 
 class Operation:
 	"""
@@ -147,6 +147,19 @@ class Event:
 		self.evt_type = evt_type
 		self.modified_by = modified_by
 		self.properties = properties
+		self.timestamp = int(time.time()*1000)
+	
+	def serialize(self):
+		"""
+		Serialize the event into a format that is compatible with robots.
+		
+		"""
+		return {
+			"timestamp": self.timestamp,
+			"type": self.evt_type,
+			"modifiedBy": self.modified_by,
+			"properties": self.properties,
+		}
 
 class GadgetLoader:
 	

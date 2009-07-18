@@ -387,3 +387,18 @@ p
 	width: 100%;
 	height: 600px;
 }
+
+.donate_div
+{
+	position: absolute;
+	bottom: 13px;
+	display: table;
+}
+
+.donate_content
+{
+	display: table-cell;
+	vertical-align: bottom;
+	font-size: 0.8em;
+	padding-right: 4px;
+}

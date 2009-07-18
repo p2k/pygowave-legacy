@@ -9,13 +9,5 @@ The django-registration application used in this software is
 written and copyright by ubernostrum. The original software is available from
 http://www.bitbucket.org/ubernostrum/django-registration/wiki/
 
-This software makes use of jQuery developed by John Resig and the jQuery Team
-as well as jQuery UI developed by Paul Bakaus and the jQuery UI Team.
-
-jQuery plugins used in this software:
-- jQuery Tooltip plugin
-  Copyright (c) 2006 - 2008 Jörn Zaefferer
-- jQuery Corners
-  Copyright (c) 2008 David Turnbull, Steven Wittens
-- jQuery JSON Plugin
-  Copyright (c) 2009 Nitrogen Labs
+This software makes use of MooTools developed by Valerio Proietti
+as well as MochaUI by Greg Houston.

@@ -141,7 +141,7 @@ pygowave.view = function () {
 		
 		/**
 		 * Forwards the onChange event.
-		 * @function {private} _onChanged
+		 * @function {private} _onChange
 		 */
 		_onChange: function () {
 			this.fireEvent('change', this.text());
@@ -215,6 +215,76 @@ pygowave.view = function () {
 				this._oImage = new Element('div', {'class': 'indicator'}).inject(this.contentElement, 'bottom');
 			
 			this._oImage.addClass(online ? 'online' : 'offline').removeClass(online ? 'offline' : 'online');
+		}
+	});
+	
+	/**
+	 * A window that displays two tables of outgoing operations (pending and
+	 * cached). This is for debugging purposes.
+	 * Instances of this class automatically connect to events of the provided
+	 * operation managers.
+	 *
+	 * @class {public} pygowave.view.OperationsViewer
+	 * @extends MochaUI.Window
+	 */
+	var OperationsViewer = new Class({
+		Extends: MochaUI.Window,
+		/**
+		 * Called on instantiation.
+		 * @constructor {public} initialize
+		 * @param {OpManager} pending A reference to the pending operations manager
+		 * @param {OpManager} cached A reference to the cached operations manager
+		 */
+		initialize: function (pending, cached) {
+			this._mpending = pending;
+			this._mcached = cached;
+			
+			this._content = new Element('div', {'class': 'debug_window'});
+			
+			new Element('div', {'class': 'debug_window_bar', 'text': 'Pending Operations'}).inject(
+				new Element('div', {'class': 'debug_window_row'}).inject(this._content)
+			);
+			this._ptable = new Element('table', {'class': 'debug_window_table'}).inject(
+				new Element('div', {'class': 'debug_window_table_container'}).inject(
+					new Element('div', {'class': 'debug_window_row'}).inject(this._content)
+				)
+			);
+			new Element('div', {'class': 'debug_window_bar', 'text': 'Cached Operations'}).inject(
+				new Element('div', {'class': 'debug_window_row'}).inject(this._content)
+			);
+			this._ctable = this._ptable = new Element('table', {'class': 'debug_window_table'}).inject(
+				new Element('div', {'class': 'debug_window_table_container'}).inject(
+					new Element('div', {'class': 'debug_window_row'}).inject(this._content)
+				)
+			);
+			
+			this.parent({
+				title: gettext("Operations Viewer (Debug)"),
+				content: this._content,
+				width: 450,
+				height: 300,
+				x: $(window).getSize().x - 490,
+				y: 20,
+				headerStartColor: [95, 163, 237],
+				headerStopColor: [85, 144, 210],
+				bodyBgColor: [201, 226, 252],
+				closeBgColor: [66, 114, 166],
+				closeColor: [255, 255, 255],
+				cornerRadius: 4,
+				resizable: true,
+				footerHeight: 34,
+				padding: {top: 0, right: 0, bottom: 0, left: 0},
+				onClose: this._onClose.bind(this)
+			});
+			this._content.getParent().setStyle("height", "100%");
+		},
+		
+		/**
+		 * Called if the window is closed. Disconnects OpManagers.
+		 * @function {private} _onClose
+		 */
+		_onClose: function () {
+			
 		}
 	});
 	
@@ -334,6 +404,27 @@ pygowave.view = function () {
 	});
 	
 	/**
+	 * A widget for rendering blips.
+	 * @class {private} pygowave.view.BlipWidget
+	 * @extends pygowave.view.Widget
+	 */
+	var BlipWidget = new Class({
+		Extends: Widget,
+		/**
+		 * Called on instantiation.
+		 * @constructor {public} initialize
+		 * @param {WaveView} view A reference back to the main view
+		 * @param {Element} parentElement Parent DOM element to insert the widget
+		 */
+		initialize: function (view, parentElement) {
+			var contentElement = new Element('div', {'class': 'blip_widget'});
+			contentElement.contentEditable = 'true';
+			this.parent(parentElement, contentElement);
+		}
+		
+	});
+	
+	/**
 	 * This Widget renders a standard Wavelet view. The participants are listed
 	 * at top and the "Add participant" button is placed there as well.
 	 * Below the participants the actual Wavelet content is rendered.
@@ -358,6 +449,7 @@ pygowave.view = function () {
 			this._wavelet = wavelet;
 			this._participantWidgets = new Hash();
 			this._addParticipantWidget = new AddParticipantWidget(this._view, this._participantsDiv);
+			this._rootBlipWidget = new BlipWidget(this._view, contentElement);
 			this.updateParticipants();
 		},
 		
@@ -483,7 +575,8 @@ pygowave.view = function () {
 	
 	return {
 		WaveView: WaveView,
-		SearchWidget: SearchWidget
+		SearchWidget: SearchWidget,
+		OperationsViewer: OperationsViewer
 	};
 
 }();

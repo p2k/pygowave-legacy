@@ -20,8 +20,7 @@ from django.core.files.uploadedfile import UploadedFile
 from django.conf import settings
 from django.db.models import get_model
 
-import string
-import random
+import string, random, time
 
 class AlreadyUploadedFile(UploadedFile):
 	"""
@@ -89,13 +88,20 @@ def gen_random_id(length):
 	"""
 	return "".join([random.choice(RANDOM_ID_BASE) for x in xrange(length)])
 
-def find_random_id(manager, length, suffix=""):
+def find_random_id(manager, length, suffix="", prefix=""):
 	"""
 	Generates a random id for obj, checks if it exists and retries in
 	case of collision. Returns the found number.
 	
 	"""
-	rnd_id = gen_random_id(length) + suffix
+	rnd_id = prefix + gen_random_id(length) + suffix
 	while manager.filter(pk=rnd_id).count() > 0:
-		rnd_id = gen_random_id(length) + suffix
+		rnd_id = prefix + gen_random_id(length) + suffix
 	return rnd_id
+
+def datetime2milliseconds(dt):
+	"""
+	Convert a python datetime instance to milliseconds since the epoc.
+	
+	"""
+	return int(time.mktime(dt.timetuple())) * 1000 + dt.microsecond / 1000

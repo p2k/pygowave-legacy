@@ -17,10 +17,11 @@
 #
 
 from pygowave_server.models import Wave, Wavelet, Blip, GadgetElement, Gadget
-from pygowave_server.models import Participant, Element
+from pygowave_server.models import Participant, ParticipantConn, Element
 from django.contrib import admin
 
 admin.site.register(Participant)
+admin.site.register(ParticipantConn)
 admin.site.register(Gadget)
 
 admin.site.register(Wave)

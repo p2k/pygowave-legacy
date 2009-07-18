@@ -60,24 +60,69 @@ pygowave.controller = function () {
 		options: {
 			stompServer: "localhost",
 			stompPort: 61613,
-			stompUsername: "pygowave",
-			stompPassword: "pygowave",
+			stompUsername: "pygowave_client",
+			stompPassword: "pygowave_client",
 			
 			waveAccessKeyRx: "",
-			waveAccessKeyTx: ""
+			waveAccessKeyTx: "",
+			initialWave: "",
+			initialWavelet: "",
+			viewerId: ""
 		},
+		
+		// --- Event documentation ---
+		/**
+		 * Fired on wavelet opening.
+		 * @event onWaveletOpened
+		 * @param {String} wave_id ID of the wave
+		 * @param {String} wavelet_id ID of the wavelet
+		 */
+		// ---------------------------
+		
+		/**
+		 * Called on instantiation.
+		 * @constructor {public} initialize
+		 * @param {Object} options Client configuration options
+		 */
 		initialize: function(options) {
 			this.setOptions(options);
 			
-			// The connection object must be stored in this.conn and must have a sendJson method (defined below).
+			this.waves = new Hash();
+			this.wavelets = new Hash();
+			
+			// The connection object must be stored in this.conn and must have a sendJson and subscribeWavelet method (defined below).
 			this.conn = new STOMPClient(); // STOMP is used as communication protocol
 			var self = this;
 			$extend(this.conn, {
 				onclose: function(c) {self.onConnClose(c);},
 				onerror: function(e) {self.onConnError(e);},
-				onconnectedframe: function() {this.subscribe(self.options.waveAccessKeyRx, {exchange: "wavelet.topic"}); this.sendJson({"pygowave": "hi"});},
-				onmessageframe: function(frame) {self.onConnReceive(JSON.decode(frame.body));},
-				sendJson: function (obj) {this.send(JSON.encode(obj), self.options.waveAccessKeyTx, {exchange: "wavelet.topic"});}
+				onconnectedframe: function() {
+					self.openWavelet(self.options.initialWave, self.options.initialWavelet);
+				},
+				onmessageframe: function(frame) {
+					self.onConnReceive(frame.headers.subscription.split(".")[1], JSON.decode(frame.body));
+				},
+				sendJson: function (wavelet_id, obj) {
+					this.send(
+						JSON.encode(obj),
+						self.options.waveAccessKeyTx + "." + wavelet_id + ".clientop",
+						{
+							exchange: "wavelet.topic",
+							"content-type": "application/json"
+						}
+					);
+				},
+				subscribeWavelet: function (wavelet_id) {
+					this.subscribe(
+						"",
+						{
+							id: self.options.waveAccessKeyRx + "." + wavelet_id + ".waveop",
+							routing_key: self.options.waveAccessKeyRx + "." + wavelet_id + ".waveop",
+							exchange: "wavelet.direct"
+						}
+					);
+					this.sendJson(wavelet_id, {"type": "WAVELET_OPEN"});
+				}
 			});
 		},
 		
@@ -89,8 +134,9 @@ pygowave.controller = function () {
 		 * @param {int} code Error code provided by socket API.
 		 */
 		onConnClose: function (code) {
-			alert('Lost Connection, Code: ' + c);
+			alert('Lost Connection, Code: ' + code);
 		},
+		
 		/**
 		 * Callback for server connection socket.
 		 * Handles connection errors.
@@ -101,6 +147,7 @@ pygowave.controller = function () {
 		onConnError: function (code) {
 			alert("Error: " + code);
 		},
+		
 		/**
 		 * Callback for server connection socket.
 		 * Dispatches incoming server messages.
@@ -108,8 +155,47 @@ pygowave.controller = function () {
 		 * @function onConnReceive
 		 * @param {object} obj JSON-decoded message object for processing.
 		 */
-		onConnReceive: function (obj) {
+		onConnReceive: function (wavelet_id, obj) {
+			for (var it = new _Iterator(obj);it.hasNext();) {
+				obj = it.next();
+				switch (obj.type) {
+					case "WAVELET_OPEN":
+						var wave_id = obj.property.wavelet.waveId;
+						this.wavelets[wavelet_id] = {
+							mpending: new pygowave.operations.OpManager(wave_id, wavelet_id),
+							mcached: new pygowave.operations.OpManager(wave_id, wavelet_id),
+							model: this.waves[wave_id]
+						};
+						this.fireEvent("waveletOpened", {"wave_id": wave_id, "wavelet_id": wavelet_id});
+						break;
+				}
+			}
+		},
+		
+		/**
+		 * Connect to the server and load the initial wavelet
+		 * @function connect
+		 */
+		connect: function () {
+			this.conn.connect(
+				this.options.stompServer,
+				this.options.stompPort,
+				this.options.stompUsername,
+				this.options.stompPassword
+			);
+		},
+		
+		/**
+		 * Open a wavelet.
+		 * @function {public} openWavelet
+		 * @param {String} wave_id ID of the wave of the wavelet
+		 * @param {String} wavelet_id ID of the wavelet to open
+		 */
+		openWavelet: function (wave_id, wavelet_id) {
+			if (!this.waves.has(wave_id))
+				this.waves[wave_id] = new pygowave.model.WaveModel(wave_id, this.options.viewerId);
 			
+			this.conn.subscribeWavelet(wavelet_id);
 		}
 	});
 	

@@ -17,20 +17,18 @@
 	</script>
 	<script type="text/javascript" src="http://{{ ORBITED_SERVER }}:{{ ORBITED_PORT }}/static/Orbited.js"></script>
 	<script type="text/javascript">
+		// --- Orbited configuration ---
 		Orbited.settings.port = {{ ORBITED_PORT }};
 		Orbited.settings.hostname = "{{ ORBITED_SERVER }}";
 		Orbited.settings.log = true;
 		Orbited.getLogger().enabled = true;
 		TCPSocket = Orbited.TCPSocket;
-		
-		// Random generated access keys
-		WaveAccessKeyTx = "{{ wave_access_key.tx }}";
-		WaveAccessKeyRx = "{{ wave_access_key.rx }}";
-		
 	</script>
 	<script type="text/javascript" src="http://{{ ORBITED_SERVER }}:{{ ORBITED_PORT }}/static/protocols/stomp/stomp.js"></script>
 	<script type="text/javascript" src="{% url django.views.i18n.javascript_catalog %}"></script>
-	<script type="text/javascript" src="{{ MEDIA_URL }}js/pygowave-client-model.js"></script>
+	<script type="text/javascript" src="{{ MEDIA_URL }}js/pycow.js"></script>
+	<script type="text/javascript" src="{% url pygowave_server.views.pycow "model.js" %}"></script>
+	<script type="text/javascript" src="{% url pygowave_server.views.pycow "operations.js" %}"></script>
 	<script type="text/javascript" src="{{ MEDIA_URL }}js/pygowave-client-view.js"></script>
 	<script type="text/javascript" src="{{ MEDIA_URL }}js/pygowave-client-controller.js"></script>
 {% endblock %}
@@ -59,7 +57,7 @@ Again, this application is experimental and may not work as expected.
 		<!-- The content is dynamically rendered through our client script. -->
 	</div>
 	<script type="text/javascript">
-		(function () {
+		document.addEvent('domready', function () {
 			model = new pygowave.model.WaveModel("{{ wave_id|escapejs }}", "{{ participant_id|escapejs }}");
 			view = new pygowave.view.WaveView(
 				model,
@@ -76,7 +74,23 @@ Again, this application is experimental and may not work as expected.
 			me = new pygowave.model.Participant("nobody@localhost", {displayName: "nobody"});
 			awavelet.addParticipant(me);
 			//me.setOnline(true);
-		})();
+			
+			theController = new pygowave.controller.PyGoWaveClient({
+				// Random generated access keys
+				waveAccessKeyTx: "{{ wave_access_key.tx }}",
+				waveAccessKeyRx: "{{ wave_access_key.rx }}",
+				
+				initialWave: "{{ wave_id }}",
+				initialWavelet: "{{ wavelet_id }}",
+				viewerId: "{{ participant_id }}"
+			});
+			
+			//theController.connect();
+			
+			theController.addEvent("waveletOpened", function (args) {
+				ov = new pygowave.view.OperationsViewer(theController.wavelets[args.wavelet_id].mpending, theController.wavelets[args.wavelet_id].mcached);
+			});
+		});
 	</script>
 </div>
 {% endblock %}

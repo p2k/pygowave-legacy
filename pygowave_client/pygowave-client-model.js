@@ -23,7 +23,7 @@ window.pygowave = $defined(window.pygowave) ? window.pygowave : {};
  * Models module.
  * @module pygowave.model
  */
-pygowave.model = function () {
+pygowave.model = (function () {
 	// -- Private classes --
 	
 	/**
@@ -62,49 +62,61 @@ pygowave.model = function () {
 		 * @... {Boolean} isOnline True, if the participant is online
 		 * @... {Boolean} isBot True, if the participant is a robot
 		 */
-		initialize: function(id, options) {
+		initialize: function (id, options) {
 			this.setOptions(options);
 			this._id = id;
 			if (this.options.name == "")
 				this.options.name = id;
 		},
-		
+
 		/**
 		 * Returns the ID (address) of the participant.
 		 * @function {public String} id
 		 */
-		id: function () {return this._id;},
-		
+		id: function () {
+			return this._id;
+		},
+
 		/**
 		 * Returns the participant's display name.
 		 * @function {public String} displayName
 		 */
-		displayName: function () {return this.options.displayName;},
-		
+		displayName: function () {
+			return this.options.displayName;
+		},
+
 		/**
 		 * Returns the URL of the participant's avatar.
 		 * @function {public String} thumbnailUrl
 		 */
-		thumbnailUrl: function () {return this.options.thumbnailUrl;},
-		
+		thumbnailUrl: function () {
+			return this.options.thumbnailUrl;
+		},
+
 		/**
 		 * Returns the URL to the participant's profile.
 		 * @function {public String} profileUrl
 		 */
-		profileUrl: function () {return this.options.profileUrl;},
-		
+		profileUrl: function () {
+			return this.options.profileUrl;
+		},
+
 		/**
 		 * Returns weather the participant is a bot.
 		 * @function {public Boolean} isBot
 		 */
-		isBot: function () {return this.options.isBot},
-		
+		isBot: function () {
+			return this.options.isBot;
+		},
+
 		/**
 		 * Returns weather the participant is a online.
 		 * @function {public Boolean} isOnline
 		 */
-		isOnline: function () {return this.options.isOnline},
-		
+		isOnline: function () {
+			return this.options.isOnline;
+		},
+
 		/**
 		 * Set the participant's online state.<br/>
 		 * Fires onOnlineStateChanged if changed.
@@ -114,10 +126,10 @@ pygowave.model = function () {
 		setOnline: function (online) {
 			if (this.options.isOnline != online) {
 				this.options.isOnline = online;
-				this.fireEvent('onlineStateChanged', online);
+				this.fireEvent("onlineStateChanged", online);
 			}
 		},
-		
+
 		/**
 		 * Convenience function to serialize a participant object into the
 		 * Wave Gadget API format.
@@ -131,7 +143,7 @@ pygowave.model = function () {
 			};
 		}
 	});
-	
+
 	/**
 	 * Models a Wavelet on a Wave.<br/>
 	 * This is a private class and cannot be instanitated directly. Please
@@ -149,7 +161,7 @@ pygowave.model = function () {
 			title: "",
 			version: 0
 		},
-		
+
 		/**
 		 * Called on instantiation. Documented for internal purposes.
 		 * @constructor {public} initialize
@@ -165,7 +177,7 @@ pygowave.model = function () {
 		 * @... {String} title Title of the Wavelet
 		 * @... {int} version Version of the Wavelet
 		 */
-		initialize: function(wave, id, options) {
+		initialize: function (wave, id, options) {
 			this.setOptions(options);
 			this._wave = wave;
 			if (this.options.is_root) {
@@ -176,9 +188,9 @@ pygowave.model = function () {
 			}
 			this._id = id;
 			this._participants = new Hash();
-			this._blips = new Array();
+			this._blips = [];
 		},
-		
+
 		/**
 		 * Returns true, if this Wavelet is the Wave's root Wavelet.
 		 * @function {public Boolean} isRoot
@@ -186,13 +198,15 @@ pygowave.model = function () {
 		isRoot: function () {
 			return this.options.is_root;
 		},
-		
+
 		/**
 		 * Returns the ID of this Wavelet.
 		 * @function {public String} id
 		 */
-		id: function () {return this._id;},
-		
+		id: function () {
+			return this._id;
+		},
+
 		/**
 		 * Add a participant to this Wavelet.<br/>
 		 * Note: Triggers {@link pygowave.model.WaveModel.onParticipantsChanged onParticipantsChanged}
@@ -202,9 +216,9 @@ pygowave.model = function () {
 		 */
 		addParticipant: function (participant) {
 			this._participants.set(participant.id(), participant);
-			this._wave.fireEvent('participantsChanged', this._id);
+			this._wave.fireEvent("participantsChanged", this._id);
 		},
-		
+
 		/**
 		 * Returns the Participant object with the given id, if the participant
 		 * resides on this Wavelet. Returns null otherwise.
@@ -214,7 +228,7 @@ pygowave.model = function () {
 		participant: function (id) {
 			return this._participants.get(id);
 		},
-		
+
 		/**
 		 * Returns a list of all participants on this Wavelet.
 		 * @function {public Participant[]} allParticipants
@@ -222,7 +236,7 @@ pygowave.model = function () {
 		allParticipants: function () {
 			return this._participants.getValues();
 		},
-		
+
 		/**
 		 * Returns a list of all IDs of the participants on this Wavelet.
 		 * @function {public String[]} allParticipantIDs
@@ -230,7 +244,7 @@ pygowave.model = function () {
 		allParticipantIDs: function () {
 			return this._participants.getKeys();
 		},
-		
+
 		/**
 		 * Convenience function to serialize all participants into the Wave
 		 * Gadget API format.
@@ -243,7 +257,7 @@ pygowave.model = function () {
 			});
 			return ret;
 		}
-	})
+	});
 	
 	// -- Public classes --
 	
@@ -282,20 +296,22 @@ pygowave.model = function () {
 			this._viewerId = viewerId;
 			this._wavelets = new Hash();
 		},
-		
+
 		/**
 		 * Create a Wavelet and add it to this Wave. For options see the
 		 * {@link pygowave.model.Wavelet.initialize Wavelet constructor}.<br/>
 		 * Hint: Emits {@link pygowave.model.WaveModel.onWaveletAdded onWaveletAdded}
 		 * @function {public Wavelet} createWavelet
+		 * @param {String} id Wavelet ID
+		 * @param {Object} options Information about the Wavelet.
 		 */
 		createWavelet: function (id, options) {
 			var w = new Wavelet(this, id, options);
 			this._wavelets.set(id, w);
-			this.fireEvent('waveletAdded', [id, w.isRoot()]);
+			this.fireEvent("waveletAdded", [id, w.isRoot()]);
 			return w;
 		},
-		
+
 		/**
 		 * Return a Wavelet of this Wave by its ID.
 		 * @function {public Wavelet} wavelet
@@ -304,7 +320,7 @@ pygowave.model = function () {
 		wavelet: function (waveletId) {
 			return this._wavelets.get(waveletId);
 		},
-		
+
 		/**
 		 * Returns the root Wavelet of this Wave
 		 * @function {public Wavelet} rootWavelet
@@ -312,7 +328,7 @@ pygowave.model = function () {
 		rootWavelet: function () {
 			return this._rootWavelet;
 		},
-		
+
 		/**
 		 * Internal method to set the root Wavelet. Not intended to be called
 		 * outside of this implementation.
@@ -323,10 +339,9 @@ pygowave.model = function () {
 			this._rootWavelet = wavelet;
 		}
 	});
-	
+
 	return {
 		WaveModel: WaveModel,
 		Participant: Participant
 	};
-
-}();
+})();

@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load i18n %}
+{% get_current_language as LANGUAGE_CODE %}
 {% load pgw_nav %}
 
 {% block title %}{% trans "Welcome" %}{% endblock %}
@@ -17,7 +18,7 @@ Welcome {{ username }}, enjoy your stay!
 Currently, there is <b>{{ online_count }}</b> user online out of
 {{ users_count }} registred users.
 {% plural %}
-Currently, there are <b>{{ online_count }}</b> user(s) online out of
+Currently, there are <b>{{ online_count }}</b> users online out of
 {{ users_count }} registred users.
 {% endblocktrans %}
 </p>

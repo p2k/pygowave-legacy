@@ -26,7 +26,7 @@ from django.db import transaction
 
 from django.utils import simplejson
 
-from pygowave_server.utils import find_random_id, gen_random_id
+from pygowave_server.utils import find_random_id, gen_random_id, datetime2milliseconds
 
 __author__ = "patrick.p2k.schneider@gmail.com"
 
@@ -67,17 +67,19 @@ class Participant(models.Model):
 	is_bot = models.BooleanField()
 	last_contact = models.DateTimeField()
 	
-	rx_key = models.CharField(max_length=42)
-	tx_key = models.CharField(max_length=42)
-	
 	name = models.CharField(max_length=255, blank=True)
 	avatar = models.URLField(verify_exists=False, blank=True)
 	profile = models.URLField(verify_exists=False, blank=True)
 	
-	def setup_random_access_keys(self):
-		self.rx_key = gen_random_id(10)
-		self.tx_key = gen_random_id(10)
-		self.save()
+	def create_new_connection(self):
+		"""
+		Creates a new connection object for this participant and returns it.
+		This generates the participant's new access keys.
+		
+		"""
+		new_conn = ParticipantConn(participant=self)
+		new_conn.save()
+		return new_conn
 	
 	def serialize(self):
 		"""
@@ -94,6 +96,43 @@ class Participant(models.Model):
 	
 	def __unicode__(self):
 		return u"Participant '%s'" % (self.id)
+
+class ParticipantConn(models.Model):
+	"""
+	Represents a particular connection from the wave server to the wave client.
+	Holds wave access keys. These access keys are only valid for one connection.
+	However, they are valid for multiple open wavelets on that connection.
+	
+	"""
+	
+	participant = models.ForeignKey(Participant, related_name="connections")
+	created = models.DateTimeField(auto_now_add=True)
+	rx_key = models.CharField(max_length=42)
+	tx_key = models.CharField(max_length=42)
+	
+	def save(self, force_insert=False, force_update=False):
+		if not self.id:
+			self.rx_key, self.tx_key = self.find_random_keys()
+			super(ParticipantConn, self).save(True)
+		else:
+			super(ParticipantConn, self).save(force_insert, force_update)
+	
+	@classmethod
+	def find_random_keys(cls):
+		rx_key = gen_random_id(10)
+		while cls.objects.filter(rx_key=rx_key).count() > 0:
+			rx_key = gen_random_id(10)
+		tx_key = gen_random_id(10)
+		while cls.objects.filter(tx_key=tx_key).count() > 0:
+			tx_key = gen_random_id(10)
+		return rx_key, tx_key
+	
+	def __unicode__(self):
+		return u"ParticipantConn '%s/%d'" % (self.participant.id, self.id)
+	
+	class Meta:
+		verbose_name = _('participant connection')
+		verbose_name_plural = _('participant connections')
 
 class WaveManager(models.Manager):
 	
@@ -154,19 +193,50 @@ class Wavelet(models.Model):
 	title = models.CharField(max_length=255, blank=True)
 	version = models.IntegerField(default=0)
 	participants = models.ManyToManyField(Participant, related_name="wavelets")
+	participant_conns = models.ManyToManyField(ParticipantConn, related_name="wavelets", verbose_name=_(u'connections'))
 	
 	def save(self, force_insert=False, force_update=False):
 		if not self.id:
 			if self.is_root:
-				self.id = find_random_id(Wavelet.objects, 10, ROOT_WAVELET_ID_SUFFIX)
+				self.id = self.wave.id + ROOT_WAVELET_ID_SUFFIX
 			else:
-				self.id = find_random_id(Wavelet.objects, 10)
+				self.id = find_random_id(Wavelet.objects, 10, prefix=self.wave.id+"!")
 			super(Wavelet, self).save(True)
 		else:
 			super(Wavelet, self).save(force_insert, force_update)
 	
 	def __unicode__(self):
 		return u"Wavelet '%s' (%s)" % (self.title, self.id)
+	
+	def serialize(self):
+		"""
+		Serialize the wavelet into a format that is compatible with robots and
+		the client.
+		
+		"""
+		return {
+			"rootBlipId": getattr(self.root_blip, "id", None),
+			"title": self.title,
+			"creator": self.creator.id,
+			"creationTime": datetime2milliseconds(self.created),
+			"dataDocuments": None, #TODO (is not declared in the robot protocol example)
+			"waveletId": self.id,
+			"participants": map(lambda p: p.id, self.participants.all()),
+			"version": self.version,
+			"lastModifiedTime": datetime2milliseconds(self.last_modified),
+			"waveId": self.wave.id,
+		}
+	
+	def serialize_blips(self):
+		"""
+		Serialize the wavelet's blips into a format that is compatible with
+		robots and the client.
+		
+		"""
+		blipmap = {}
+		for blip in self.blips.all():
+			blipmap[blip.id] = blip.serialize()
+		return blipmap
 	
 class DataDocument(models.Model):
 	"""
@@ -209,6 +279,27 @@ class Blip(models.Model):
 		else:
 			super(Blip, self).save(force_insert, force_update)
 	
+	def serialize(self):
+		"""
+		Serialize the blip into a format that is compatible with robots and the
+		client.
+		
+		"""
+		return {
+			"blipId": self.id,
+			"content": self.text,
+			"elements": {},
+			"contributors": map(lambda p: p.id, self.contributors.all()),
+			"creator": self.creator.id,
+			"parentBlipId": getattr(self.parent, "id", None),
+			"annotations": map(lambda a: a.serialize(), self.annotations.all()),
+			"waveletId": self.wavelet.id,
+			"version": self.version,
+			"lastModifiedTime": datetime2milliseconds(self.last_modified),
+			"childBlipIds": map(lambda c: c.id, self.children.all()),
+			"waveId": self.wavelet.wave.id,
+		}
+	
 	def __unicode__(self):
 		return u"Blip %s on %s" % (self.id, unicode(self.wavelet))
 
@@ -236,6 +327,21 @@ class Annotation(models.Model):
 	start = models.IntegerField()
 	end = models.IntegerField()
 	value = models.CharField(max_length=4096)
+	
+	def serialize(self):
+		"""
+		Serialize the annotation into a format that is compatible with robots
+		and the client.
+		
+		"""
+		return {
+			"range": {
+				"start": self.start,
+				"end": self.end,
+			},
+			"name": self.name,
+			"value": self.value
+		}
 
 class Element(models.Model):
 	"""
