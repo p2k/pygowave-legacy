@@ -123,7 +123,7 @@ def wave_list(request):
 			"created": wavelet.created,
 			"creator_name": wavelet.creator.name,
 		})
-	return render_to_response('pygowave_server/wave_list.html', {"waves": waves, "form": form}, context_instance=RequestContext(request))
+	return render_to_response('pygowave_server/waves/wave_list.html', {"waves": waves, "form": form}, context_instance=RequestContext(request))
 
 @login_required
 def my_gadgets(request):
@@ -152,7 +152,7 @@ def my_gadgets(request):
 		form = GadgetRegistryForm()
 	
 	my_gadgets = request.user.my_gadgets.all()
-	return render_to_response('pygowave_server/my_gadgets.html',
+	return render_to_response('pygowave_server/gadgets/my_gadgets.html',
 							  {"my_gadgets": my_gadgets,
 							   "form": form,
 							   "gadget_registered": gadget_registered},
@@ -162,7 +162,7 @@ def my_gadgets(request):
 def all_gadgets(request):
 	
 	gadgets = Gadget.objects.all()
-	return render_to_response('pygowave_server/all_gadgets.html', {"gadgets": gadgets}, context_instance=RequestContext(request))
+	return render_to_response('pygowave_server/gadgets/all_gadgets.html', {"gadgets": gadgets}, context_instance=RequestContext(request))
 
 @login_required
 def wave(request, wave_id):
@@ -173,7 +173,7 @@ def wave(request, wave_id):
 		if request.is_ajax():
 			return HttpResponse("Error: Invalid Wave ID")
 		else:
-			return render_to_response('pygowave_server/invalid_wave.html', context_instance=RequestContext(request))
+			return render_to_response('pygowave_server/waves/invalid_wave.html', context_instance=RequestContext(request))
 	
 	participant = request.user.get_profile()
 
@@ -183,7 +183,7 @@ def wave(request, wave_id):
 		if request.is_ajax():
 			return HttpResponse("Error: No permission")
 		else:
-			return render_to_response('pygowave_server/no_permission.html', context_instance=RequestContext(request))
+			return render_to_response('pygowave_server/waves/no_permission.html', context_instance=RequestContext(request))
 	
 	if request.is_ajax():
 		if request.GET.has_key("get_participant"):
@@ -199,7 +199,7 @@ def wave(request, wave_id):
 				p["avatar"] = p_obj.avatar
 			else:
 				p["avatar"] = django_settings.AVATAR_URL + "default.png"
-			return render_to_response('pygowave_server/participant_info.html', {"participant": p}, context_instance=RequestContext(request))
+			return render_to_response('pygowave_server/contacts/participant_info.html', {"participant": p}, context_instance=RequestContext(request))
 		
 		return HttpResponse("Error: Unknown request")
 	else:
@@ -210,7 +210,7 @@ def wave(request, wave_id):
 		}
 		
 		gadgets = Gadget.objects.all()
-		return render_to_response('pygowave_server/on_the_wave.html', {
+		return render_to_response('pygowave_server/waves/on_the_wave.html', {
 			"gadgets": gadgets,
 			"wave_access_key": wave_access_key,
 			"wavelet_title": wavelet.title,
@@ -228,7 +228,7 @@ def search_participants(request):
 		q = ""
 	
 	if len(q) < 3: # TODO - Hardcoded
-		return render_to_response('pygowave_server/search_participants.html', {"too_short": 3}, context_instance=RequestContext(request))
+		return render_to_response('pygowave_server/contacts/search_participants.html', {"too_short": 3}, context_instance=RequestContext(request))
 	
 	me = request.user.get_profile()
 
@@ -242,7 +242,7 @@ def search_participants(request):
 			avatar = django_settings.AVATAR_URL + "default.png"
 		lst.append({"id": p.id, "avatar": avatar, "profile": p.profile, "name": p.name})
 	
-	return render_to_response('pygowave_server/search_participants.html', {"matches": lst}, context_instance=RequestContext(request))
+	return render_to_response('pygowave_server/contacts/search_participants.html', {"matches": lst}, context_instance=RequestContext(request))
 
 def gadget_loader(request):
 	"""
@@ -251,7 +251,7 @@ def gadget_loader(request):
 	"""
 	
 	if not request.GET.has_key("url"):
-		return render_to_response('pygowave_server/gadget_error.html', {"error_message": _(u"No URL specified.")})
+		return render_to_response('pygowave_server/gadgets/gadget_error.html', {"error_message": _(u"No URL specified.")})
 	
 	url = request.GET["url"]
 
@@ -266,11 +266,11 @@ def gadget_loader(request):
 	try:
 		gadget = GadgetLoader(url)
 	except urllib2.HTTPError:
-		return render_to_response('pygowave_server/gadget_error.html', {"error_message": _(u"Gadget could not be downloaded.")}, context_instance=RequestContext(request))
+		return render_to_response('pygowave_server/gadgets/gadget_error.html', {"error_message": _(u"Gadget could not be downloaded.")}, context_instance=RequestContext(request))
 	except XMLSyntaxError:
-		return render_to_response('pygowave_server/gadget_error.html', {"error_message": _(u"Gadget quick-check failed: Bad XML format.")}, context_instance=RequestContext(request))
+		return render_to_response('pygowave_server/gadgets/gadget_error.html', {"error_message": _(u"Gadget quick-check failed: Bad XML format.")}, context_instance=RequestContext(request))
 	except ValueError, e:
-		return render_to_response('pygowave_server/gadget_error.html', {"error_message": _(u'Gadget quick-check failed: %s.') % (e.args[0])}, context_instance=RequestContext(request))
+		return render_to_response('pygowave_server/gadgets/gadget_error.html', {"error_message": _(u'Gadget quick-check failed: %s.') % (e.args[0])}, context_instance=RequestContext(request))
 	
 	if request.GET.has_key("gadget_id"):
 		gadget_id = request.GET["gadget_id"]
@@ -278,11 +278,11 @@ def gadget_loader(request):
 			ge = GadgetElement.objects.get(pk=gadget_id)
 			gadget.update_prefs(ge.get_userprefs())
 		except:
-			return render_to_response('pygowave_server/gadget_error.html', {"error_message": _(u"GadgetElement could not be found.")}, context_instance=RequestContext(request))
+			return render_to_response('pygowave_server/gadgets/gadget_error.html', {"error_message": _(u"GadgetElement could not be found.")}, context_instance=RequestContext(request))
 	else:
 		gadget_id = None
 
-	return render_to_response('pygowave_server/gadget_wrapper.html', {"gadget": gadget, "url_parameters": simplejson.dumps(request.GET), "gadget_id": gadget_id}, context_instance=RequestContext(request))
+	return render_to_response('pygowave_server/gadgets/gadget_wrapper.html', {"gadget": gadget, "url_parameters": simplejson.dumps(request.GET), "gadget_id": gadget_id}, context_instance=RequestContext(request))
 
 COMMON_FOLDER = os.path.dirname(os.path.abspath(__file__)) + os.path.sep + "common" + os.path.sep
 def pycow(request, filename):

@@ -1,0 +1,180 @@
+.mooeditable-container{
+	position: relative;
+	border: 2px solid #ddd;
+}
+
+.mooeditable-ui-toolbar{
+	color: inherit;
+	background-color: #eee;
+	padding: 2px;
+}
+
+.mooeditable-ui-toolbar:after{
+	content: ".";
+	display: block;
+	height: 0;
+	clear: both;
+	visibility: hidden;
+}
+
+.mooeditable-ui-toolbar .toolbar-item,
+.mooeditable-ui-toolbar .toolbar-separator{
+	display: -moz-inline-box;
+	display: inline-block;
+	vertical-align: middle;
+}
+
+.mooeditable-ui-toolbar .mooeditable-ui-button{
+	cursor: pointer;
+	border: 0;
+	width: auto;
+	height: auto;
+	margin: 2px;
+	padding: 2px;
+	vertical-align: middle;
+	color: inherit;
+	background-color: transparent;
+}
+* html .mooeditable-ui-toolbar .mooeditable-ui-button{ /* IE6 */
+	width: 24px;
+	overflow: visible;
+	padding: 2px 4px;
+}
+*:first-child+html .mooeditable-ui-toolbar .mooeditable-ui-button{ /* IE7 */
+	min-width: 24px;
+	overflow: visible;
+	padding: 2px 4px;
+}
+
+.mooeditable-ui-toolbar .mooeditable-ui-button.active,
+.mooeditable-ui-toolbar .mooeditable-ui-button.onActive{
+	color: inherit;
+	background-color: #ddd;
+}
+
+.mooeditable-ui-toolbar .mooeditable-ui-button:hover,
+.mooeditable-ui-toolbar .mooeditable-ui-button.hover{
+	color: inherit;
+	background-color: #fff;
+}
+
+.mooeditable-ui-toolbar .mooeditable-ui-button.disabled{
+	cursor: default;
+}
+
+.mooeditable-ui-toolbar .mooeditable-ui-button.disabled:hover{
+	color: inherit;
+	background-color: transparent;
+}
+
+.mooeditable-ui-toolbar .mooeditable-ui-button .button-icon{
+	display: -moz-inline-box;
+	display: inline-block;
+	width: 16px;
+	height: 16px;
+	vertical-align: middle;
+	color: inherit;
+	background: transparent url(images/mooeditable-toolbarbuttons-tango.png) no-repeat 0 -8px;
+}
+
+.mooeditable-ui-toolbar .mooeditable-ui-button .button-text{
+	display: none;
+	font-size: 13px;
+	vertical-align: middle;
+}
+
+.mooeditable-ui-toolbar .mooeditable-ui-button-text .button-icon{
+	display: none;
+}
+.mooeditable-ui-toolbar .mooeditable-ui-button-text .button-text{
+	display: inline;
+}
+
+.mooeditable-ui-toolbar .mooeditable-ui-button-icon-text{
+	width: auto;
+}
+.mooeditable-ui-toolbar .mooeditable-ui-button-icon-text .button-text{
+	display: inline;
+	margin-left: 4px;
+}
+
+.mooeditable-ui-toolbar .toolbar-separator{
+	width: 1px;
+	height: 24px;
+	margin: 2px;
+	text-indent: -999em;
+	color: inherit;
+	background-color: #fafafa;
+}
+
+.mooeditable-ui-toolbar .bold-item .button-icon{ background-position: 0 0; } 
+.mooeditable-ui-toolbar .createlink-item .button-icon{ background-position: 0 -16px; } 
+.mooeditable-ui-toolbar .indent-item .button-icon{ background-position: 0 -32px; } 
+.mooeditable-ui-toolbar .insertorderedlist-item .button-icon{ background-position: 0 -48px; } 
+.mooeditable-ui-toolbar .insertunorderedlist-item .button-icon{ background-position: 0 -64px; } 
+.mooeditable-ui-toolbar .italic-item .button-icon{ background-position: 0 -80px; } 
+.mooeditable-ui-toolbar .outdent-item .button-icon{ background-position: 0 -96px; } 
+.mooeditable-ui-toolbar .redo-item .button-icon{ background-position: 0 -112px; } 
+.mooeditable-ui-toolbar .strikethrough-item .button-icon{ background-position: 0 -128px; } 
+.mooeditable-ui-toolbar .toggleview-item .button-icon{ background-position: 0 -144px; } 
+.mooeditable-ui-toolbar .underline-item .button-icon{ background-position: 0 -160px; } 
+.mooeditable-ui-toolbar .undo-item .button-icon{ background-position: 0 -176px; } 
+.mooeditable-ui-toolbar .unlink-item .button-icon{ background-position: 0 -192px; } 
+.mooeditable-ui-toolbar .urlimage-item .button-icon{ background-position: 0 -208px; } 
+
+.mooeditable-iframe{
+	margin: 0;
+	padding: 0;
+	border: 0;
+	width: 100%;
+}
+
+.mooeditable-textarea{
+	margin: 0 !important;
+	padding: 0 !important;
+	border: 0 !important;
+	width: 100% !important;
+	resize: none !important; /* disable resizable textareas in Webkit */
+	outline: 0 !important; /* disable focus ring in Safari */
+}
+
+.mooeditable-ui-dialog{
+	color: inherit;
+	background-color: #ddd;
+	position: absolute;
+	display: block;
+	cursor: default;
+	font-size: 12px;
+	z-index: 100;
+	width: 100%;
+}
+
+.mooeditable-ui-dialog .dialog-content{
+	padding: 4px 10px;
+}
+
+.mooeditable-ui-dialog .dialog-content *{
+	vertical-align: middle;
+}
+
+.mooeditable-ui-dialog input{
+	margin: 0 8px;
+}
+
+.mooeditable-ui-dialog input.text{
+	width: 300px;
+}
+
+.mooeditable-ui-button-overlay{
+	color: inherit;
+	background-color: #ddd;
+	font-size: 12px;
+	z-index: 100;
+	outline: 0;
+	-moz-outline: 0;
+	-webkit-outline: 0;
+}
+
+.mooeditable-ui-button-overlay .overlay-content{
+	padding: 10px;
+}

@@ -100,7 +100,15 @@
 	border-bottom: 1px solid #b8c6d9;
 }
 
-.blip_widget hr
+.blip_container_widget
+{
+	width: 100%;
+	height: auto;
+	padding: 0;
+	border: 1px solid green;
+}
+
+.blip_container_widget hr
 {
 	height: 1px;
 	background-image: url(../images/dot-hr.gif);
@@ -109,6 +117,12 @@
 	background-color: transparent;
 	margin-left: 1px;
 	margin-right: 1px;
+}
+
+.blip_widget
+{
+	width: 100%;
+	border: 1px solid black;
 }
 
 .search_widget

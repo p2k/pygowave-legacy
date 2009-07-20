@@ -23,10 +23,13 @@
 		Orbited.settings.log = true;
 		Orbited.getLogger().enabled = true;
 		TCPSocket = Orbited.TCPSocket;
+		document.id = $; // Quick hack for MooEditable
 	</script>
 	<script type="text/javascript" src="http://{{ ORBITED_SERVER }}:{{ ORBITED_PORT }}/static/protocols/stomp/stomp.js"></script>
-	<script type="text/javascript" src="{% url django.views.i18n.javascript_catalog %}"></script>
+	<link rel="stylesheet" href="{{ MEDIA_URL }}css/MooEditable.css" type="text/css" />
+	<script type="text/javascript" src="{{ MEDIA_URL }}js/MooEditable.js"></script>
 	<script type="text/javascript" src="{{ MEDIA_URL }}js/pycow.js"></script>
+	<script type="text/javascript" src="{% url django.views.i18n.javascript_catalog %}"></script>
 	<script type="text/javascript" src="{% url pygowave_server.views.pycow "model.js" %}"></script>
 	<script type="text/javascript" src="{% url pygowave_server.views.pycow "operations.js" %}"></script>
 	<script type="text/javascript" src="{{ MEDIA_URL }}js/pygowave-client-view.js"></script>

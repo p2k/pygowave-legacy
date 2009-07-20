@@ -11,3 +11,7 @@ http://www.bitbucket.org/ubernostrum/django-registration/wiki/
 
 This software makes use of MooTools developed by Valerio Proietti
 as well as MochaUI by Greg Houston.
+
+This software uses a modified version of MooEditable, a rich-text editor
+written in MooTools by cheeaun. The original software is available from
+http://cheeaun.github.com/mooeditable/

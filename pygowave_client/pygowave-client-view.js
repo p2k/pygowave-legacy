@@ -417,11 +417,37 @@ pygowave.view = function () {
 		 * @param {Element} parentElement Parent DOM element to insert the widget
 		 */
 		initialize: function (view, parentElement) {
-			var contentElement = new Element('div', {'class': 'blip_widget'});
-			contentElement.contentEditable = 'true';
+			var contentElement = new Element('textarea', {'class': 'blip_widget'});
+			contentElement.addEvent('keydown', this._onKeyDown.bind(this));
 			this.parent(parentElement, contentElement);
-		}
+			this._medit = new MooEditable(contentElement);
+		},
 		
+		_onKeyDown: function (event) {
+			dbgprint(event.key);
+		}
+	});
+	
+	/**
+	 * A widget for rendering multiple BlipWidgets in a wavelet.
+	 * @class {private} pygowave.view.BlipContainerWidget
+	 * @extends pygowave.view.Widget
+	 */
+	var BlipContainerWidget = new Class({
+		Extends: Widget,
+		/**
+		 * Called on instantiation.
+		 * @constructor {public} initialize
+		 * @param {WaveView} view A reference back to the main view
+		 * @param {Element} parentElement Parent DOM element to insert the widget
+		 */
+		initialize: function (view, parentElement) {
+			this._view = view;
+			var contentElement = new Element('div', {'class': 'blip_container_widget'});
+			this.parent(parentElement, contentElement);
+			this._blips = [];
+			this._rootBlip = new BlipWidget(view, contentElement);
+		}
 	});
 	
 	/**
@@ -449,7 +475,7 @@ pygowave.view = function () {
 			this._wavelet = wavelet;
 			this._participantWidgets = new Hash();
 			this._addParticipantWidget = new AddParticipantWidget(this._view, this._participantsDiv);
-			this._rootBlipWidget = new BlipWidget(this._view, contentElement);
+			this._blipContainerWidget = new BlipContainerWidget(this._view, contentElement);
 			this.updateParticipants();
 		},
 		
