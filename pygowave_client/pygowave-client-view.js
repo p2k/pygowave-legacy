@@ -48,8 +48,9 @@ pygowave.view = function () {
 		 * @param {Element} parentElement Parent DOM element to insert the widget
 		 * @param {Element} contentElement DOM element to be inserted into the
 		 *        parent element
-		 * @param {String} where Where to inject the contentElement relative to
-		 *        the parent element. Can be 'top', 'bottom', 'after', or 'before'.
+		 * @param {optional String} where Where to inject the contentElement
+		 *        relative to the parent element. Can be 'top', 'bottom',
+		 *        'after', or 'before'.
 		 */
 		initialize: function(parentElement, contentElement, where) {
 			this.contentElement = contentElement;
@@ -103,8 +104,9 @@ pygowave.view = function () {
 		 * Called on instantiation.
 		 * @constructor {public} initialize
 		 * @param {Element} parentElement Parent DOM element to insert the widget
-		 * @param {String} where Where to inject the widget relative to the
-		 *        parent element. Can be 'top', 'bottom', 'after', or 'before'.
+		 * @param {optional String} where Where to inject the contentElement
+		 *        relative to the parent element. Can be 'top', 'bottom',
+		 *        'after', or 'before'.
 		 */
 		initialize: function (parentElement, where) {
 			var contentElement = new Element('div', {'class': 'search_widget'});
@@ -252,11 +254,22 @@ pygowave.view = function () {
 			new Element('div', {'class': 'debug_window_bar', 'text': 'Cached Operations'}).inject(
 				new Element('div', {'class': 'debug_window_row'}).inject(this._content)
 			);
-			this._ctable = this._ptable = new Element('table', {'class': 'debug_window_table'}).inject(
+			this._ctable = new Element('table', {'class': 'debug_window_table'}).inject(
 				new Element('div', {'class': 'debug_window_table_container'}).inject(
 					new Element('div', {'class': 'debug_window_row'}).inject(this._content)
 				)
 			);
+			
+			var elt = new Element('tr').inject(this._ptable);
+			new Element('td', {'class': 'col1'}).inject(elt);
+			new Element('td', {'class': 'col2'}).inject(elt);
+			new Element('td', {'class': 'col3'}).inject(elt);
+			new Element('td', {'class': 'col4'}).inject(elt);
+			elt = new Element('tr').inject(this._ctable);
+			new Element('td', {'class': 'col1'}).inject(elt);
+			new Element('td', {'class': 'col2'}).inject(elt);
+			new Element('td', {'class': 'col3'}).inject(elt);
+			new Element('td', {'class': 'col4'}).inject(elt);
 			
 			this.parent({
 				title: gettext("Operations Viewer (Debug)"),
@@ -277,6 +290,23 @@ pygowave.view = function () {
 				onClose: this._onClose.bind(this)
 			});
 			this._content.getParent().setStyle("height", "100%");
+			this.addEvent('closeComplete', this._onClose.bind(this));
+			
+			// Bind callbacks
+			for (var property in this) {
+				if (property.startswith("cached_on") || property.startswith("pending_on"))
+					this[property] = this[property].bind(this);
+			}
+			
+			// Connect callbacks
+			this._mcached.addEvent('beforeOperationsInserted', this.cached_onBeforeOperationsInserted);
+			this._mcached.addEvent('afterOperationsInserted', this.cached_onAfterOperationsInserted);
+			this._mcached.addEvent('afterOperationsRemoved', this.cached_onAfterOperationsRemoved);
+			this._mcached.addEvent('operationChanged', this.cached_onOperationChanged);
+			this._mpending.addEvent('beforeOperationsInserted', this.pending_onBeforeOperationsInserted);
+			this._mpending.addEvent('afterOperationsInserted', this.pending_onAfterOperationsInserted);
+			this._mpending.addEvent('afterOperationsRemoved', this.pending_onAfterOperationsRemoved);
+			this._mpending.addEvent('operationChanged', this.pending_onOperationChanged);
 		},
 		
 		/**
@@ -284,7 +314,142 @@ pygowave.view = function () {
 		 * @function {private} _onClose
 		 */
 		_onClose: function () {
+			// Disconnect callbacks
+			this._mcached.removeEvent('beforeOperationsInserted', this.cached_onBeforeOperationsInserted);
+			this._mcached.removeEvent('afterOperationsInserted', this.cached_onAfterOperationsInserted);
+			this._mcached.removeEvent('afterOperationsRemoved', this.cached_onAfterOperationsRemoved);
+			this._mcached.removeEvent('operationChanged', this.cached_onOperationChanged);
+			this._mpending.removeEvent('beforeOperationsInserted', this.pending_onBeforeOperationsInserted);
+			this._mpending.removeEvent('afterOperationsInserted', this.pending_onAfterOperationsInserted);
+			this._mpending.removeEvent('afterOperationsRemoved', this.pending_onAfterOperationsRemoved);
+			this._mpending.removeEvent('operationChanged', this.pending_onOperationChanged);
+		},
+		
+		/**
+		 * Generic helper function.
+		 * @function {private} generic_addRows
+		 * @param {Element} elt Parent table element
+		 * @param {int} start Start index of the insertion.
+		 * @param {int} end End index of the insertion.
+		 */
+		generic_addRows: function (elt, start, end) {
+			var where = 'before';
+			var rows = elt.getChildren();
+			var entry = null;
+			elt = rows[start];
 			
+			for (var i = start; i <= end; i++) {
+				elt = new Element('tr').inject(elt, where);
+				new Element('td').inject(elt);
+				new Element('td').inject(elt);
+				new Element('td').inject(elt);
+				new Element('td').inject(elt);
+				where = 'after';
+			}
+		},
+		/**
+		 * Generic helper function.
+		 * @function {private} generic_removeRows
+		 * @param {Element} elt Parent table element
+		 * @param {int} start Start index of the removal.
+		 * @param {int} end End index of the removal.
+		 */
+		generic_removeRows: function (elt, start, end) {
+			var rows = elt.getChildren();
+			for (var i = start; i <= end; i++)
+				rows[i].dispose();
+		},
+		/**
+		 * Generic helper function.
+		 * @function {private} generic_updateRow
+		 * @param {Element} row Table row element
+		 * @param {Object} entry Data entry to be put in the row
+		 */
+		generic_updateRow: function (row, entry) {
+			if (!$defined(row) || !$defined(entry))
+				return;
+			var cols = row.getChildren();
+			
+			cols[0].set('text', entry.type);
+			cols[1].set('text', entry.blip_id);
+			cols[2].set('text', entry.index);
+			cols[3].set('text', JSON.encode(entry.property).substring(0, 30));
+		},
+		
+		/**
+		 * Cached model callback.
+		 * @function {private} cached_onAfterOperationsInserted
+		 * @param {int} start Start index of the insertion.
+		 * @param {int} end End index of the insertion.
+		 */
+		cached_onBeforeOperationsInserted: function (start, end) {
+			this.generic_addRows(this._ctable, start, end);
+		},
+		/**
+		 * Cached model callback.
+		 * @function {private} cached_onAfterOperationsInserted
+		 * @param {int} start Start index of the insertion.
+		 * @param {int} end End index of the insertion.
+		 */
+		cached_onAfterOperationsInserted: function (start, end) {
+			var rows = this._ctable.getChildren();
+			for (var i = start; i <= end; i++)
+				this.generic_updateRow(rows[i], this._mcached.operations[start]);
+		},
+		/**
+		 * Cached model callback.
+		 * @function {private} cached_onAfterOperationsRemoved
+		 * @param {int} start Start index of the removal.
+		 * @param {int} end End index of the removal.
+		 */
+		cached_onAfterOperationsRemoved: function (start, end) {
+			this.generic_removeRows(this._ctable, start, end);
+		},
+		/**
+		 * Cached model callback.
+		 * @function {private} cached_onOperationChanged
+		 * @param index Index of the changed operation
+		 */
+		cached_onOperationChanged: function (index) {
+			this.generic_updateRow(this._ctable.getChildren()[index], this._mcached.operations[index]);
+		},
+		
+		/**
+		 * Pending model callback.
+		 * @function {private} pending_onAfterOperationsInserted
+		 * @param {int} start Start index of the insertion.
+		 * @param {int} end End index of the insertion.
+		 */
+		pending_onBeforeOperationsInserted: function (start, end) {
+			this.generic_addRows(this._ptable, start, end);
+		},
+		/**
+		 * Pending model callback.
+		 * @function {private} cached_onAfterOperationsInserted
+		 * @param {int} start Start index of the insertion.
+		 * @param {int} end End index of the insertion.
+		 */
+		pending_onAfterOperationsInserted: function (start, end) {
+			var rows = this._ptable.getChildren();
+			for (var i = start; i <= end; i++)
+				this.generic_updateRow(rows[i], this._mpending.operations[start]);
+		},
+		/**
+		 * Pending model callback.
+		 * @function {private} cached_onAfterOperationsRemoved
+		 * @param {int} start Start index of the removal.
+		 * @param {int} end End index of the removal.
+		 */
+		pending_onAfterOperationsRemoved: function (start, end) {
+			this.generic_removeRows(this._ptable, start, end);
+		},
+		/**
+		 * Pending model callback.
+		 * @function {private} cached_onOperationChanged
+		 * @param index Index of the changed operation
+		 */
+		pending_onOperationChanged: function (index) {
+			this.generic_updateRow(this._ptable.getChildren()[index], this._mpending.operations[index]);
 		}
 	});
 	
@@ -404,6 +569,224 @@ pygowave.view = function () {
 	});
 	
 	/**
+	 * An extended MooEditable which generates events for the controller and
+	 * is able to process model changes.
+	 * @class {private} pygowave.view.BlipEditor
+	 * @extends MooEditable
+	 */
+	var BlipEditor = new Class({
+		Extends: MooEditable,
+		
+		/**
+		 * Called on instantiation.
+		 * @constructor {public} initialize
+		 * @param {WaveView} view A reference back to the main view
+		 * @param {pygowave.model.Blip} blip Blip to be rendered
+		 * @param {Element} textarea Textarea to convert into a BlipEditor
+		 * @param {Object} options Options for MooEditable
+		 */
+		initialize: function (view, blip, textarea, options) {
+			this.parent(textarea, options);
+			this.options.cleanup = false;
+			this._view = view;
+			this._blip = blip;
+			this._lastRange = [0, 0];
+			this._lastContent = "";
+		},
+		editorKeyUp: function(e) {
+			var newContent = this.contentToString();
+			var newRange = this.currentTextRange();
+			
+			// This code should be accurate for now. However, the context menu is not handeled properly.
+			if (e.key == "backspace" || e.key == "delete") {
+				if (this._lastRange[0] != this._lastRange[1])
+					this._view.fireEvent(
+						'textDeleted',
+						[
+							this._blip.wavelet().id(),
+							this._blip.id(),
+							this._lastRange[0],
+							this._lastRange[1]
+						]
+					);
+				else if (e.key == "backspace") {
+					if (this._lastRange[0] != 0)
+						this._view.fireEvent(
+							'textDeleted',
+							[
+								this._blip.wavelet().id(),
+								this._blip.id(),
+								this._lastRange[0]-1,
+								this._lastRange[0]
+							]
+						);
+				}
+				else if (e.key == "delete") {
+					if (this._lastRange[0] != this._lastContent.length)
+						this._view.fireEvent(
+							'textDeleted',
+							[
+								this._blip.wavelet().id(),
+								this._blip.id(),
+								this._lastRange[0],
+								this._lastRange[0]+1
+							]
+						);
+				}
+			}
+			else if (newRange[0] > this._lastRange[0] && e.code != 35 && e.code != 39 && e.code != 40) {
+				if (this._lastRange[0] != this._lastRange[1])
+					this._view.fireEvent(
+						'textDeleted',
+						[
+							this._blip.wavelet().id(),
+							this._blip.id(),
+							this._lastRange[0],
+							this._lastRange[1]
+						]
+					);
+				this._view.fireEvent(
+					'textInserted',
+					[
+						this._blip.wavelet().id(),
+						this._blip.id(),
+						this._lastRange[0],
+						newContent.slice(this._lastRange[0], newRange[0])
+					]
+				);
+			}
+			
+			this._lastContent = newContent;
+			this._lastRange = newRange;
+			this.parent(e);
+		},
+		editorContextMenu: function (e) {
+			e.stop();
+		},
+		editorMouseUp: function(e) {
+			this._lastRange = this.currentTextRange();
+			this.parent(e);
+		},
+		/**
+		 * Convert the content into a simple string (converting &lt;br/&gt; to
+		 * newlines).
+		 * @function {public String} contentToString
+		 */
+		contentToString: function () {
+			var cleaned = this.getContent().replace(/<br[^>]*>/gi, "\n");
+			if (cleaned.endswith("\n"))
+				cleaned = cleaned.slice(0, cleaned.length-1);
+			return cleaned;
+		},
+		/**
+		 * Returns the current selected text range as [start, end]. This treats
+		 * all element nodes as one character.
+		 * @function {public Array} currentTextRange
+		 */
+		currentTextRange: function () {
+			var rng = this.selection.getRange();
+			
+			var start = this._walkUp(rng.startContainer, rng.startOffset);
+			var end = this._walkUp(rng.endContainer, rng.endOffset);
+			
+			return [start, end];
+		},
+		/**
+		 * Walk up the DOM tree while summing up all text lengths. Elements
+		 * count 1 for start and 1 for end tags. Returns the absolute offset.
+		 * 
+		 * @function {private int} _walkUp
+		 * @param {Node} node The node to start
+		 * @param {int} nodeOffset The node offset to start
+		 */
+		_walkUp: function (node, nodeOffset) {
+			var offset = 0;
+			var prev = node;
+			
+			if ($type(node) == "textnode")
+				offset = nodeOffset;
+			else { // Not completely at the bottom
+				node = node.firstChild;
+				while (node != null && nodeOffset > 0) {
+					prev = node;
+					node = node.nextSibling;
+					nodeOffset--;
+				}
+				if (node == null)
+					node = prev;
+				else
+					prev = node;
+			}
+			
+			while (node != null && ($type(node) != "element" || node.get('tag') != "body")) {
+				while ((node = node.previousSibling) != null) {
+					prev = node;
+					if ($type(node) == "element") {
+						offset++;
+						// descend
+						while ((node = node.lastChild) != null) {
+							prev = node;
+							if ($type(node) == "textnode") {
+								offset += node.textContent.length;
+								break;
+							}
+							offset++;
+						}
+						node = prev;
+					}
+					else if ($type(node) == "textnode")
+						offset += node.textContent.length;
+				}
+				// ascend
+				node = prev.parentNode;
+			}
+			return offset;
+		},
+		/**
+		 * Walk down the DOM tree. Opposite of {@link pygowave.view.BlipEditor._walkUp _walkUp}.
+		 * Returns a list [node, nodeOffset].
+		 * 
+		 * @function {private Array} _walkDown
+		 * @param {Element} body Body element
+		 * @param {int} offset Absolute offset to walk down
+		 */
+		_walkDown: function (body, offset) {
+			var elt = body.firstChild;
+			var next;
+			
+			while (offset > 0 && elt != null) {
+				if ($type(elt) == "element")
+					next = elt.firstChild; // descend
+				else
+					next = null;
+				
+				if (next != null) {
+					offset--;
+					elt = next;
+					continue;
+				}
+				
+				if ($type(elt) == "textnode") {
+					if (offset <= elt.textContent.length)
+						return [elt, offset];
+					offset -= elt.textContent.length;
+				}
+				else
+					offset--;
+				
+				next = elt.nextSibling;
+				if (next == null) { // ascend
+					elt = elt.parentNode;
+					offset--;
+					elt = elt.nextSibling;
+				}
+			}
+			
+			return [elt, offset];
+		}
+	});
+	
+	/**
 	 * A widget for rendering blips.
 	 * @class {private} pygowave.view.BlipWidget
 	 * @extends pygowave.view.Widget
@@ -414,17 +797,16 @@ pygowave.view = function () {
 		 * Called on instantiation.
 		 * @constructor {public} initialize
 		 * @param {WaveView} view A reference back to the main view
+		 * @param {pygowave.model.Blip} blip Blip to be rendered
 		 * @param {Element} parentElement Parent DOM element to insert the widget
+		 * @param {optional String} where Where to inject the contentElement
+		 *        relative to the parent element. Can be 'top', 'bottom',
+		 *        'after', or 'before'.
 		 */
-		initialize: function (view, parentElement) {
+		initialize: function (view, blip, parentElement, where) {
 			var contentElement = new Element('textarea', {'class': 'blip_widget'});
-			contentElement.addEvent('keydown', this._onKeyDown.bind(this));
-			this.parent(parentElement, contentElement);
-			this._medit = new MooEditable(contentElement);
-		},
-		
-		_onKeyDown: function (event) {
-			dbgprint(event.key);
+			this.parent(parentElement, contentElement, where);
+			this._medit = new BlipEditor(view, blip, contentElement, {'paragraphise': false, 'toolbar': false});
 		}
 	});
 	
@@ -446,7 +828,29 @@ pygowave.view = function () {
 			var contentElement = new Element('div', {'class': 'blip_container_widget'});
 			this.parent(parentElement, contentElement);
 			this._blips = [];
-			this._rootBlip = new BlipWidget(view, contentElement);
+			this._rootBlip = null;
+		},
+		
+		/**
+		 * Insert a new BlipWidget at the specified index.
+		 * 
+		 * @function {public} insertBlip
+		 * @param {int} index Index to insert the BlipWidget
+		 * @param {pygowave.model.Blip} blip Blip object to connect the new BlipWidget to
+		 */
+		insertBlip: function (index, blip) {
+			var where = 'bottom';
+			var parentElement = this.contentElement;
+			if (index != this._blips.length) {
+				where = 'before';
+				parentElement = this._blips[index];
+			}
+			
+			var blipwgt = new BlipWidget(this._view, blip, parentElement, where);
+			this._blips.insert(index, blipwgt);
+			
+			if (blip.isRoot())
+				this._rootBlip = blipwgt;
 		}
 	});
 	
@@ -477,6 +881,10 @@ pygowave.view = function () {
 			this._addParticipantWidget = new AddParticipantWidget(this._view, this._participantsDiv);
 			this._blipContainerWidget = new BlipContainerWidget(this._view, contentElement);
 			this.updateParticipants();
+			
+			// Connect event listeners
+			wavelet.addEvent('participantsChanged', this.updateParticipants.bind(this));
+			wavelet.addEvent('blipInserted', this._onBlipInserted.bind(this));
 		},
 		
 		/**
@@ -503,6 +911,16 @@ pygowave.view = function () {
 					this._participantWidgets.erase(id);
 				}
 			}, this);
+		},
+		
+		/**
+		 * Callback on Blip insertion
+		 * @function {private} _onBlipInserted
+		 * @param {int} index index Index of the inserted Blip
+		 * @param {String} blip_id ID of the inserted Blip
+		 */
+		_onBlipInserted: function (index, blip_id) {
+			this._blipContainerWidget.insertBlip(index, this._wavelet.blipByIndex(index));
 		}
 	});
 	
@@ -526,8 +944,31 @@ pygowave.view = function () {
 		/**
 		 * Fired if the user enters something into the participant search box.
 		 * <br/>Note: This event is fired by a AddParticipantWindow instance.
+		 * 
 		 * @event onSearchForParticipant
 		 * @param {String} text Entered search query
+		 */
+		
+		/**
+		 * Fired on text insertion.
+		 * <br/>Note: This event is fired by a BlipEditor instance.
+		 * 
+		 * @event onTextInserted
+		 * @param {String} waveletId ID of the Wavelet
+		 * @param {String} blipId ID of the Blip
+		 * @param {int} index Start index of insertion
+		 * @param {String} content Inserted content
+		 */
+		
+		/**
+		 * Fired on text deletion.
+		 * <br/>Note: This event is fired by a BlipEditor instance.
+		 * 
+		 * @event onTextDeleted
+		 * @param {String} waveletId ID of the Wavelet
+		 * @param {String} blipId ID of the Blip
+		 * @param {int} start Start index of deletion
+		 * @param {int} end End index of deletion
 		 */
 		// ---------------------------
 		
@@ -560,19 +1001,8 @@ pygowave.view = function () {
 			else
 				this.rootWaveletWidget = null;
 			
-			// Connect event listeners
-			this.model.addEvent('participantsChanged', this._onModelParticipantsChanged.bind(this));
+			// Connect event listener(s)
 			this.model.addEvent('waveletAdded', this._onModelWaveletAdded.bind(this));
-		},
-		
-		/**
-		 * Callback for {@link pygowave.model.WaveModel.onParticipantsChanged onParticipantsChanged}.
-		 * @function {private} _onModelParticipantsChanged
-		 * @param {String} waveletId ID of the Wavelet whose participants changed
-		 */
-		_onModelParticipantsChanged: function (waveletId) {
-			if (this.waveletWidgets.has(waveletId))
-				this.waveletWidgets.get(waveletId).updateParticipants(this.model.wavelet(waveletId));
 		},
 		
 		/**

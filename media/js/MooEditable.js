@@ -44,7 +44,7 @@ var MooEditable = new Class({
 
 	initialize: function(el, options){
 		this.setOptions(options);
-		this.textarea = document.id(el);
+		this.textarea = $(el);
 		this.textarea.store('MooEditable', this);
 		this.actions = this.options.actions.clean().split(' ');
 		this.keys = {};
@@ -150,7 +150,7 @@ var MooEditable = new Class({
 		
 		$each(this.dialogs, function(action, name){
 			$each(action, function(dialog){
-				document.id(dialog).inject(self.iframe, 'before');
+				$(dialog).inject(self.iframe, 'before');
 				var range;
 				dialog.addEvents({
 					open: function(){
@@ -192,7 +192,7 @@ var MooEditable = new Class({
 		// Mootoolize window, document and body
 		if (!this.win.$family) new Window(this.win);
 		if (!this.doc.$family) new Document(this.doc);
-		document.id(this.doc.body);
+		$(this.doc.body);
 
 		// Bind all events
 		this.doc.addEvents({
@@ -222,7 +222,7 @@ var MooEditable = new Class({
 		}
 
 		if (this.options.toolbar){
-			document.id(this.toolbar).inject(this.container, 'top');
+			$(this.toolbar).inject(this.container, 'top');
 			this.toolbar.render(this.actions);
 		}
 
@@ -315,6 +315,8 @@ var MooEditable = new Class({
 			return;
 		}
 		
+		this.fireEvent('editorKeyDown', [e, this]);
+		
 		if (e.key == 'enter'){
 			if (this.options.paragraphise){
 				if (e.shift && Browser.Engine.webkit){
@@ -364,8 +366,6 @@ var MooEditable = new Class({
 				}
 			}
 		}
-		
-		this.fireEvent('editorKeyDown', [e, this]);
 	},
 	
 	keyListener: function(e){
@@ -468,7 +468,7 @@ var MooEditable = new Class({
 						break;
 					}
 				}
-				while (el = el.parentNode);
+				while ((el = el.parentNode));
 			}
 
 			if (states.css){
@@ -478,14 +478,14 @@ var MooEditable = new Class({
 					var found = false;
 					for (var prop in states.css){
 						var css = states.css[prop];
-						if (document.id(el).getStyle(prop).contains(css)){
+						if ($(el).getStyle(prop).contains(css)){
 							item.activate(css);
 							found = true;
 						}
 					}
 					if (found || el.tagName.test(blockEls)) break;
 				}
-				while (el = el.parentNode);
+				while ((el = el.parentNode));
 			}
 		}.bind(this));
 	},
@@ -715,10 +715,10 @@ MooEditable.Selection = new Class({
 				while ($type(el) != 'element') el = el.parentNode;
 			}
 
-			return document.id(el);
+			return $(el);
 		}
 
-		return document.id(r.item ? r.item(0) : r.parentElement());
+		return $(r.item ? r.item(0) : r.parentElement());
 	},
 
 	insertContent: function(content){
@@ -782,7 +782,7 @@ MooEditable.UI.Toolbar= new Class({
 			onAction: self.itemAction.bind(self)
 		}));
 		this.items[action] = item;
-		document.id(item).inject(this.el);
+		$(item).inject(this.el);
 		return item;
 	},
 	
@@ -992,7 +992,7 @@ MooEditable.UI.AlertDialog = function(alertText){
 		onClick: function(e){
 			e.preventDefault();
 			if (e.target.tagName.toLowerCase() != 'button') return;
-			if (document.id(e.target).hasClass('dialog-ok-button')) this.close();
+			if ($(e.target).hasClass('dialog-ok-button')) this.close();
 		}
 	});
 };
@@ -1015,7 +1015,7 @@ MooEditable.UI.PromptDialog = function(questionText, answerText, fn){
 		onClick: function(e){
 			e.preventDefault();
 			if (e.target.tagName.toLowerCase() != 'button') return;
-			var button = document.id(e.target);
+			var button = $(e.target);
 			var input = this.el.getElement('.dialog-input');
 			if (button.hasClass('dialog-cancel-button')){
 				input.set('value', answerText);

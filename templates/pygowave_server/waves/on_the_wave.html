@@ -23,7 +23,6 @@
 		Orbited.settings.log = true;
 		Orbited.getLogger().enabled = true;
 		TCPSocket = Orbited.TCPSocket;
-		document.id = $; // Quick hack for MooEditable
 	</script>
 	<script type="text/javascript" src="http://{{ ORBITED_SERVER }}:{{ ORBITED_PORT }}/static/protocols/stomp/stomp.js"></script>
 	<link rel="stylesheet" href="{{ MEDIA_URL }}css/MooEditable.css" type="text/css" />
@@ -71,25 +70,24 @@ Again, this application is experimental and may not work as expected.
 					defaultThumbnailUrl: "{{ AVATAR_URL }}default.png"
 				}
 			);
-			awavelet = model.createWavelet("demo", {
-				is_root: true
-			});
-			me = new pygowave.model.Participant("nobody@localhost", {displayName: "nobody"});
-			awavelet.addParticipant(me);
-			//me.setOnline(true);
 			
-			theController = new pygowave.controller.PyGoWaveClient({
-				// Random generated access keys
-				waveAccessKeyTx: "{{ wave_access_key.tx }}",
-				waveAccessKeyRx: "{{ wave_access_key.rx }}",
-				
-				initialWave: "{{ wave_id }}",
-				initialWavelet: "{{ wavelet_id }}",
-				viewerId: "{{ participant_id }}"
-			});
+			theController = new pygowave.controller.PyGoWaveClient(
+				model,
+				view,
+				{
+					// Random generated access keys
+					waveAccessKeyTx: "{{ wave_access_key.tx }}",
+					waveAccessKeyRx: "{{ wave_access_key.rx }}",
+					
+					initialWave: "{{ wave_id }}",
+					initialWavelet: "{{ wavelet_id }}",
+					viewerId: "{{ participant_id }}"
+				}
+			);
 			
-			//theController.connect();
+			theController.connect();
 			
+			// Debugging
 			theController.addEvent("waveletOpened", function (args) {
 				ov = new pygowave.view.OperationsViewer(theController.wavelets[args.wavelet_id].mpending, theController.wavelets[args.wavelet_id].mcached);
 			});

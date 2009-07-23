@@ -246,12 +246,19 @@ sprintfWrapper = {
 };
  
 sprintf = sprintfWrapper.init;
+Hash.alias("extend", "update");
 
 String.implement({
 	sprintf: function () {
 		var args = $A(arguments);
 		args.splice(0, 0, this);
 		return sprintfWrapper.init.apply(this, args);
+	},
+	startswith: function (s) {
+		return this.slice(0,s.length) == s;
+	},
+	endswith: function (s) {
+		return this.slice(this.length-s.length) == s;
 	}
 });
 
@@ -263,6 +270,12 @@ Array.implement({
 	 */
 	insert: function (index, object) {
 		this.splice(index, 0, object);
+	},
+	/**
+	 * A.append(object) -- append object to array
+	 */
+	append: function (object) {
+		this[this.length] = object;
 	}
 });
 

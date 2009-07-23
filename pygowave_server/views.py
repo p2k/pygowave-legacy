@@ -33,10 +33,10 @@ from pygowave_server.models import Participant, Gadget, Wave, GadgetElement
 from pygowave_server.engine import GadgetLoader
 
 from datetime import datetime, timedelta
-import urllib2, os.path
+import urllib2, os
 from lxml.etree import XMLSyntaxError
 
-from pycow import translate_file
+from pycow import translate_file, ParseError
 
 def index(request):
 	auth_fail = False
@@ -284,6 +284,7 @@ def gadget_loader(request):
 
 	return render_to_response('pygowave_server/gadgets/gadget_wrapper.html', {"gadget": gadget, "url_parameters": simplejson.dumps(request.GET), "gadget_id": gadget_id}, context_instance=RequestContext(request))
 
+PARSE_ERROR_MESSAGE = """alert("PyCow: Error while parsing '%s':\\n\\n%s");"""
 COMMON_FOLDER = os.path.dirname(os.path.abspath(__file__)) + os.path.sep + "common" + os.path.sep
 def pycow(request, filename):
 	"""
@@ -295,7 +296,11 @@ def pycow(request, filename):
 	cachefile = django_settings.PYCOW_CACHE_ROOT + filename
 	srcfile = COMMON_FOLDER + filename[:-2] + "py"
 	
-	if not os.path.exists(cachefile) or  os.path.getmtime(srcfile) > os.path.getmtime(cachefile):
-		translate_file(srcfile, cachefile, namespace=module, warnings=False)
+	if not os.path.exists(cachefile) or os.path.getmtime(srcfile) > os.path.getmtime(cachefile):
+		try:
+			translate_file(srcfile, cachefile, namespace=module, warnings=False)
+		except ParseError, e:
+			os.unlink(cachefile)
+			return HttpResponse(PARSE_ERROR_MESSAGE % (filename, e.value), mimetype="text/javascript")
 	
 	return HttpResponse(open(cachefile, "r").read(), mimetype="text/javascript")

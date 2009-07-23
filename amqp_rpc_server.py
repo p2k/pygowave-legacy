@@ -16,7 +16,7 @@
 # limitations under the License.
 #
 
-import sys, datetime
+import sys, datetime, logging
 
 from carrot.connection import DjangoAMQPConnection
 from carrot.messaging import Consumer, Publisher
@@ -27,39 +27,7 @@ from pygowave_server.models import Participant, ParticipantConn, Gadget, GadgetE
 from pygowave_server.common.operations import OpManager
 from django.conf import settings
 
-class TopicConsumer(Consumer):
-	exchange_type = "topic"
-
-class TopicPublisher(Publisher):
-	exchange_type = "topic"
-
-verbose = False
-quiet = False
-if "--verbose" in sys.argv:
-	verbose = True
-
-class Logger:
-	def __init__(self, std, err):
-		self.std = std
-		self.err = err
-	
-	def __log_to(self, f, text):
-		f.write("%s -- %s\n" % (datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), text))
-		f.flush()
-
-	def error(self, text):
-		self.__log_to(self.err, text)
-	
-	def info(self, text):
-		self.__log_to(self.std, text)
-
-if "--logfile" in sys.argv:
-	logger = Logger(open("/var/log/pygowave/info","a"), open("/var/log/pygowave/error","a"))
-elif "--quiet" in sys.argv:
-	verbose = False
-	logger = Logger(open("/dev/null"), open("/dev/null"))
-else:
-	logger = Logger(sys.stdout, sys.stderr)
+logger = logging.getLogger("pygowave")
 
 # Progress tracker - implemented messages
 # Legend:
@@ -174,7 +142,7 @@ class PyGoWaveMessageProcessor(object):
 		if message_category != "clientop":
 			return
 		
-		if verbose: print "Received Message from %s.%s.%s:\n%s" % (participant_conn_key, wavelet_id, message_category, repr(message_data))
+		logger.debug("Received Message from %s.%s.%s:\n%s" % (participant_conn_key, wavelet_id, message_category, repr(message_data)))
 		
 		# Get participant connection
 		try:
@@ -318,10 +286,11 @@ class PyGoWaveMessageProcessor(object):
 		This can be run asynchronously every 10 minutes or so.
 		
 		"""
+
 		for conn in ParticipantConn.objects.all():
 			for wavelet in conn.wavelets.all():
 				if not self.queue_exists("%s.%s.waveop" % (conn.rx_key, wavelet.id)):
-					conn.wavelets.remove(wavelet)
+					wavelet.participant_conns.remove(conn)
 					logger.info("[%s/%d@%s] Connection to wavelet closed" % (conn.participant.name, conn.id, wavelet.wave.id))
 			if conn.wavelets.count() == 0 and datetime.datetime.now() > conn.created + self.conn_min_lifetime:
 				conn_id, conn_participant_name = conn.id, conn.participant.name
@@ -335,11 +304,51 @@ class PyGoWaveMessageProcessor(object):
 		auto-delete is always turned on).
 		
 		"""
-		return self.publisher.backend.queue_exists(queue)
+		
+		logger.debug("Checking queue %s" % (queue))
+		qex = self.publisher.backend.queue_exists(queue)
+		
+		# Re-open the channel if it was closed (this is a pyamqlib issue)
+		if self.publisher.backend.channel.connection == None:
+			self.publisher.backend.channel = self.publisher.backend.connection.connection.channel()
+		
+		return qex
 
 # Single threaded for now
 
 if __name__ == '__main__':
+	logger.setLevel(logging.INFO)
+	log_formatter = logging.Formatter('%(asctime)s %(name)-8s -- %(levelname)-5s %(message)s')
+	
+	amqplogger = None
+	if "--verbose" in sys.argv:
+		logger.setLevel(logging.DEBUG)
+		amqplogger = logging.getLogger("amqplib")
+		amqplogger.setLevel(logging.DEBUG)
+	
+	if "--quiet" in sys.argv:
+		logger.setLevel(logging.CRITICAL)
+	
+	if "--logfile" in sys.argv:
+		info_handler = logging.FileHandler("/var/log/pygowave/info", 'a', 'utf-8')
+		error_handler.setLevel(logging.INFO)
+		class InfoOnlyFilter:
+			def filter(self, record): return record.levelno == logging.INFO
+		info_handler.addFilter(InfoOnlyFilter())
+		info_handler.setFormatter(log_formatter)
+		logger.addHandler(info_handler)
+		
+		error_handler = logging.FileHandler("/var/log/pygowave/error", 'a', 'utf-8')
+		error_handler.setLevel(logging.ERROR)
+		error_handler.setFormatter(log_formatter)
+		logger.addHandler(error_handler)
+	else:
+		log_handler = logging.StreamHandler()
+		log_handler.setFormatter(log_formatter)
+		logger.addHandler(log_handler)
+		if amqplogger != None:
+			amqplogger.addHandler(log_handler)
+	
 	logger.info("=> RabbitMQ RPC Server starting <=")
 	
 	import signal
@@ -348,5 +357,5 @@ if __name__ == '__main__':
 	
 	amqpconn = DjangoAMQPConnection()
 	omc = PyGoWaveMessageProcessor(amqpconn)
-	logger.info("=> Connection established <=")
+	logger.info("=> RabbitMQ RPC Server ready <=")
 	omc.wait()

@@ -272,6 +272,41 @@ class Blip(models.Model):
 	
 	text = models.TextField()
 	
+	@transaction.commit_on_success
+	def insertText(self, index, text):
+		"""
+		Insert a text at the specified index. This moves annotations and
+		elements as appropriate.
+		
+		"""
+		
+		self.text = self.text[:index] + text + self.text[index:]
+		length = len(text)
+		
+		for anno in self.annotations.filter(start__gte=index):
+			anno.start += length
+			anno.end += length
+		
+		for elt in self.elements.filter(position__get=index):
+			elt.position += length
+	
+	@transaction.commit_on_success
+	def deleteText(self, index, length):
+		"""
+		Delete text at the specified index. This moves annotations and
+		elements as appropriate.
+		
+		"""
+		
+		self.text = self.text[:index] + self.text[index+length:]
+		
+		for anno in self.annotations.filter(start__gte=index):
+			anno.start -= length
+			anno.end -= length
+		
+		for elt in self.elements.filter(position__get=index):
+			elt.position -= length
+	
 	def save(self, force_insert=False, force_update=False):
 		if not self.id:
 			self.id = find_random_id(Blip.objects, 10)
@@ -298,6 +333,7 @@ class Blip(models.Model):
 			"lastModifiedTime": datetime2milliseconds(self.last_modified),
 			"childBlipIds": map(lambda c: c.id, self.children.all()),
 			"waveId": self.wavelet.wave.id,
+			"submitted": bool(self.submitted)
 		}
 	
 	def __unicode__(self):
@@ -346,9 +382,11 @@ class Annotation(models.Model):
 class Element(models.Model):
 	"""
 	Element-objects are all the non-text elements in a Blip.
-	An element has no physical presence in the text of a Blip.
-	Only special Wave Client elements are treated here. Arbitrary HTML
-	is placed directly in the text stream.
+	An element has no physical presence in the text of a Blip, but it maintains
+	an implicit protected space (or newline) to keep positions distinct.
+	
+	Only special Wave Client elements are treated here.
+	There are no HTML elements in any Blip. All markup is handled by Annotations.
 	
 	"""
 	ELEMENT_TYPES = (
@@ -512,13 +550,10 @@ class Delta(models.Model):
 	The operations placed in the Delta objects are those which result from
 	OT funcitions used in the server.
 	
-	General workflow: Operations sent from a client generate a Delta -> the
-	Delta is applied internally to the Wave object model -> the Delta is then
-	convdeted into Events -> the Events are sent to the other clients.
-	
 	"""
 	
 	timestamp = models.DateTimeField(auto_now_add=True)
+	version = models.IntegerField()
 	wavelet = models.ForeignKey(Wavelet, related_name="diffs")
 	
 	operations = models.TextField() # JSON again

@@ -51,14 +51,18 @@ class Participant(object):
 	@event onOnlineStateChanged
 	@param {Boolean} online True, if the participant is now online.
 	"""
+	"""
+	Fired if the participant's data changes.
+	@event onDataChanged
+	"""
 	# ---------------------------
 	
-	def __init__(self, id, options):
+	def __init__(self, id, options = None):
 		"""
 		Called on instantiation.
 		@constructor {public} initialize
 		@param {String} id ID (address) of the participant
-		@param {Object} options Additional information:
+		@param {optional Object} options Additional information:
 		@... {String} displayName Display name
 		@... {String} thumbnailUrl URL of the participant's avatar
 		@... {String} profileUrl A link to the participant's profile
@@ -135,7 +139,388 @@ class Participant(object):
 			"thumbnailUrl": self.options["thumbnailUrl"]
 		}
 
-@Implements(Options)
+@Class
+class Annotation(object):
+	"""
+	An annotation is metadata that augments a range of text in a Blip's text.
+	Example uses of annotations include styling text, supplying spelling
+	corrections, and links to refer that area of text to another Blip or
+	web site. The size of an annotation range must be positive and non-zero.
+	
+	@class {private} pygowave.model.Annotation
+	"""
+	
+	def __init__(self, blip, name, start, end, value):
+		"""
+		Called on instantiation. Documented for internal purposes.
+		@constructor {private} initialize
+		@param {Blip} blip The annotation's parent Blip
+		@param {String} name The annotation's name
+		@param {int} start Start index
+		@param {int} end End index
+		@param {String} value The annotation's value
+		"""
+		self._blip = blip
+		self._name = name
+		self._start = start
+		self._end = end
+		self._value = value
+	
+	def blip(self):
+		"""
+		Returns the Blip on which this element resides.
+		
+		@function {public Blip} blip
+		"""
+		return self._blip
+	
+	def name(self):
+		"""
+		Returns the name of this annotation.
+		
+		@function {public String} name
+		"""
+		return self._name
+	
+	def start(self):
+		"""
+		Returns the start index of this annotation.
+		
+		@function {public int} start
+		"""
+		return self._start
+	
+	def setStart(self, index):
+		"""
+		Sets the start index of this annotation.
+		
+		@function {public} setStart
+		@param {int} index The new start index
+		"""
+		self._start = index
+	
+	def end(self):
+		"""
+		Returns the end index of this annotation.
+		
+		@function {public int} end
+		"""
+		return self._end
+	
+	def setEnd(self, index):
+		"""
+		Sets the end index of this annotation.
+		
+		@function {public} setEnd
+		@param {int} index The new end index
+		"""
+		self._end = index
+
+ELEMENT_TYPE = {
+	"NOTHING": 0,
+	
+	"INLINE_BLIP": 1,
+	
+	"GADGET": 2,
+	
+	"INPUT": 3,
+	"CHECK": 4,
+	"LABEL": 5,
+	"BUTTON": 6,
+	"RADIO_BUTTON": 7,
+	"RADIO_BUTTON_GROUP": 8,
+	"PASSWORD": 9,
+	
+	"IMAGE": 10,
+}
+
+@Implements(Events)
+@Class
+class Element(object):
+	"""
+	Element-objects are all the non-text elements in a Blip.
+	An element has no physical presence in the text of a Blip, but it maintains
+	an implicit protected space (or newline) to keep positions distinct.
+	
+	Only special Wave Client elements are treated here.
+	There are no HTML elements in any Blip. All markup is handled by Annotations.
+	
+	@class {private} pygowave.model.Element
+	"""
+	
+	def __init__(self, blip, position, type):
+		"""
+		Called on instantiation. Documented for internal purposes.
+		@constructor {private} initialize
+		@param {Blip} blip The element's parent Blip
+		@param {int} position Index where this element resides
+		@param {int} type Type of the element
+		"""
+		self._blip = blip
+		self._pos = position
+		self._type = type
+	
+	def blip(self):
+		"""
+		Returns the Blip on which this element resides.
+		
+		@function {public Blip} blip
+		"""
+		return self._blip
+	
+	def type(self):
+		"""
+		Returns the type of the element.
+		
+		@function {public int} type
+		"""
+		return self._type
+	
+	def position(self):
+		"""
+		Returns the index where this element resides
+		
+		@function {public int} position
+		"""
+		return self._pos
+	
+	def setPosition(self, pos):
+		"""
+		Sets the index where this element resides
+		
+		@function {public} setPosition
+		@param {int} pos New position
+		"""
+		self._pos = pos
+
+@Class
+class GadgetElement(Element):
+	"""
+	A gadget element.
+	
+	@class pygowave.model.GadgetElement
+	@extends pygowave.model.Element
+	"""
+	
+	# --- Event documentation ---
+	"""
+	Fired on gadget state change.
+	
+	@event onStateChange
+	"""
+	
+	"""
+	Fired on UserPref setting.
+	
+	@event onSetUserPref
+	@param {String} key
+	@param {Object} value
+	"""
+	# ---------------------------
+	
+	def __init__(self, blip, position, url):
+		"""
+		Called on instantiation. Documented for internal purposes.
+		@constructor {private} initialize
+		@param {Blip} blip The gadget's parent Blip
+		@param {int} position Index where this gadget resides
+		@param {String} url URL of the gadget xml
+		"""
+		super(GadgetElement, self).__init__(blip, position, ELEMENT_TYPE["GADGET"])
+		self._url = url
+		self._fields = Hash()
+		self._userprefs = Hash()
+	
+	def fields(self):
+		"""
+		Return the gadget's state object i.e. the field map.
+		
+		@function {public Object} fields
+		"""
+		return self._fields.getClean()
+	
+	def userPrefs(self):
+		"""
+		Return all UserPrefs as object.
+		
+		@function {public Object} userPrefs
+		"""
+		return self._userprefs.getClean()
+
+	def url(self):
+		"""
+		Returns the gadget xml URL.
+		
+		@function {public String} url
+		"""
+		return self._url
+	
+	def applyDelta(self, delta):
+		"""
+		Apply a delta to this gadget's state.
+		
+		@function {public} applyDelta
+		@param {Object} delta An object whose fields will be merged into the
+			gadget state.
+		"""
+		self._fields.update(delta)
+		
+		# Delete keys with null values
+		for key, value in self._fields.iteritems():
+			if value == None:
+				del self._fields[key]
+		
+		self.fireEvent("stateChange")
+	
+	def setUserPref(self, key, value):
+		"""
+		Set a UserPref.
+		
+		@function {public} setUserPref
+		@param {String} key
+		@param {Object} value
+		"""
+		
+		self._userprefs[key] = value
+		self.fireEvent("setUserPref", [key, value])
+
+@Implements(Options, Events)
+@Class
+class Blip(object):
+	"""
+	Models a Blip in a Wavelet.<br/>
+	This is a private class and cannot be instanitated directly. Please
+	use {@link pygowave.model.Wavelet.addBlip Wavelet.addBlip}.
+	@class {private} pygowave.model.Blip
+	"""
+	
+	options = {
+		"creator": None,
+		"is_root": False,
+		"last_modified": None,
+		"version": 0,
+		"submitted": False
+	}
+	
+	# --- Event documentation ---
+	"""
+	Fired on text insertion.
+	
+	@event onInsertText
+	@param {int} index Offset where the text is inserted
+	@param {String} text The text to be inserted
+	"""
+	
+	"""
+	Fired on text deletion.
+	
+	@event onDeleteText
+	@param {int} index Offset where the text is deleted
+	@param {int} length Number of characters to delete
+	"""
+	# ---------------------------
+	
+	def __init__(self, wavelet, id, options, parent = None):
+		"""
+		Called on instantiation. Documented for internal purposes.
+		@constructor {private} initialize
+		@param {Wavelet} wavelet Parent Wavelet object
+		@param {String} id ID of this Blip
+		@param {Object} options Information about the Blip. Possible values:
+		@... {Participant} creator Creator of this Blip
+		@... {Boolean} is_root True if this is the root Blip; if this value
+		     is set and the parent Wavelet does not have a root Blip yet,
+		     this Blip is set as the Wavelet's root Blip
+		@... {Date} last_modified Date of last modification
+		@... {int} version Version of the Blip
+		@... {Boolean} submitted True if this Blip is submitted
+		@param {optional Blip} parent Parent Blip if this is a nested Blip
+		"""
+		self.setOptions(options)
+		self._wavelet = wavelet
+		self._id = id
+		self._parent = parent
+		
+		self._content = ""
+		self._elements = []
+		self._annotations = []
+	
+	def id(self):
+		"""
+		Returns the ID of this Blip.
+		
+		@function {public String} id
+		"""
+		return self._id
+	
+	def wavelet(self):
+		"""
+		Returns the parent Wavelet of this Blip.
+		
+		@function {public Wavelet} wavelet
+		"""
+		return self._wavelet
+
+	def isRoot(self):
+		"""
+		Returns true, if this Blip is the Wavelet's root Blip.
+		@function {public Boolean} isRoot
+		"""
+		return self.options["is_root"]
+
+	def insertText(self, index, text, noevent = False):
+		"""
+		Insert a text at the specified index. This moves annotations and
+		elements as appropriate.
+		
+		@function {public} insertText
+		@param {int} index Index of insertion
+		@param {String} text Text to be inserted
+		@param {optional Boolean} noevent Set to true if no event should be generated
+		"""
+		
+		self._content = self._content[:index] + text + self._content[index:]
+		
+		length = len(text)
+		
+		for elt in self._elements:
+			if elt.position() >= index:
+				elt.setPosition(elt.position() + length)
+		
+		for anno in self._annotations:
+			if anno.start() >= index:
+				anno.setStart(anno.start() + length)
+				anno.setEnd(anno.end() + length)
+		
+		if not noevent:
+			self.fireEvent("insertText", [index, text])
+	
+	def deleteText(self, index, length, noevent = False):
+		"""
+		Delete text at the specified index. This moves annotations and
+		elements as appropriate.
+		
+		@function {public} deleteText
+		@param {int} index Index of deletion
+		@param {int} length Number of characters to delete
+		@param {optional Boolean} noevent Set to true if no event should be generated
+		"""
+		
+		self._content = self._content[:index] + self._content[index+length:]
+		
+		for elt in self._elements:
+			if elt.position() >= index:
+				elt.setPosition(elt.position() - length)
+		
+		for anno in self._annotations:
+			if anno.start() >= index:
+				anno.setStart(anno.start() - length)
+				anno.setEnd(anno.end() - length)
+		
+		if not noevent:
+			self.fireEvent("deleteText", [index, length])
+
+@Implements(Options, Events)
 @Class
 class Wavelet(object):
 	"""
@@ -148,17 +533,30 @@ class Wavelet(object):
 	options = {
 		"creator": None,
 		"is_root": False,
-		"root_blip": None,
 		"created": None,
 		"last_modified": None,
 		"title": "",
 		"version": 0
 	}
 	
+	# --- Event documentation ---
+	"""
+	Fired if a participant joins or leaves.
+	@event onParticipantsChanged
+	"""
+	
+	"""
+	Fired if a Blip was inserted.
+	@event onBlipInserted
+	@param {int} index Index of the inserted Blip
+	@param {String} blip_id ID of the inserted Blip
+	"""
+	# ---------------------------
+	
 	def __init__(self, wave, id, options):
 		"""
 		Called on instantiation. Documented for internal purposes.
-		@constructor {public} initialize
+		@constructor {private} initialize
 		@param {WaveModel} wave Parent WaveModel object
 		@param {String} id Wavelet ID
 		@param {Object} options Information about the Wavelet. Possible values:
@@ -181,6 +579,7 @@ class Wavelet(object):
 		self._id = id
 		self._participants = Hash()
 		self._blips = []
+		self._rootBlip = None
 	
 	def isRoot(self):
 		"""
@@ -199,20 +598,20 @@ class Wavelet(object):
 	def addParticipant(self, participant):
 		"""
 		Add a participant to this Wavelet.<br/>
-		Note: Triggers {@link pygowave.model.WaveModel.onParticipantsChanged onParticipantsChanged}
-		of the WaveModel.
+		Note: Fires {@link pygowave.model.Wavelet.onParticipantsChanged onParticipantsChanged}
+		
 		@function {public} addParticipant
 		@param {Participant} participant Participant to be added
 		"""
 		self._participants.set(participant.id(), participant)
-		self._wave.fireEvent('participantsChanged', self._id)
+		self.fireEvent('participantsChanged', self._id)
 	
 	def participant(self, id):
 		"""
 		Returns the Participant object with the given id, if the participant
 		resides on this Wavelet. Returns null otherwise.
 		@function {Participant} participant
-		@param {String} id ID of the 
+		@param {String} id ID of the Participant
 		"""
 		return self._participants.get(id)
 	
@@ -240,6 +639,68 @@ class Wavelet(object):
 		for id, participant in self._participants.iteritems():
 			ret[id] = participant.toGadgetFormat()
 		return ret
+	
+	def appendBlip(self, id, options):
+		"""
+		Convenience function for inserting a new Blip at the end.
+		For options see the {@link pygowave.model.Blip.initialize Blip constructor}.<br/>
+		Note: Fires {@link pygowave.model.Wavelet.onBlipInserted onBlipInserted}
+		
+		@function {public Blip} appendBlip
+		@param {String} id ID of the new Blip
+		@param {Object} options Information about the Blip
+		"""
+		return self.insertBlip(len(self._blips), id, options)
+
+	def insertBlip(self, index, id, options):
+		"""
+		Insert a new Blip at the specified index.
+		For options see the {@link pygowave.model.Blip.initialize Blip constructor}.<br/>
+		Note: Fires {@link pygowave.model.Wavelet.onBlipInserted onBlipInserted}
+		
+		@function {public Blip} insertBlip
+		@param {int} index Index where to insert the Blip
+		@param {String} id ID of the new Blip
+		@param {Object} options Information about the Blip
+		"""
+		blip = Blip(self, id, options)
+		self._blips.insert(index, blip)
+		self.fireEvent('blipInserted', [index, id])
+		return blip
+	
+	def blipByIndex(self, index):
+		"""
+		Returns the Blip object at the given index.
+		
+		@function {Blip} blipByIndex
+		@param {int} index Index of the Blip
+		"""
+		return self._blips[index]
+
+	def blipById(self, id):
+		"""
+		Returns the Blip object with the given id, if the Blip resides on this
+		Wavelet. Returns null otherwise.
+		
+		@function {Blip} blipById
+		@param {String} id ID of the Blip
+		"""
+		
+		for blip in self._blips:
+			if blip.id() == id:
+				return blip
+		
+		return None;
+
+	def _setRootBlip(self, blip):
+		"""
+		Internal method to set the root Blip. Not intended to be called
+		outside of this implementation.
+		
+		@function {private} _setRootBlip
+		@param {Blip} blip Blip to be set as root Blip
+		"""
+		self._rootBlip = blip
 
 @Implements(Events)
 @Class
@@ -251,12 +712,6 @@ class WaveModel(object):
 	"""
 	
 	# --- Event documentation ---
-	"""
-	Fired if a participant joins or leaves.
-	@event onParticipantsChanged
-	@param {String} waveletId ID of the Wavelet whose participants changed
-	"""
-	
 	"""
 	Fired if a Wavelet has been added.
 	@event onWaveletAdded
@@ -277,11 +732,58 @@ class WaveModel(object):
 		self._viewerId = viewerId
 		self._wavelets = Hash()
 
+	def id(self):
+		"""
+		Returns the ID of this Wave.
+		
+		@function {public String} id
+		"""
+		return self._waveId
+
+	def loadFromSnapshot(self, obj, participants):
+		"""
+		Load the wave's contents from a JSON-serialized snapshot and a map of
+		participant objects.
+		
+		@function {public} loadFromSnapshot
+		@param {Object} obj The JSON-serialized snapshot to load
+		@param {Hash} participants A map of participant objects
+		"""
+		
+		rootWavelet = obj["wavelet"]
+		
+		wvl_options = {
+			"creator": participants[rootWavelet["creator"]],
+			"is_root": True,
+			"created": rootWavelet["creationTime"],
+			"last_modified": rootWavelet["lastModifiedTime"],
+			"title": rootWavelet["title"],
+			"version": rootWavelet["version"]
+		}
+		
+		rootWaveletObj = self.createWavelet(rootWavelet["waveletId"], wvl_options)
+		
+		for part_id in rootWavelet["participants"]:
+			rootWaveletObj.addParticipant(participants[part_id])
+		
+		for blip_id, blip in obj["blips"].iteritems():
+			#TODO: handle Blip contributors
+			blip_options = {
+				"creator": participants[blip["creator"]],
+				"is_root": blip["blipId"] == rootWavelet["rootBlipId"],
+				"last_modified": blip["lastModifiedTime"],
+				"version": blip["version"],
+				"submitted": blip["submitted"]
+			}
+			blipObj = rootWaveletObj.appendBlip(blip_id, blip_options)
+			blipObj.insertText(0, blip["content"])
+
 	def createWavelet(self, id, options):
 		"""
 		Create a Wavelet and add it to this Wave. For options see the
 		{@link pygowave.model.Wavelet.initialize Wavelet constructor}.<br/>
-		Hint: Emits {@link pygowave.model.WaveModel.onWaveletAdded onWaveletAdded}
+		Note: Fires {@link pygowave.model.WaveModel.onWaveletAdded onWaveletAdded}
+		
 		@function {public Wavelet} createWavelet
 		@param {String} id Wavelet ID
 		@param {Object} options Information about the Wavelet.
@@ -294,6 +796,7 @@ class WaveModel(object):
 	def wavelet(self, waveletId):
 		"""
 		Return a Wavelet of this Wave by its ID.
+		
 		@function {public Wavelet} wavelet
 		@param {String} waveletId ID of the Wavelet
 		"""
@@ -301,7 +804,8 @@ class WaveModel(object):
 	
 	def rootWavelet(self):
 		"""
-		Returns the root Wavelet of this Wave
+		Returns the root Wavelet of this Wave.
+		
 		@function {public Wavelet} rootWavelet
 		"""
 		return self._rootWavelet
@@ -310,6 +814,7 @@ class WaveModel(object):
 		"""
 		Internal method to set the root Wavelet. Not intended to be called
 		outside of this implementation.
+		
 		@function {private} _setRootWavelet
 		@param {Wavelet} wavelet Wavelet to be set as root Wavelet
 		"""
