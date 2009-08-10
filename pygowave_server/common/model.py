@@ -127,6 +127,20 @@ class Participant(object):
 			self.options["isOnline"] = online
 			self.fireEvent('onlineStateChanged', online)
 	
+	def updateData(self, obj):
+		"""
+		Updates participant data from a JSON-serialized map/dict.<br/>
+		Fires onDataChanged.
+		
+		@function {public} updateData
+		@param {Object} obj JSON-serialized participant data
+		"""
+		self.options["displayName"] = obj["displayName"]
+		self.options["thumbnailUrl"] = obj["thumbnailUrl"]
+		self.options["profileUrl"] = obj["profileUrl"]
+		self.options["isBot"] = obj["isBot"]
+		self.fireEvent('dataChanged')
+	
 	def toGadgetFormat(self):
 		"""
 		Convenience function to serialize a participant object into the
@@ -420,7 +434,7 @@ class Blip(object):
 	"""
 	# ---------------------------
 	
-	def __init__(self, wavelet, id, options, parent = None):
+	def __init__(self, wavelet, id, options, content = "", parent = None):
 		"""
 		Called on instantiation. Documented for internal purposes.
 		@constructor {private} initialize
@@ -434,6 +448,7 @@ class Blip(object):
 		@... {Date} last_modified Date of last modification
 		@... {int} version Version of the Blip
 		@... {Boolean} submitted True if this Blip is submitted
+		@param {options String} content Content of the Blip
 		@param {optional Blip} parent Parent Blip if this is a nested Blip
 		"""
 		self.setOptions(options)
@@ -441,7 +456,7 @@ class Blip(object):
 		self._id = id
 		self._parent = parent
 		
-		self._content = ""
+		self._content = content
 		self._elements = []
 		self._annotations = []
 	
@@ -519,6 +534,13 @@ class Blip(object):
 		
 		if not noevent:
 			self.fireEvent("deleteText", [index, length])
+	
+	def content(self):
+		"""
+		Returns the text content of this Blip.
+		@function {public String} content
+		"""
+		return self._content
 
 @Implements(Options, Events)
 @Class
@@ -595,6 +617,13 @@ class Wavelet(object):
 		"""
 		return self._id
 	
+	def waveId(self):
+		"""
+		Returns the ID of this Wavelet's Wave.
+		@function {public String} waveId
+		"""
+		return self._wave.id()
+	
 	def addParticipant(self, participant):
 		"""
 		Add a participant to this Wavelet.<br/>
@@ -640,7 +669,7 @@ class Wavelet(object):
 			ret[id] = participant.toGadgetFormat()
 		return ret
 	
-	def appendBlip(self, id, options):
+	def appendBlip(self, id, options, content = ""):
 		"""
 		Convenience function for inserting a new Blip at the end.
 		For options see the {@link pygowave.model.Blip.initialize Blip constructor}.<br/>
@@ -649,10 +678,11 @@ class Wavelet(object):
 		@function {public Blip} appendBlip
 		@param {String} id ID of the new Blip
 		@param {Object} options Information about the Blip
+		@param {options String} content Content of the Blip
 		"""
-		return self.insertBlip(len(self._blips), id, options)
+		return self.insertBlip(len(self._blips), id, options, content)
 
-	def insertBlip(self, index, id, options):
+	def insertBlip(self, index, id, options, content = ""):
 		"""
 		Insert a new Blip at the specified index.
 		For options see the {@link pygowave.model.Blip.initialize Blip constructor}.<br/>
@@ -662,8 +692,9 @@ class Wavelet(object):
 		@param {int} index Index where to insert the Blip
 		@param {String} id ID of the new Blip
 		@param {Object} options Information about the Blip
+		@param {options String} content Content of the Blip
 		"""
-		blip = Blip(self, id, options)
+		blip = Blip(self, id, options, content)
 		self._blips.insert(index, blip)
 		self.fireEvent('blipInserted', [index, id])
 		return blip
@@ -775,8 +806,7 @@ class WaveModel(object):
 				"version": blip["version"],
 				"submitted": blip["submitted"]
 			}
-			blipObj = rootWaveletObj.appendBlip(blip_id, blip_options)
-			blipObj.insertText(0, blip["content"])
+			blipObj = rootWaveletObj.appendBlip(blip_id, blip_options, blip["content"])
 
 	def createWavelet(self, id, options):
 		"""

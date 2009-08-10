@@ -1,0 +1,72 @@
+#!/bin/bash
+
+#
+# rc-script for Arch Linux to launch PyGoWave at system startup
+#
+
+daemon_name="pygowave-rpc"
+daemon_title="PyGoWave Server RPC"
+
+. /etc/rc.conf
+. /etc/rc.d/functions
+
+get_pid() {
+	ps aux|awk '/[0-9] python amqp_rpc_server.py/ {print $2}'
+}
+
+case "$1" in
+  start)
+    stat_busy "Starting $daemon_title"
+
+    PID=$(get_pid)
+    if [ -z "$PID" ]; then
+      [ -f /var/run/$daemon_name.pid ] && rm -f /var/run/$daemon_name.pid
+      # RUN
+      sudo -u rabbitmq /srv/http/pygowave_project/launch-pygowave-rpc --logfile >/dev/null 2>/dev/null &
+      #
+      if [ $? -gt 0 ]; then
+        stat_fail
+        exit 1
+      else
+        echo $(get_pid) > /var/run/$daemon_name.pid
+        add_daemon $daemon_name
+        stat_done
+      fi
+    else
+      stat_fail
+      exit 1
+    fi
+    ;;
+
+  stop)
+    stat_busy "Stopping $daemon_title"
+    PID=$(get_pid)
+    # KILL
+    [ ! -z "$PID" ] && kill $PID &> /dev/null
+    #
+    if [ $? -gt 0 ]; then
+      stat_fail
+      exit 1
+    else
+      rm -f /var/run/$daemon_name.pid &> /dev/null
+      rm_daemon $daemon_name
+      stat_done
+    fi
+    ;;
+
+  restart)
+    $0 stop
+    sleep 1
+    $0 start
+    ;;
+
+  status)
+    stat_busy "Checking $daemon_title status";
+    ck_status $daemon_name
+    ;;
+
+  *)
+    echo "usage: $0 {start|stop|restart|status}"
+esac
+
+exit 0

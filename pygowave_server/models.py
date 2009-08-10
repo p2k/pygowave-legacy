@@ -27,6 +27,7 @@ from django.db import transaction
 from django.utils import simplejson
 
 from pygowave_server.utils import find_random_id, gen_random_id, datetime2milliseconds
+from pygowave_server.common.operations import OpManager, DOCUMENT_DELETE, DOCUMENT_INSERT
 
 __author__ = "patrick.p2k.schneider@gmail.com"
 
@@ -237,6 +238,21 @@ class Wavelet(models.Model):
 		for blip in self.blips.all():
 			blipmap[blip.id] = blip.serialize()
 		return blipmap
+
+	def applyOperations(self, ops):
+		"""
+		Apply the operations on the wavelet.
+		
+		"""
+		
+		for op in ops:
+			if op.blip_id != "":
+				blip = self.blips.get(pk=op.blip_id)
+				if op.type == DOCUMENT_DELETE:
+					blip.text = blip.text[:op.index] + blip.text[op.index+op.property:]
+				elif op.type == DOCUMENT_INSERT:
+					blip.text = blip.text[:op.index] + op.property + blip.text[op.index:]
+				blip.save()
 	
 class DataDocument(models.Model):
 	"""
@@ -262,15 +278,15 @@ class Blip(models.Model):
 	
 	id = models.CharField(max_length=42, primary_key=True)
 	wavelet = models.ForeignKey(Wavelet, related_name="blips")
-	parent = models.ForeignKey("self", related_name="children", null=True)
+	parent = models.ForeignKey("self", related_name="children", null=True, blank=True)
 	creator = models.ForeignKey(Participant, related_name="created_blips")
 	version = models.IntegerField(default=0)
 	last_modified = models.DateTimeField(auto_now=True)
 	submitted = models.BooleanField()
 	
-	contributors = models.ManyToManyField(Participant, related_name="contributed_blips")
+	contributors = models.ManyToManyField(Participant, related_name="contributed_blips", blank=True)
 	
-	text = models.TextField()
+	text = models.TextField(blank=True)
 	
 	@transaction.commit_on_success
 	def insertText(self, index, text):
@@ -427,7 +443,7 @@ class InlineBlip(Element):
 	
 	"""
 	
-	blip = models.ForeignKey(Blip)
+	i_blip = models.ForeignKey(Blip)
 
 class GadgetElement(Element):
 	"""
@@ -554,9 +570,40 @@ class Delta(models.Model):
 	
 	timestamp = models.DateTimeField(auto_now_add=True)
 	version = models.IntegerField()
-	wavelet = models.ForeignKey(Wavelet, related_name="diffs")
+	wavelet = models.ForeignKey(Wavelet, related_name="deltas")
 	
 	operations = models.TextField() # JSON again
+	
+	@classmethod
+	def createByOpManager(cls, opman, version):
+		"""
+		Set this delta's values based on the given OpManager and a version.
+		
+		"""
+		newobj = cls(
+			version=version,
+			wavelet= Wavelet.objects.get(pk=opman.wavelet_id),
+			operations=simplejson.dumps(opman.serialize())
+		)
+		newobj._OpManager = opman
+		
+		return newobj
+	
+	def getOpManager(self):
+		"""
+		Retrieve an OpManager based on this delta.
+		
+		"""
+		opman = getattr(self, "_OpManager", None)
+		if opman == None:
+			opman = OpManager(self.wavelet.wave.id, self.wavelet.id)
+			opman.unserialize(simplejson.loads(self.operations))
+			self._OpManager = opman
+		
+		return opman
+	
+	def __unicode__(self):
+		return u"Delta #%d v%d@%s" % (self.id, self.version, self.wavelet.id)
 
 class Gadget(models.Model):
 	"""

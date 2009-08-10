@@ -17,13 +17,14 @@
 #
 
 import sys, datetime, logging
+import logging.handlers
 
 from carrot.connection import DjangoAMQPConnection
 from carrot.messaging import Consumer, Publisher
 from carrot.backends import DefaultBackend
 from django.core.exceptions import ObjectDoesNotExist
 
-from pygowave_server.models import Participant, ParticipantConn, Gadget, GadgetElement
+from pygowave_server.models import Participant, ParticipantConn, Gadget, GadgetElement, Delta
 from pygowave_server.common.operations import OpManager
 from django.conf import settings
 
@@ -39,10 +40,17 @@ logger = logging.getLogger("pygowave")
 #
 # --------
 #
+# WAVELET_OPEN (sync)
+# PARTICIPANT_INFO (sync)
+# PARTICIPANT_SEARCH (sync)
 # WAVELET_ADD_PARTICIPANT (sync)
 # WAVELET_REMOVE_SELF (sync)
 # DOCUMENT_ELEMENT_REPLACE (sync)
 # DOCUMENT_ELEMENT_DELTA (async)
+# OPERATION_MESSAGE_BUNDLE (OT)
+#   DOCUMENT_INSERT
+#   DOCUMENT_DELETE
+# -> OPERATION_MESSAGE_BUNDLE_ACK
 
 class PyGoWaveMessageProcessor(object):
 	"""
@@ -70,7 +78,7 @@ class PyGoWaveMessageProcessor(object):
 	"""
 	
 	purge_every = datetime.timedelta(minutes=10)
-	conn_min_lifetime = datetime.timedelta(minutes=getattr(settings, "ACCESS_KEY_TIMEOUT_MINUTES", 5))
+	conn_min_lifetime = datetime.timedelta(minutes=getattr(settings, "ACCESS_KEY_TIMEOUT_MINUTES", 2))
 	
 	def __init__(self, connection):
 		self.consumer = Consumer(
@@ -95,10 +103,10 @@ class PyGoWaveMessageProcessor(object):
 	
 	def broadcast(self, wavelet, type, property, except_connections=[]):
 		"""
-		Send messages to all participants. Should only be used with synchronous
-		events.
+		Send messages to all participants.
+		
 		`wavelet` must be a Wavelet object.
-		`except_participants` is a list of ParticipantConn objects to be
+		`except_connections` is a list of ParticipantConn objects to be
 		excluded from the broadcast.
 		
 		"""
@@ -144,20 +152,21 @@ class PyGoWaveMessageProcessor(object):
 		
 		logger.debug("Received Message from %s.%s.%s:\n%s" % (participant_conn_key, wavelet_id, message_category, repr(message_data)))
 		
+		# Always ack the message or it will persist on errors
+		message.ack()
+		
 		# Get participant connection
 		try:
 			pconn = ParticipantConn.objects.get(tx_key=participant_conn_key)
 		except ObjectDoesNotExist:
-			logger.error("{%s} Error: ParticipantConn not found\n" % (rkey))
-			message.ack()
+			logger.error("{%s} ParticipantConn not found" % (rkey))
 			return # Fail silently
 		
 		# Get wavelet
 		try:
 			wavelet = pconn.participant.wavelets.get(id=wavelet_id)
 		except ObjectDoesNotExist:
-			logger.error("{%s} Error: Wavelet not found (or not participating)\n" % (rkey))
-			message.ack()
+			logger.error("{%s} Wavelet not found (or not participating)" % (rkey))
 			return # Fail silently
 		
 		# Handle message and reply to sender and/or broadcast an event
@@ -170,8 +179,6 @@ class PyGoWaveMessageProcessor(object):
 		for receiver, messages in self.out_queue.iteritems():
 			self.send(messages, "%s.%s.waveop" % (receiver, wavelet_id))
 		self.out_queue = {}
-		
-		message.ack()
 		
 		# Cleanup time?
 		if datetime.datetime.now() > self.next_purge:
@@ -196,7 +203,27 @@ class PyGoWaveMessageProcessor(object):
 					"wavelet": wavelet.serialize(),
 					"blips": wavelet.serialize_blips(),
 				})
+			
+			elif message["type"] == "PARTICIPANT_INFO":
+				logger.info("[%s/%d@%s] Sending participant information" % (participant.name, pconn.id, wavelet.wave.id))
+				p_info = {}
+				for p_id in message["property"]:
+					try:
+						p_info[p_id] = Participant.objects.get(id=p_id).serialize()
+					except ObjectDoesNotExist:
+						p_info[p_id] = None
+				self.emit(pconn, "PARTICIPANT_INFO", p_info)
+			
+			elif message["type"] == "PARTICIPANT_SEARCH":
+				if len(message["property"]) < getattr(settings, "PARTICIPANT_SEARCH_LENGTH"):
+					self.emit(pconn, "PARTICIPANT_INFO", {"result": "TOO_SHORT", "data": getattr(settings, "PARTICIPANT_SEARCH_LENGTH")})
+				logger.info("[%s/%d@%s] Performing participant search" % (participant.name, pconn.id, wavelet.wave.id))
 				
+				lst = []
+				for p in Participant.objects.filter(name__icontains=message["property"]).exclude(id=participant.id):
+					lst.append(p.id)
+				self.emit(pconn, "PARTICIPANT_SEARCH", {"result": "OK", "data": lst})
+			
 			elif message["type"] == "WAVELET_ADD_PARTICIPANT":
 				# Find participant
 				try:
@@ -276,6 +303,38 @@ class PyGoWaveMessageProcessor(object):
 				
 				# Asynchronous event, so send to all part. except the sender
 				self.broadcast(wavelet, "DOCUMENT_ELEMENT_SETPREF", {"id": elt_id, "key": key, "value": value}, [pconn])
+			
+			elif message["type"] == "OPERATION_MESSAGE_BUNDLE":
+				# Build OpManager
+				newdelta = OpManager(wavelet.wave.id, wavelet.id)
+				newdelta.unserialize(message["property"]["operations"])
+				version = message["property"]["version"]
+				
+				# Transform
+				for delta in wavelet.deltas.filter(version__gt=version):
+					for op in delta.getOpManager().operations:
+						newdelta.transform(op) # Trash results (an existing delta cannot be changed)
+				
+				# Apply
+				wavelet.applyOperations(newdelta.operations)
+				
+				# Raise version and store
+				wavelet.version += 1
+				wavelet.save()
+				
+				Delta.createByOpManager(newdelta, wavelet.version).save()
+				
+				# Respond
+				self.emit(pconn, "OPERATION_MESSAGE_BUNDLE_ACK", wavelet.version)
+				self.broadcast(wavelet, "OPERATION_MESSAGE_BUNDLE", {"version": wavelet.version, "operations": newdelta.serialize()}, [pconn])
+				
+				logger.info("[%s/%d@%s] Processed delta #%d -> v%d" % (participant.name, pconn.id, wavelet.wave.id, version, wavelet.version))
+				
+			else:
+				logger.error("[%s/%d@%s] Unknown message: %s" % (participant.name, pconn.id, wavelet.wave.id, message))
+		
+		else:
+			logger.error("[%s/%d@%s] Unknown message: %s" % (participant.name, pconn.id, wavelet.wave.id, message))
 		
 		return True
 	
@@ -330,15 +389,15 @@ if __name__ == '__main__':
 		logger.setLevel(logging.CRITICAL)
 	
 	if "--logfile" in sys.argv:
-		info_handler = logging.FileHandler("/var/log/pygowave/info", 'a', 'utf-8')
-		error_handler.setLevel(logging.INFO)
+		info_handler = logging.handlers.WatchedFileHandler("/var/log/pygowave/info.log", 'a', 'utf-8')
+		info_handler.setLevel(logging.INFO)
 		class InfoOnlyFilter:
 			def filter(self, record): return record.levelno == logging.INFO
 		info_handler.addFilter(InfoOnlyFilter())
 		info_handler.setFormatter(log_formatter)
 		logger.addHandler(info_handler)
 		
-		error_handler = logging.FileHandler("/var/log/pygowave/error", 'a', 'utf-8')
+		error_handler = logging.handlers.WatchedFileHandler("/var/log/pygowave/error.log", 'a', 'utf-8')
 		error_handler.setLevel(logging.ERROR)
 		error_handler.setFormatter(log_formatter)
 		logger.addHandler(error_handler)
@@ -355,7 +414,12 @@ if __name__ == '__main__':
 	# Python Ctrl-C handler
 	signal.signal(signal.SIGINT, signal.SIG_DFL)
 	
-	amqpconn = DjangoAMQPConnection()
-	omc = PyGoWaveMessageProcessor(amqpconn)
-	logger.info("=> RabbitMQ RPC Server ready <=")
-	omc.wait()
+	try:
+		amqpconn = DjangoAMQPConnection()
+		omc = PyGoWaveMessageProcessor(amqpconn)
+		logger.info("=> RabbitMQ RPC Server ready <=")
+		omc.wait()
+	except:
+		import traceback
+		logger.critical("Crash!\n" + traceback.format_exc())
+		sys.exit(1)

@@ -36,8 +36,6 @@ from datetime import datetime, timedelta
 import urllib2, os
 from lxml.etree import XMLSyntaxError
 
-from pycow import translate_file, ParseError
-
 def index(request):
 	auth_fail = False
 	
@@ -219,31 +217,6 @@ def wave(request, wave_id):
 			"participant_id": participant.id
 		}, context_instance=RequestContext(request))
 
-@login_required
-def search_participants(request):
-	
-	if request.GET.has_key("q"):
-		q = request.GET["q"]
-	else:
-		q = ""
-	
-	if len(q) < 3: # TODO - Hardcoded
-		return render_to_response('pygowave_server/contacts/search_participants.html', {"too_short": 3}, context_instance=RequestContext(request))
-	
-	me = request.user.get_profile()
-
-	lst = []
-	for p in Participant.objects.filter(name__icontains=q):
-		if p == me:
-			continue
-		if p.avatar:
-			avatar = p.avatar
-		else:
-			avatar = django_settings.AVATAR_URL + "default.png"
-		lst.append({"id": p.id, "avatar": avatar, "profile": p.profile, "name": p.name})
-	
-	return render_to_response('pygowave_server/contacts/search_participants.html', {"matches": lst}, context_instance=RequestContext(request))
-
 def gadget_loader(request):
 	"""
 	Load a gadget from any URL.
@@ -297,6 +270,7 @@ def pycow(request, filename):
 	srcfile = COMMON_FOLDER + filename[:-2] + "py"
 	
 	if not os.path.exists(cachefile) or os.path.getmtime(srcfile) > os.path.getmtime(cachefile):
+		from pycow import translate_file, ParseError
 		try:
 			translate_file(srcfile, cachefile, namespace=module, warnings=False)
 		except ParseError, e:

@@ -347,26 +347,10 @@ p
 	font-weight: bold;
 }
 
-#leave_button
+.button_box
 {
 	float: right;
-	height: 22px;
-	padding: 4px;
-	cursor: pointer;
-}
-
-#leave_button img
-{
-	float: left;
-}
-
-#leave_button label
-{
-	float: left;
-	margin-left: 4px;
-	margin-right: 4px;
-	margin-top: 4px;
-	cursor: pointer;
+	padding-left: 10px;
 }
 
 #gadget_container

@@ -176,6 +176,22 @@ div.mochaToolbarWrapper.bottom {
 	font-weight: bold;
 }
 
+.mochaImageButton {
+	padding: 0.1em 0.3em;
+	margin: 0 0.4em 0.4em 0;
+	vertical-align: middle;
+}
+
+.mochaImageButton img {
+	float: left;
+	margin-right: 5px;
+}
+
+.mochaImageButton div {
+	float: left;
+	margin-top: 2px;
+}
+
 .mochaTabsNav {
 	border: 0 none;
 	list-style-image: none;

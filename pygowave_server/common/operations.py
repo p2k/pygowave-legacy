@@ -93,14 +93,15 @@ class Operation(object):
 		@constructor {public} initialize
 		@param {String} op_type Type of operation
 		@param {String} wave_id The id of the wave that this operation is to
-		                        be applied.
+			be applied.
 		@param {String} wavelet_id The id of the wavelet that this operation is
-		                           to be applied.
-		@param {String} blip_id The optional id of the blip that this operation
-		                        is to be applied.
-		@param {int} index Optional integer index for content-based operations.
-		@param {Object} prop A weakly typed property object is based on the
-		                     context of this operation.
+		    to be applied.
+		@param {optional String} blip_id The optional id of the blip that this
+			operation is to be applied.
+		@param {optional int} index Optional integer index for content-based
+			operations.
+		@param {optional Object} prop A weakly typed property object is based
+			on the context of this operation.
 		"""
 		self.type = op_type
 		self.wave_id = wave_id
@@ -434,13 +435,13 @@ class OpManager(object):
 		self.operations.extend(ops)
 		self.fireEvent("afterOperationsInserted", [start, end])
 
-	def serialize(self, fetch):
+	def serialize(self, fetch = False):
 		"""
 		Serialize this manager's operations into a list of dictionaries.
 		Set fetch to true to also clear this manager.
 		
 		@function {public Object[]} serialize
-		@param {Boolean} fetch
+		@param {optional Boolean} fetch
 		"""
 		if fetch:
 			ops = self.fetch()

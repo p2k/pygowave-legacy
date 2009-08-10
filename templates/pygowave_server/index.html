@@ -13,6 +13,9 @@
 			<th><a href="{% url registration.views.register %}" class="reg_link">{% trans "Register?" %}</a></th>
 			<td class="submit_td"><input type="submit" value="{% trans "Login" %}" /></td>
 		</tr>
+		<tr>
+			<th colspan="2"><a href="{% url auth_password_reset %}" class="reg_link">{% trans "Forgot password?" %}</a></th>
+		</tr>
 		</table>
 	</form>
 </div>

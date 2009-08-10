@@ -132,6 +132,7 @@ INSTALLED_APPS = (
 	#'rosetta',
 )
 
+# Don't change this:
 AUTH_PROFILE_MODULE = 'pygowave_server.participant'
 
 ACCOUNT_ACTIVATION_DAYS = 7
@@ -149,7 +150,10 @@ PYCOW_CACHE_URL = MEDIA_URL + 'pycow/'
 ONLINE_TIMEOUT_MINUTES = 10
 
 # Used if a user somehow doesn't use his generated access key in time
-ACCESS_KEY_TIMEOUT_MINUTES = 5
+ACCESS_KEY_TIMEOUT_MINUTES = 2
+
+# Minimum characters to engage a search
+PARTICIPANT_SEARCH_LENGTH = 3
 
 # RabbitMQ settings here
 AMQP_SERVER = "localhost"

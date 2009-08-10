@@ -1,0 +1,8 @@
+# Configuration file for logrotate; rotates PyGoWave's RPC logfiles
+# To be placed into /etc/logrotate.d/
+
+/var/log/pygowave/*.log {
+  notifempty
+  missingok
+  size 10M
+}

@@ -115,8 +115,10 @@ pygowave.view = function () {
 			this._input = new Element('input', {'type': 'text', 'class': 'inactive'}).inject(this._iwrapper);
 			this._input.addEvent('focus', this._onFocus.bind(this));
 			this._input.addEvent('blur', this._onBlur.bind(this));
+			this._input.addEvent('keypress', this._onChange.bind(this));
 			this._rcorner = new Element('div', {'class': 'right_corner inactive'}).inject(contentElement);
 			this.parent(parentElement, contentElement, where);
+			this._last_value = "";
 		},
 		
 		/**
@@ -146,7 +148,11 @@ pygowave.view = function () {
 		 * @function {private} _onChange
 		 */
 		_onChange: function () {
-			this.fireEvent('change', this.text());
+			var new_value = this.text();
+			if (new_value != this._last_value) {
+				this.fireEvent('change', new_value);
+				this._last_value = new_value;
+			}
 		},
 		
 		/**
@@ -187,6 +193,7 @@ pygowave.view = function () {
 		 */
 		initialize: function (view, parentElement, participant, small, where) {
 			this._view = view;
+			this._participant = participant;
 			var contentElement = new Element('div', {'class': 'wavelet_participant'});
 			if (small) contentElement.addClass('small');
 			var tn = participant.thumbnailUrl();
@@ -201,6 +208,7 @@ pygowave.view = function () {
 			if (small) this._pImage.addClass('small');
 			this.parent(parentElement, contentElement, where);
 			participant.addEvent('onlineStateChanged', this._onOnlineStateChanged.bind(this));
+			participant.addEvent('dataChanged', this._onDataChanged.bind(this));
 			this._onOnlineStateChanged(participant.isOnline());
 		},
 		
@@ -217,6 +225,29 @@ pygowave.view = function () {
 				this._oImage = new Element('div', {'class': 'indicator'}).inject(this.contentElement, 'bottom');
 			
 			this._oImage.addClass(online ? 'online' : 'offline').removeClass(online ? 'offline' : 'online');
+		},
+		
+		/**
+		 * Callback for {@link pygowave.model.Participant.onDataChanged
+		 * onDataChanged}. Updates the representation of the participant.
+		 * @function {private} _onDataChanged
+		 */
+		_onDataChanged: function () {
+			var pImage = this._pImage;
+			pImage.set("alt", this._participant.displayName());
+			pImage.set("title", this._participant.displayName());
+			
+			var tn = this._participant.thumbnailUrl();
+			if (tn == "")
+				tn = this._view.defaultThumbnailUrl();
+			
+			if (pImage.get("src") != tn) { // Exchange thumbnail
+				new Fx.Tween(pImage, {duration:200}).start("opacity", 1, 0).chain(function () {
+					pImage.set("src", "");
+					pImage.set.delay(100, pImage, ["src", tn]);
+					this.start.delay(100, this ,["opacity", 0, 1]);
+				});
+			}
 		}
 	});
 	
@@ -234,12 +265,14 @@ pygowave.view = function () {
 		/**
 		 * Called on instantiation.
 		 * @constructor {public} initialize
-		 * @param {OpManager} pending A reference to the pending operations manager
-		 * @param {OpManager} cached A reference to the cached operations manager
+		 * @param {pygowave.controller.PyGoWaveClient} controller The controller
+		 * @param {String} wavelet_id ID of the wavelet to monitor
 		 */
-		initialize: function (pending, cached) {
-			this._mpending = pending;
-			this._mcached = cached;
+		initialize: function (controller, wavelet_id) {
+			this._controller = controller;
+			this._wavelet_id = wavelet_id;
+			this._mpending = controller.wavelets[wavelet_id].mpending;
+			this._mcached = controller.wavelets[wavelet_id].mcached;
 			
 			this._content = new Element('div', {'class': 'debug_window'});
 			
@@ -271,6 +304,15 @@ pygowave.view = function () {
 			new Element('td', {'class': 'col3'}).inject(elt);
 			new Element('td', {'class': 'col4'}).inject(elt);
 			
+			// Bind callbacks
+			for (var property in this) {
+				if (property.startswith("cached_on") || property.startswith("pending_on") || property.startswith("_on"))
+					this[property] = this[property].bind(this);
+			}
+			
+			var buttons = {};
+			var buttonText = gettext(controller.isBlocked(wavelet_id) ? "Unblock" : "Block");
+			buttons[buttonText] = this._onBlock;
 			this.parent({
 				title: gettext("Operations Viewer (Debug)"),
 				content: this._content,
@@ -287,16 +329,10 @@ pygowave.view = function () {
 				resizable: true,
 				footerHeight: 34,
 				padding: {top: 0, right: 0, bottom: 0, left: 0},
-				onClose: this._onClose.bind(this)
+				buttons: buttons
 			});
 			this._content.getParent().setStyle("height", "100%");
 			this.addEvent('closeComplete', this._onClose.bind(this));
-			
-			// Bind callbacks
-			for (var property in this) {
-				if (property.startswith("cached_on") || property.startswith("pending_on"))
-					this[property] = this[property].bind(this);
-			}
 			
 			// Connect callbacks
 			this._mcached.addEvent('beforeOperationsInserted', this.cached_onBeforeOperationsInserted);
@@ -307,6 +343,16 @@ pygowave.view = function () {
 			this._mpending.addEvent('afterOperationsInserted', this.pending_onAfterOperationsInserted);
 			this._mpending.addEvent('afterOperationsRemoved', this.pending_onAfterOperationsRemoved);
 			this._mpending.addEvent('operationChanged', this.pending_onOperationChanged);
+			
+			// Populate table
+			if (!this._mcached.isEmpty()) {
+				this.cached_onBeforeOperationsInserted(0, this._mcached.operations.length-1);
+				this.cached_onAfterOperationsInserted(0, this._mcached.operations.length-1);
+			}
+			if (!this._mpending.isEmpty()) {
+				this.pending_onBeforeOperationsInserted(0, this._mpending.operations.length-1);
+				this.pending_onAfterOperationsInserted(0, this._mpending.operations.length-1);
+			}
 		},
 		
 		/**
@@ -323,6 +369,20 @@ pygowave.view = function () {
 			this._mpending.removeEvent('afterOperationsInserted', this.pending_onAfterOperationsInserted);
 			this._mpending.removeEvent('afterOperationsRemoved', this.pending_onAfterOperationsRemoved);
 			this._mpending.removeEvent('operationChanged', this.pending_onOperationChanged);
+		},
+		/**
+		 * Called if the "Block" button was clicked.
+		 * @function {private} _onBlock
+		 */
+		_onBlock: function () {
+			if (!this._controller.isBlocked(this._wavelet_id)) {
+				this._controller.setBlocked(this._wavelet_id, true);
+				this.buttonsEl.childNodes[0].set('text', gettext("Unblock"));
+			}
+			else {
+				this._controller.setBlocked(this._wavelet_id, false);
+				this.buttonsEl.childNodes[0].set('text', gettext("Block"));
+			}
 		},
 		
 		/**
@@ -517,7 +577,7 @@ pygowave.view = function () {
 		 * @param {String} text Entered query text
 		 */
 		_onQueryChange: function (text) {
-			this._view.fireEvent('searchForParticipant', text);
+			this._view.fireEvent('searchForParticipant', [this._view.model.rootWavelet().id(), text]);
 		}
 	});
 	
@@ -592,6 +652,12 @@ pygowave.view = function () {
 			this._blip = blip;
 			this._lastRange = [0, 0];
 			this._lastContent = "";
+			
+			this._onInsertText = this._onInsertText.bind(this);
+			this._onDeleteText = this._onDeleteText.bind(this);
+			
+			blip.addEvent('insertText', this._onInsertText);
+			blip.addEvent('deleteText', this._onDeleteText);
 		},
 		editorKeyUp: function(e) {
 			var newContent = this.contentToString();
@@ -673,14 +739,14 @@ pygowave.view = function () {
 		 * @function {public String} contentToString
 		 */
 		contentToString: function () {
-			var cleaned = this.getContent().replace(/<br[^>]*>/gi, "\n");
+			var cleaned = this.getContent().replace(/<br[^>]*>/gi, "\n").replace("&nbsp;", " ");
 			if (cleaned.endswith("\n"))
 				cleaned = cleaned.slice(0, cleaned.length-1);
 			return cleaned;
 		},
 		/**
-		 * Returns the current selected text range as [start, end]. This treats
-		 * all element nodes as one character.
+		 * Returns the current selected text range as [start, end]. This
+		 * ignores all element nodes except br (which is treated as 1 character).
 		 * @function {public Array} currentTextRange
 		 */
 		currentTextRange: function () {
@@ -691,9 +757,26 @@ pygowave.view = function () {
 			
 			return [start, end];
 		},
+		
+		_onInsertText: function (index, text) {
+			var ret = this._walkDown(this.doc.body, index);
+			var elt = ret[0], offset = ret[1];
+			if ($type(elt) == "textnode" || $type(elt) == "whitespace")
+				elt.insertData(offset, text);
+			else
+				elt.parentNode.insertBefore(document.createTextNode(text), elt);
+		},
+		_onDeleteText: function (index, length) {
+			var ret = this._walkDown(this.doc.body, index);
+			var elt = ret[0], offset = ret[1];
+			if ($type(elt) == "textnode")
+				elt.deleteData(offset, length);
+		},
+		
 		/**
-		 * Walk up the DOM tree while summing up all text lengths. Elements
-		 * count 1 for start and 1 for end tags. Returns the absolute offset.
+		 * Walk up the DOM tree while summing up all text lengths. Elements are
+		 * ignored, except br and iframe which count as one character.
+		 * Returns theabsolute offset.
 		 * 
 		 * @function {private int} _walkUp
 		 * @param {Node} node The node to start
@@ -722,15 +805,17 @@ pygowave.view = function () {
 				while ((node = node.previousSibling) != null) {
 					prev = node;
 					if ($type(node) == "element") {
-						offset++;
-						// descend
-						while ((node = node.lastChild) != null) {
-							prev = node;
-							if ($type(node) == "textnode") {
-								offset += node.textContent.length;
-								break;
-							}
+						if (node.get('tag') == "br" || node.get('tag') == "iframe")
 							offset++;
+						else {
+							// descend
+							while ((node = node.lastChild) != null) {
+								prev = node;
+								if ($type(node) == "textnode") {
+									offset += node.textContent.length;
+									break;
+								}
+							}
 						}
 						node = prev;
 					}
@@ -755,13 +840,12 @@ pygowave.view = function () {
 			var next;
 			
 			while (offset > 0 && elt != null) {
-				if ($type(elt) == "element")
+				if ($type(elt) == "element" && !elt.get('tag') == "iframe")
 					next = elt.firstChild; // descend
 				else
 					next = null;
 				
 				if (next != null) {
-					offset--;
 					elt = next;
 					continue;
 				}
@@ -771,15 +855,16 @@ pygowave.view = function () {
 						return [elt, offset];
 					offset -= elt.textContent.length;
 				}
-				else
+				else if (elt.get('tag') == "br" || elt.get('tag') == "iframe")
 					offset--;
 				
 				next = elt.nextSibling;
 				if (next == null) { // ascend
 					elt = elt.parentNode;
-					offset--;
 					elt = elt.nextSibling;
 				}
+				else
+					elt = next;
 			}
 			
 			return [elt, offset];
@@ -804,7 +889,8 @@ pygowave.view = function () {
 		 *        'after', or 'before'.
 		 */
 		initialize: function (view, blip, parentElement, where) {
-			var contentElement = new Element('textarea', {'class': 'blip_widget'});
+			var text = blip.content().replace("\n", "<br />");
+			var contentElement = new Element('textarea', {'class': 'blip_widget', 'text': text});
 			this.parent(parentElement, contentElement, where);
 			this._medit = new BlipEditor(view, blip, contentElement, {'paragraphise': false, 'toolbar': false});
 		}
@@ -934,7 +1020,6 @@ pygowave.view = function () {
 	var WaveView = new Class({
 		Implements: [Options, Events],
 		options: {
-			participantSearchUrl: "about:blank",
 			gadgetLoaderUrl: "about:blank",
 			defaultThumbnailUrl: "about:blank",
 			rtl: false
@@ -946,6 +1031,7 @@ pygowave.view = function () {
 		 * <br/>Note: This event is fired by a AddParticipantWindow instance.
 		 * 
 		 * @event onSearchForParticipant
+		 * @param {String} waveletId ID of the Wavelet
 		 * @param {String} text Entered search query
 		 */
 		
@@ -978,8 +1064,6 @@ pygowave.view = function () {
 		 * @param {pygowave.model.WaveModel} model Model to connect to
 		 * @param {Element} container Container DOM element to render the view on
 		 * @param {Object} options Various settings to correctly render the view
-		 * @... {String} participantSearchUrl URL to the participant serach view;
-		 *      prepared to have the query appended *subject to change*
 		 * @... {String} gadgetLoaderUrl URL to the gadget loader view; prepared
 		 *      to have the gadget URL appended
 		 * @... {String} defaultThumbnailUrl URL to a thumbnail image to be used
@@ -1026,6 +1110,34 @@ pygowave.view = function () {
 		 */
 		defaultThumbnailUrl: function () {
 			return this.options.defaultThumbnailUrl;
+		},
+		
+		/**
+		 * Show an error message from the controller
+		 *
+		 * @function {public} showControllerError
+		 * @param {String} message The errormessage to show
+		 */
+		showControllerError: function (message) {
+			var buttons = {};
+			buttons[gettext("Oh well")] = function () {MochaUI.closeWindow(this);};
+			new MochaUI.Window({
+				title: gettext("Shit happens..."),
+				type: "modal",
+				content: message,
+				width: 280,
+				height: 140,
+				headerStartColor: [95, 163, 237],
+				headerStopColor: [85, 144, 210],
+				bodyBgColor: [201, 226, 252],
+				closeBgColor: [66, 114, 166],
+				closeColor: [255, 255, 255],
+				cornerRadius: 4,
+				resizable: false,
+				footerHeight: 34,
+				rtl: this.options.rtl,
+				buttons: buttons
+			});
 		}
 	});
 	

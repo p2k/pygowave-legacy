@@ -39,10 +39,17 @@
 <h1>{{ wavelet_title }}</h1>
 <h4>{% trans "Hints" %}</h4>
 <div class="section">
-	<div id="leave_button" class="ui-state-default ui-corner-all">
-		{% if LANGUAGE_BIDI %}<label>{% trans "Leave Wave" %}</label>{% endif %}
+	<div class="button_box">
+	<button id="leave_button" class="mochaButton mochaImageButton" type="button">
+		{% if LANGUAGE_BIDI %}<div>{% trans "Leave Wave" %}</div>{% endif %}
 		<img src="{{ MEDIA_URL }}images/leave.png" height="22" width="22" alt="{% trans "Leave Wave" %}" />
-		{% if not LANGUAGE_BIDI %}<label>{% trans "Leave Wave" %}</label>{% endif %}
+		{% if not LANGUAGE_BIDI %}<div>{% trans "Leave Wave" %}</div>{% endif %}
+	</button>
+	<button id="debug_button" class="mochaButton mochaImageButton" type="button">
+		{% if LANGUAGE_BIDI %}<div>{% trans "Debug" %}</div>{% endif %}
+		<img src="{{ MEDIA_URL }}images/debug.png" height="22" width="22" alt="{% trans "Debug" %}" />
+		{% if not LANGUAGE_BIDI %}<div>{% trans "Debug" %}</div>{% endif %}
+	</button>
 	</div>
 {% blocktrans %}
 Some quick documentation: Click on the "+" to add a friend to your wave. The
@@ -59,19 +66,22 @@ Again, this application is experimental and may not work as expected.
 		<!-- The content is dynamically rendered through our client script. -->
 	</div>
 	<script type="text/javascript">
+		$("debug_button").set("disabled", "disabled");
+		
 		document.addEvent('domready', function () {
+			
 			model = new pygowave.model.WaveModel("{{ wave_id|escapejs }}", "{{ participant_id|escapejs }}");
+			
 			view = new pygowave.view.WaveView(
 				model,
 				$('wave_container'),
 				{
-					participantSearchUrl: "{% url pygowave_server.views.search_participants %}?q=",
 					gadgetLoaderUrl: "{% url pygowave_server.views.gadget_loader %}?wave=1&",
 					defaultThumbnailUrl: "{{ AVATAR_URL }}default.png"
 				}
 			);
 			
-			theController = new pygowave.controller.PyGoWaveClient(
+			controller = new pygowave.controller.PyGoWaveClient(
 				model,
 				view,
 				{
@@ -79,18 +89,22 @@ Again, this application is experimental and may not work as expected.
 					waveAccessKeyTx: "{{ wave_access_key.tx }}",
 					waveAccessKeyRx: "{{ wave_access_key.rx }}",
 					
-					initialWave: "{{ wave_id }}",
-					initialWavelet: "{{ wavelet_id }}",
-					viewerId: "{{ participant_id }}"
+					initialWave: "{{ wave_id|escapejs }}",
+					initialWavelet: "{{ wavelet_id|escapejs }}",
+					viewerId: "{{ participant_id|escapejs }}"
 				}
 			);
 			
-			theController.connect();
+			controller.connect();
 			
 			// Debugging
-			theController.addEvent("waveletOpened", function (args) {
-				ov = new pygowave.view.OperationsViewer(theController.wavelets[args.wavelet_id].mpending, theController.wavelets[args.wavelet_id].mcached);
+			$("debug_button").addEvent("click", function () {
+				ov = new pygowave.view.OperationsViewer(controller, controller.options.initialWavelet);
 			});
+			controller.addEvent("waveletOpened", function (wave_id, wavelet_id) {
+				$("debug_button").set("disabled", "");
+			});
+			
 		});
 	</script>
 </div>

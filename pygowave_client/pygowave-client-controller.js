@@ -92,11 +92,13 @@ pygowave.controller = function () {
 			this._iview = view;
 			this._iview.addEvent('textInserted', this._onTextInserted.bind(this));
 			this._iview.addEvent('textDeleted', this._onTextDeleted.bind(this));
+			this._iview.addEvent('searchForParticipant', this._onSearchForParticipant.bind(this));
 			
 			this.waves = new Hash();
 			this.waves.set(model.id(), model);
 			
 			this.wavelets = new Hash();
+			this.new_participants = new Array();
 			this.participants = new Hash();
 			
 			// The connection object must be stored in this.conn and must have a sendJson and subscribeWavelet method (defined below).
@@ -143,7 +145,7 @@ pygowave.controller = function () {
 		 * @param {int} code Error code provided by socket API.
 		 */
 		onConnClose: function (code) {
-			alert('Lost Connection, Code: ' + code);
+			this._iview.showControllerError(gettext("The connection was lost.<br/><br/>Error code: %d").sprintf(code));
 		},
 		
 		/**
@@ -165,6 +167,10 @@ pygowave.controller = function () {
 		 * @param {object} obj JSON-decoded message object for processing.
 		 */
 		onConnReceive: function (wavelet_id, obj) {
+			var wavelet_model = null;
+			if (this.wavelets.has(wavelet_id))
+				wavelet_model = this.wavelets[wavelet_id].model;
+			
 			for (var it = new _Iterator(obj);it.hasNext();) {
 				obj = it.next();
 				switch (obj.type) {
@@ -175,11 +181,31 @@ pygowave.controller = function () {
 						var wave_model = this.waves[wave_id];
 						wave_model.loadFromSnapshot(obj.property, this.participants);
 						this.wavelets[wavelet_id] = {
-							model: wave_model,
-							pending: false
+							model: wave_model.wavelet(wavelet_id),
+							pending: false,
+							blocked: false
 						};
 						this._setupOpManagers(wave_id, wavelet_id);
-						this.fireEvent("waveletOpened", {"wave_id": wave_id, "wavelet_id": wavelet_id});
+						this.fireEvent("waveletOpened", [wave_id, wavelet_id]);
+						
+						this._requestParticipantInfo(wavelet_id);
+						break;
+					case "OPERATION_MESSAGE_BUNDLE_ACK":
+						wavelet_model.options.version = obj.property;
+						this.wavelets[wavelet_id].mpending.fetch(); // Clear
+						if (!this.wavelets[wavelet_id].mcached.isEmpty())
+							this._transferOperations(wavelet_id);
+						else
+							this.wavelets[wavelet_id].pending = false;
+						break;
+					case "OPERATION_MESSAGE_BUNDLE":
+						this._processOperations(wavelet_model, obj.property.operations);
+						wavelet_model.options.version = obj.property.version;
+						break;
+					case "PARTICIPANT_INFO":
+						this._processParticipantsInfo(obj.property);
+						break;
+					case "PARTICIPANT_SEARCH":
 						break;
 				}
 			}
@@ -196,6 +222,27 @@ pygowave.controller = function () {
 				this.options.stompUsername,
 				this.options.stompPassword
 			);
+		},
+		/**
+		 * Returns if the given wavelet's transmission is blocked
+		 * @function {public} isBlocked
+		 * @param {String} wavelet_id ID of the Wavelet
+		 */
+		isBlocked: function (wavelet_id) {
+			return this.wavelets[wavelet_id].blocked;
+		},
+		/**
+		 * Block or unblock the transmission of messages for debugging purposes.
+		 * @function {public} setBlocked
+		 * @param {String} wavelet_id ID of the Wavelet whose messages should
+		 *     be blocked
+		 * @param {Boolean} blocked Set to true to disable message transmission,
+		 *     false to re-enable it (may send queued messages).
+		 */
+		setBlocked: function (wavelet_id, blocked) {
+			this.wavelets[wavelet_id].blocked = blocked;
+			if (!blocked && !this.wavelets[wavelet_id].pending && this.hasPendingOperations(wavelet_id))
+				this._transferOperations(wavelet_id);
 		},
 		
 		/**
@@ -217,19 +264,61 @@ pygowave.controller = function () {
 		 * @param {String} wavelet_id ID of the wavelet
 		 */
 		hasPendingOperations: function (wavelet_id) {
-			return this.wavelets[wavelet_id].pending;
+			return this.wavelets[wavelet_id].pending || !this.wavelets[wavelet_id].mpending.isEmpty();
 		},
 		
 		/**
 		 * Collate the internal participant "database" with the given ID list.
+		 * New participants will be added to the new_participants array, so
+		 * they can be retrieved later.
 		 * @function {private} _collateParticipants
 		 * @param {String[]} id_list List of participant IDs
 		 */
 		_collateParticipants: function (id_list) {
 			for (var it = new _Iterator(id_list);it.hasNext();) {
 				var id = it.next();
-				if (!this.participants.has(id))
+				if (!this.participants.has(id)) {
 					this.participants.set(id, new pygowave.model.Participant(id));
+					this.new_participants.append(id);
+				}
+			}
+		},
+		
+		/**
+		 * Requests information on participants from the server, which have not
+		 * been retrieved yet. Reads from the new_participants array.
+		 * @function {private} _requestParticipantInfo
+		 * @param {String} wavelet_id ID of the Wavelet
+		 */
+		_requestParticipantInfo: function (wavelet_id) {
+			if (this.new_participants.length == 0)
+				return;
+			
+			this.conn.sendJson(wavelet_id, {
+				type: "PARTICIPANT_INFO",
+				property: this.new_participants
+			});
+		},
+		
+		/**
+		 * Callback from server after participant info request.
+		 * @function {private} _processParticipantsInfo
+		 * @param {Object} pmap Participants map
+		 */
+		_processParticipantsInfo: function (pmap) {
+			for (var it = new _Iterator(pmap); it.hasNext(); ) {
+				var pdata = it.next(), id = it.key();
+				var i = this.new_participants.indexOf(id);
+				if (i != -1)
+					this.new_participants.pop(i);
+				var obj;
+				if (this.participants.has(id))
+					obj = this.participants[id];
+				else {
+					obj = new pygowave.model.Participant(id);
+					this.participants.set(id, obj);
+				}
+				obj.updateData(pdata);
 			}
 		},
 		
@@ -260,9 +349,53 @@ pygowave.controller = function () {
 		_transferOperations: function (wavelet_id) {
 			var mpending = this.wavelets[wavelet_id].mpending;
 			var mcached = this.wavelets[wavelet_id].mcached;
-			mpending.put(mcached.fetch());
-			this.wavelets[wavelet_id].pending = true;
-			//self.processOperations.emit(self.__version, simplejson.dumps(self.opsPending.serialize(False)))
+			var model = this.wavelets[wavelet_id].model;
+			
+			if (mpending.isEmpty())
+				mpending.put(mcached.fetch());
+			
+			if (!this.isBlocked(wavelet_id)) {
+				this.wavelets[wavelet_id].pending = true;
+				
+				this.conn.sendJson(wavelet_id, {
+					type: "OPERATION_MESSAGE_BUNDLE",
+					property: {
+						version: model.options.version,
+						operations: mpending.serialize()
+					}
+				});
+			}
+		},
+		/**
+		 * Process a message bundle from the server. Do transformation and
+		 * apply it to the model.
+		 * 
+		 * @function {private} _processOperations
+		 * @param {pygowave.model.Wavelet} wavelet Wavelet model
+		 * @param {Object[]} serial_ops Serialized operations
+		 */
+		_processOperations: function (wavelet, serial_ops) {
+			var mpending = this.wavelets[wavelet.id()].mpending;
+			var mcached = this.wavelets[wavelet.id()].mcached;
+			var delta = new pygowave.operations.OpManager(wavelet.waveId(), wavelet.id());
+			delta.unserialize(serial_ops);
+			
+			// Iterate over all operations
+			for (var incoming = new _Iterator(delta.operations); incoming.hasNext(); ) {
+				// Transform pending operations, iterate over results
+				for (var tr1 = new _Iterator(mpending.transform(incoming.next())); tr1.hasNext(); ) {
+					// Transform cached operations, iterate over results
+					for (var tr2 = new _Iterator(mcached.transform(tr1.next())); tr2.hasNext(); ) {
+						var op = tr2.next();
+						if (op.isNull()) continue;
+						// Apply operation
+						if (op.type == pygowave.operations.DOCUMENT_INSERT)
+							wavelet.blipById(op.blip_id).insertText(op.index, op.property);
+						else if (op.type == pygowave.operations.DOCUMENT_DELETE)
+							wavelet.blipById(op.blip_id).deleteText(op.index, op.property);
+					}
+				}
+			}
 		},
 		
 		/**
@@ -276,6 +409,7 @@ pygowave.controller = function () {
 		 */
 		_onTextInserted: function (waveletId, blipId, index, content) {
 			this.wavelets[waveletId].mcached.documentInsert(blipId, index, content);
+			this.wavelets[waveletId].model.blipById(blipId).insertText(index, content, true);
 		},
 		/**
 		 * Callback from view on text deletion.
@@ -288,6 +422,20 @@ pygowave.controller = function () {
 		 */
 		_onTextDeleted: function (waveletId, blipId, start, end) {
 			this.wavelets[waveletId].mcached.documentDelete(blipId, start, end);
+			this.wavelets[waveletId].model.blipById(blipId).deleteText(start, end-start, true);
+		},
+		/**
+		 * Callback from view on searching.
+		 *
+		 * @function {private} _onSearchForParticipant
+		 * @param {String} waveletId ID of the Wavelet
+		 * @param {String} text Entered search query
+		 */
+		_onSearchForParticipant: function (waveletId, text) {
+			this.conn.sendJson(waveletId, {
+				type: "PARTICIPANT_SEARCH",
+				property: text
+			});
 		}
 	});
 	
