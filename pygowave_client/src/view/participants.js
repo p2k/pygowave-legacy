@@ -24,7 +24,7 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 /**
  * Widgets for displaying and adding participants.
  * 
- * @module pygowave.participants
+ * @module pygowave.view.participants
  */
 (function () {
 	/* Imports */

@@ -24,7 +24,7 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 /**
  * Debug windows and functions.
  * 
- * @module pygowave.debug_tools
+ * @module pygowave.view.debug_tools
  */
 (function () {
 	/**

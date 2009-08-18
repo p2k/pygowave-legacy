@@ -39,8 +39,6 @@
  */
 window.pygowave = $defined(window.pygowave) ? window.pygowave : new Hash();
 
-/**@scope pygowave*/
-
 pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new Hash();
 
 /**

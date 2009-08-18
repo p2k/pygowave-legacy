@@ -24,14 +24,14 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 /**
  * Main module. Contains Widgets and Classes for displaying waves.
  * 
- * @module pygowave.view
+ * @module pygowave.view.view
  */
 (function () {
 	/* Imports */
 	var Widget = pygowave.view.Widget;
 	var AddParticipantWidget = pygowave.view.AddParticipantWidget;
 	var ParticipantWidget = pygowave.view.ParticipantWidget;
-	var BlipEditor = pygowave.view.BlipEditor;
+	var BlipEditorWidget = pygowave.view.BlipEditorWidget;
 	
 	/**
 	 * A widget for rendering blips.
@@ -82,11 +82,12 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		},
 		
 		/**
-		 * Insert a new BlipWidget at the specified index.
+		 * Insert a new BlipEditorWidget at the specified index.
 		 * 
 		 * @function {public} insertBlip
-		 * @param {int} index Index to insert the BlipWidget
-		 * @param {pygowave.model.Blip} blip Blip object to connect the new BlipWidget to
+		 * @param {int} index Index to insert the BlipEditorWidget
+		 * @param {pygowave.model.Blip} blip Blip object to connect the new
+		 *        BlipEditorWidget to
 		 */
 		insertBlip: function (index, blip) {
 			var where = 'bottom';
@@ -96,7 +97,7 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 				parentElement = this._blips[index];
 			}
 			
-			var blipwgt = new BlipWidget(this._view, blip, parentElement, where);
+			var blipwgt = new BlipEditorWidget(this._view, blip, parentElement, where);
 			this._blips.insert(index, blipwgt);
 			
 			if (blip.isRoot())
@@ -244,6 +245,7 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		 *
 		 * @event onLeaveWavelet
 		 * @param {String} waveletId ID of the Wave
+		 */
 		// ---------------------------
 		
 		/**

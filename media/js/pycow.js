@@ -115,6 +115,8 @@ dbgprint = function () {
 	
 	if ($defined(window.console))
 		window.console.info(s);
+	else if (Browser.Engine.presto && $defined(opera.postError))
+		opera.postError(s);
 	else
 		alert(s);
 }
