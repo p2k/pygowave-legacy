@@ -33,7 +33,7 @@ from pygowave_server.models import Participant, Gadget, Wave, GadgetElement
 from pygowave_server.engine import GadgetLoader
 
 from datetime import datetime, timedelta
-import urllib2, os
+import urllib2
 from lxml.etree import XMLSyntaxError
 
 def index(request):
@@ -72,7 +72,11 @@ def index(request):
 def home(request):
 	online_count = Participant.objects.online_count()
 	users_count = User.objects.filter(is_active=True).count()
-	return render_to_response('pygowave_server/home.html', {"username": request.user.username, "online_count": online_count, "users_count": users_count}, context_instance=RequestContext(request))
+	try:
+		profile = request.user.get_profile()
+	except ObjectDoesNotExist:
+		profile = None
+	return render_to_response('pygowave_server/home.html', {"username": profile.name, "profile": profile, "online_count": online_count, "users_count": users_count}, context_instance=RequestContext(request))
 
 @login_required
 def settings(request):
@@ -256,25 +260,3 @@ def gadget_loader(request):
 		gadget_id = None
 
 	return render_to_response('pygowave_server/gadgets/gadget_wrapper.html', {"gadget": gadget, "url_parameters": simplejson.dumps(request.GET), "gadget_id": gadget_id}, context_instance=RequestContext(request))
-
-PARSE_ERROR_MESSAGE = """alert("PyCow: Error while parsing '%s':\\n\\n%s");"""
-COMMON_FOLDER = os.path.dirname(os.path.abspath(__file__)) + os.path.sep + "common" + os.path.sep
-def pycow(request, filename):
-	"""
-	Translate a Python file on-the-fly or use a cached version if possible.
-	
-	"""
-	
-	module = "pygowave." + filename[:-3]
-	cachefile = django_settings.PYCOW_CACHE_ROOT + filename
-	srcfile = COMMON_FOLDER + filename[:-2] + "py"
-	
-	if not os.path.exists(cachefile) or os.path.getmtime(srcfile) > os.path.getmtime(cachefile):
-		from pycow import translate_file, ParseError
-		try:
-			translate_file(srcfile, cachefile, namespace=module, warnings=False)
-		except ParseError, e:
-			os.unlink(cachefile)
-			return HttpResponse(PARSE_ERROR_MESSAGE % (filename, e.value), mimetype="text/javascript")
-	
-	return HttpResponse(open(cachefile, "r").read(), mimetype="text/javascript")

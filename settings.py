@@ -143,9 +143,6 @@ AVATAR_URL = MEDIA_URL + 'avatars/'
 GADGET_ROOT = MEDIA_ROOT + 'gadgets/'
 GADGET_URL = MEDIA_URL + 'gadgets/'
 
-PYCOW_CACHE_ROOT = MEDIA_ROOT + 'pycow/'
-PYCOW_CACHE_URL = MEDIA_URL + 'pycow/'
-
 # Used if a user doesn't log out properly
 ONLINE_TIMEOUT_MINUTES = 10
 

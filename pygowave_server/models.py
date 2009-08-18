@@ -612,15 +612,18 @@ class Gadget(models.Model):
 	to a Wave.
 	
 	Note: A uploaded gadget is never deleted from disk as it may be used by
-	other waves.
+	other waves. An exception to this are Gadget marked as "devel" versions.
+	Those Gadgets can be simply overwritten and thus replace already running
+	instances.
 	
 	"""
 	
 	by_user = models.ForeignKey(User, related_name="my_gadgets")
 	title = models.CharField(max_length=255, unique=True, verbose_name=_(u'Title'))
 	description = models.CharField(max_length=255, blank=True, verbose_name=_(u'Description'))
-	url = models.URLField(verbose_name=_(u'URL'), blank=True)
-	hosted_filename = models.CharField(max_length=255, blank=True)
+	url = models.URLField(blank=True, verbose_name=_(u'URL'))
+	hosted_filename = models.CharField(max_length=255, blank=True, verbose_name=_(u'Hosted filename'))
+	devel = models.BooleanField(default=False, verbose_name=_(u'Development version'))
 	
 	def is_hosted(self):
 		return len(self.hosted_filename) > 0

@@ -1,1 +1,0 @@
-../media/pycow/operations.js

@@ -18,21 +18,9 @@
 
 from django.conf.urls.defaults import *
 
-from pygowave_server.views import *
+from pygowave_client.views import *
 from django.conf import settings as django_settings
 
 urlpatterns = patterns('',
-	(r'^$', index),
-	(r'^home/$', home),
-	(r'^settings/$', settings),
-	(r'^waves/$', wave_list),
-	(r'^waves/(?P<wave_id>\w+)/$', wave),
-	(r'^gadgets/$', all_gadgets),
-	(r'^gadgets/mine/$', my_gadgets),
-	(r'^gadgets/load/$', gadget_loader),
+	(r'^(?P<package>\w+)/(?P<module>\w+).js$', view_module),
 )
-
-if 'rosetta' in django_settings.INSTALLED_APPS:
-	urlpatterns += patterns('',
-		url(r'^rosetta/', include('rosetta.urls')),
-	)

@@ -88,6 +88,7 @@ class PyGoWaveMessageProcessor(object):
 			routing_key="#.#.clientop",
 			exchange_type="topic",
 			serializer="json",
+			auto_ack=True,
 		)
 		self.consumer.register_callback(self.receive)
 		self.publisher = Publisher(
@@ -152,9 +153,6 @@ class PyGoWaveMessageProcessor(object):
 		
 		logger.debug("Received Message from %s.%s.%s:\n%s" % (participant_conn_key, wavelet_id, message_category, repr(message_data)))
 		
-		# Always ack the message or it will persist on errors
-		message.ack()
-		
 		# Get participant connection
 		try:
 			pconn = ParticipantConn.objects.get(tx_key=participant_conn_key)
@@ -215,14 +213,16 @@ class PyGoWaveMessageProcessor(object):
 				self.emit(pconn, "PARTICIPANT_INFO", p_info)
 			
 			elif message["type"] == "PARTICIPANT_SEARCH":
-				if len(message["property"]) < getattr(settings, "PARTICIPANT_SEARCH_LENGTH"):
-					self.emit(pconn, "PARTICIPANT_INFO", {"result": "TOO_SHORT", "data": getattr(settings, "PARTICIPANT_SEARCH_LENGTH")})
-				logger.info("[%s/%d@%s] Performing participant search" % (participant.name, pconn.id, wavelet.wave.id))
-				
-				lst = []
-				for p in Participant.objects.filter(name__icontains=message["property"]).exclude(id=participant.id):
-					lst.append(p.id)
-				self.emit(pconn, "PARTICIPANT_SEARCH", {"result": "OK", "data": lst})
+				if len(message["property"]) < getattr(settings, "PARTICIPANT_SEARCH_LENGTH", 0):
+					self.emit(pconn, "PARTICIPANT_SEARCH", {"result": "TOO_SHORT", "data": getattr(settings, "PARTICIPANT_SEARCH_LENGTH", 0)})
+					logger.debug("[%s/%d@%s] Participant search query too short" % (participant.name, pconn.id, wavelet.wave.id))
+				else:
+					logger.info("[%s/%d@%s] Performing participant search" % (participant.name, pconn.id, wavelet.wave.id))
+					
+					lst = []
+					for p in Participant.objects.filter(name__icontains=message["property"]).exclude(id=participant.id):
+						lst.append(p.id)
+					self.emit(pconn, "PARTICIPANT_SEARCH", {"result": "OK", "data": lst})
 			
 			elif message["type"] == "WAVELET_ADD_PARTICIPANT":
 				# Find participant
@@ -237,8 +237,7 @@ class PyGoWaveMessageProcessor(object):
 					return # Fail silently (TODO: report error to user)
 				wavelet.participants.add(p)
 				logger.info("[%s/%d@%s] Added new participant '%s'" % (participant.name, pconn.id, wavelet.wave.id, message["property"]))
-				# Hand over info in Google's format
-				self.broadcast(wavelet, "WAVELET_ADD_PARTICIPANT", p.serialize())
+				self.broadcast(wavelet, "WAVELET_ADD_PARTICIPANT", message["property"])
 				
 			elif message["type"] == "WAVELET_REMOVE_SELF":
 				self.broadcast(wavelet, "WAVELET_REMOVE_PARTICIPANT", participant.id)

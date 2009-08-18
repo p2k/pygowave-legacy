@@ -55,6 +55,8 @@ msgid "Gadget quick-check failed: Bad XML format."
 msgstr "Gadget Quick-Check fehlgeschlagen: XML-Format fehlerhaft."
 
 #: pygowave_server/forms.py:168 pygowave_server/views.py:269
+#, fuzzy
+
 #, python-format
 msgid "Gadget quick-check failed: %s."
 msgstr "Gadget Quick-Check fehlgeschlagen: %s."
@@ -120,41 +122,49 @@ msgid "On the Wave"
 msgstr "Auf der Welle"
 
 #: registration/forms.py:36
+
 #, fuzzy
 msgid "username"
 msgstr ""
 
 #: registration/forms.py:39
+
 #, fuzzy
 msgid "email address"
 msgstr ""
 
 #: registration/forms.py:41
+
 #, fuzzy
 msgid "password"
 msgstr ""
 
 #: registration/forms.py:43
+
 #, fuzzy
 msgid "password (again)"
 msgstr ""
 
 #: registration/forms.py:55
+
 #, fuzzy
 msgid "This username is already taken. Please choose another."
 msgstr ""
 
 #: registration/forms.py:67
+
 #, fuzzy
 msgid "You must type the same password each time"
 msgstr ""
 
 #: registration/forms.py:90
+
 #, fuzzy
 msgid "I have read and agree to the Terms of Service"
 msgstr ""
 
 #: registration/forms.py:107
+
 #, fuzzy
 msgid ""
 "This email address is already in use. Please supply a different email "
@@ -162,6 +172,7 @@ msgid ""
 msgstr ""
 
 #: registration/forms.py:133
+
 #, fuzzy
 msgid ""
 "Registration using free email addresses is prohibited. Please supply a "
@@ -169,31 +180,37 @@ msgid ""
 msgstr ""
 
 #: registration/models.py:218
+
 #, fuzzy
 msgid "user"
 msgstr ""
 
 #: registration/models.py:219
+
 #, fuzzy
 msgid "activation key"
 msgstr ""
 
 #: registration/models.py:224
+
 #, fuzzy
 msgid "registration profile"
 msgstr ""
 
 #: registration/models.py:225
+
 #, fuzzy
 msgid "registration profiles"
 msgstr ""
 
 #: templates/base.html:40
+
 #, fuzzy
 msgid "Change language"
 msgstr ""
 
 #: templates/base.html:46
+
 #, fuzzy
 msgid "Select language"
 msgstr ""
@@ -239,6 +256,8 @@ msgid "Error while loading Gadget:"
 msgstr "Fehler beim Laden des Gadgets:"
 
 #: templates/pygowave_server/home.html:11
+#, fuzzy
+
 #, python-format
 msgid ""
 "\n"
@@ -249,6 +268,8 @@ msgstr ""
 
 #: templates/pygowave_server/home.html:16
 #: templates/pygowave_server/index.html:27
+#, fuzzy
+
 #, python-format
 msgid ""
 "\n"
@@ -269,6 +290,8 @@ msgstr[1] ""
 
 #: templates/pygowave_server/home.html:25
 #: templates/pygowave_server/index.html:36
+#, fuzzy
+
 #, python-format
 msgid ""
 "\n"
@@ -364,6 +387,8 @@ msgid "Delete"
 msgstr "Löschen"
 
 #: templates/pygowave_server/my_gadgets.html:29
+#, fuzzy
+
 #, python-format
 msgid "Do you really want to delete \\\"%s\\\"?"
 msgstr "Willst du \\\"%s\\\" wirklich löschen?"
@@ -468,6 +493,8 @@ msgid "(none)"
 msgstr "(keins)"
 
 #: templates/pygowave_server/search_participants.html:5
+#, fuzzy
+
 #, python-format
 msgid ""
 "\n"

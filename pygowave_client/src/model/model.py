@@ -632,8 +632,21 @@ class Wavelet(object):
 		@function {public} addParticipant
 		@param {Participant} participant Participant to be added
 		"""
-		self._participants.set(participant.id(), participant)
-		self.fireEvent('participantsChanged', self._id)
+		if not self._participants.has(participant.id()):
+			self._participants.set(participant.id(), participant)
+			self.fireEvent('participantsChanged', self._id)
+	
+	def removeParticipant(self, participantId):
+		"""
+		Removes a participant from this Wavelet.<br/>
+		Note: Fires {@link pygowave.model.Wavelet.onParticipantsChanged onParticipantsChanged}
+		
+		@function {public} removeParticipant
+		@param {String} participantId ID of the participant to remove
+		"""
+		if self._participants.has(participantId):
+			del self._participants[participantId]
+			self.fireEvent('participantsChanged', self._id)
 	
 	def participant(self, id):
 		"""

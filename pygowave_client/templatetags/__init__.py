@@ -15,24 +15,3 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
-from django.conf.urls.defaults import *
-
-from pygowave_server.views import *
-from django.conf import settings as django_settings
-
-urlpatterns = patterns('',
-	(r'^$', index),
-	(r'^home/$', home),
-	(r'^settings/$', settings),
-	(r'^waves/$', wave_list),
-	(r'^waves/(?P<wave_id>\w+)/$', wave),
-	(r'^gadgets/$', all_gadgets),
-	(r'^gadgets/mine/$', my_gadgets),
-	(r'^gadgets/load/$', gadget_loader),
-)
-
-if 'rosetta' in django_settings.INSTALLED_APPS:
-	urlpatterns += patterns('',
-		url(r'^rosetta/', include('rosetta.urls')),
-	)

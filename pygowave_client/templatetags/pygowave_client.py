@@ -16,23 +16,38 @@
 # limitations under the License.
 #
 
-from django.conf.urls.defaults import *
+from django.template import Library
+from django.conf import settings
+from django.core.urlresolvers import reverse
 
-from pygowave_server.views import *
-from django.conf import settings as django_settings
+register = Library()
 
-urlpatterns = patterns('',
-	(r'^$', index),
-	(r'^home/$', home),
-	(r'^settings/$', settings),
-	(r'^waves/$', wave_list),
-	(r'^waves/(?P<wave_id>\w+)/$', wave),
-	(r'^gadgets/$', all_gadgets),
-	(r'^gadgets/mine/$', my_gadgets),
-	(r'^gadgets/load/$', gadget_loader),
+STATIC_LOAD_ORDER = (
+	(
+		"model", ("model",)
+	),
+	(
+		"view",
+		(
+			"common",
+			"participants",
+			"blip_editor",
+			"view",
+			"debug_tools",
+		),
+	),
+	(
+		"operations", ("operations",)
+	),
+	(
+		"controller", ("controller",)
+	),
 )
 
-if 'rosetta' in django_settings.INSTALLED_APPS:
-	urlpatterns += patterns('',
-		url(r'^rosetta/', include('rosetta.urls')),
-	)
+@register.simple_tag
+def client_scripts():
+	out = ""
+	for package, modules in STATIC_LOAD_ORDER:
+		for module in modules:
+			out += '\t<script type="text/javascript" src="%s"></script>\n' % (reverse("pygowave_client.views.view_module", args=(package, module)))
+	return out

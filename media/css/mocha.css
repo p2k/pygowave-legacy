@@ -189,7 +189,7 @@ div.mochaToolbarWrapper.bottom {
 
 .mochaImageButton div {
 	float: left;
-	margin-top: 2px;
+	line-height: 22px;
 }
 
 .mochaTabsNav {

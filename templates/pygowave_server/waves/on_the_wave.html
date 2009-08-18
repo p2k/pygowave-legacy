@@ -2,6 +2,7 @@
 {% load i18n %}
 {% get_current_language_bidi as LANGUAGE_BIDI %}
 {% load pgw_nav %}
+{% load pygowave_client %}
 
 {% block title %}{% trans "On the Wave" %}{% endblock %}
 {% block nav %}{% pgw_navbar "waves" "on_the_wave" %}{% endblock %}
@@ -29,10 +30,8 @@
 	<script type="text/javascript" src="{{ MEDIA_URL }}js/MooEditable.js"></script>
 	<script type="text/javascript" src="{{ MEDIA_URL }}js/pycow.js"></script>
 	<script type="text/javascript" src="{% url django.views.i18n.javascript_catalog %}"></script>
-	<script type="text/javascript" src="{% url pygowave_server.views.pycow "model.js" %}"></script>
-	<script type="text/javascript" src="{% url pygowave_server.views.pycow "operations.js" %}"></script>
-	<script type="text/javascript" src="{{ MEDIA_URL }}js/pygowave-client-view.js"></script>
-	<script type="text/javascript" src="{{ MEDIA_URL }}js/pygowave-client-controller.js"></script>
+{% client_scripts %}
+
 {% endblock %}
 
 {% block content %}
@@ -67,6 +66,7 @@ Again, this application is experimental and may not work as expected.
 	</div>
 	<script type="text/javascript">
 		$("debug_button").set("disabled", "disabled");
+		$("leave_button").set("disabled", "disabled");
 		
 		document.addEvent('domready', function () {
 			
@@ -81,6 +81,10 @@ Again, this application is experimental and may not work as expected.
 				}
 			);
 			
+			$("leave_button").addEvent("click", function () {
+				view.confirmLeaveWave();
+			});
+			
 			controller = new pygowave.controller.PyGoWaveClient(
 				model,
 				view,
@@ -91,7 +95,9 @@ Again, this application is experimental and may not work as expected.
 					
 					initialWave: "{{ wave_id|escapejs }}",
 					initialWavelet: "{{ wavelet_id|escapejs }}",
-					viewerId: "{{ participant_id|escapejs }}"
+					viewerId: "{{ participant_id|escapejs }}",
+					
+					waveOverviewUrl: "{% url pygowave_server.views.wave_list %}"
 				}
 			);
 			
@@ -103,6 +109,7 @@ Again, this application is experimental and may not work as expected.
 			});
 			controller.addEvent("waveletOpened", function (wave_id, wavelet_id) {
 				$("debug_button").set("disabled", "");
+				$("leave_button").set("disabled", "");
 			});
 			
 		});
