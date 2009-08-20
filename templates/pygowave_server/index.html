@@ -35,13 +35,7 @@ Currently, there are <b>{{ online_count }}</b> users online out of
 {{ users_count }} registred users.
 {% endblocktrans %}
 </p>
-<p>
-{% blocktrans %}
-The version running on this server is: <b>{{ VERSION }}</b><br/>
-Please check our <a href="http://code.google.com/p/pygowave-server/issues/list">bug tracker</a>
-for a list of known issues and upcoming changes.
-{% endblocktrans %}
-</p>
+{% include "pygowave_server/project_status.html" %}
 <p>
 {% blocktrans %}
 Disclaimer: This is highly experimental. By using this software you are

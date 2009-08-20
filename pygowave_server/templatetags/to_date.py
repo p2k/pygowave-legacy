@@ -18,37 +18,10 @@
 
 from django.template import Library
 from django.conf import settings
-from django.core.urlresolvers import reverse
+from datetime import datetime
 
 register = Library()
 
-STATIC_LOAD_ORDER = (
-	(
-		"model", ("model",)
-	),
-	(
-		"view",
-		(
-			"selection",
-			"common",
-			"participants",
-			"blip_editor",
-			"view",
-			"debug_tools",
-		),
-	),
-	(
-		"operations", ("operations",)
-	),
-	(
-		"controller", ("controller",)
-	),
-)
-
-@register.simple_tag
-def client_scripts():
-	out = ""
-	for package, modules in STATIC_LOAD_ORDER:
-		for module in modules:
-			out += '\t<script type="text/javascript" src="%s"></script>\n' % (reverse("pygowave_client.views.view_module", args=(package, module)))
-	return out
+@register.filter
+def todate(value, format):
+	return datetime.strptime(value, format)

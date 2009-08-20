@@ -29,136 +29,7 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 (function () {
 	/* Imports */
 	var Widget = pygowave.view.Widget;
-	
-	/**
-	 * Internal class to handle selections.
-	 * @class {private} pygowave.view.Selection
-	 */
-	var Selection = new Class({
-		initialize: function(win){
-			this.win = win;
-		},
-		getSelection: function(){
-			return (this.win.getSelection) ? this.win.getSelection() : this.win.document.selection;
-		},
-		getRange: function(){
-			var s = this.getSelection();
-			
-			if (!s) return null;
-			
-			try {
-				return s.rangeCount > 0 ? s.getRangeAt(0) : (s.createRange ? s.createRange() : null);
-			} catch(e) {
-				// IE bug when used in frameset
-				return this.win.document.body.createTextRange();
-			}
-		},
-		setRange: function(range){
-			if (range.select){
-				$try(function(){
-					range.select();
-				});
-			} else {
-				var s = this.getSelection();
-				if (s.addRange){
-					s.removeAllRanges();
-					s.addRange(range);
-				}
-			}
-		},
-		selectNode: function(node, collapse){
-			var r = this.getRange();
-			var s = this.getSelection();
-			
-			if (r.moveToElementText){
-				$try(function(){
-					r.moveToElementText(node);
-					r.select();
-				});
-			} else if (s.addRange){
-				collapse ? r.selectNodeContents(node) : r.selectNode(node);
-				s.removeAllRanges();
-				s.addRange(r);
-			} else {
-				s.setBaseAndExtent(node, 0, node, 1);
-			}
-			
-			return node;
-		},
-		isCollapsed: function(){
-			var r = this.getRange();
-			if (r.item) return false;
-			return r.boundingWidth == 0 || this.getSelection().isCollapsed;
-		},
-		collapse: function(toStart){
-			var r = this.getRange();
-			var s = this.getSelection();
-			
-			if (r.select){
-				r.collapse(toStart);
-				r.select();
-			} else {
-				toStart ? s.collapseToStart() : s.collapseToEnd();
-			}
-		},
-		getContent: function(){
-			var r = this.getRange();
-			var body = new Element('body');
-			
-			if (this.isCollapsed()) return '';
-			
-			if (r.cloneContents){
-				body.appendChild(r.cloneContents());
-			} else if ($defined(r.item) || $defined(r.htmlText)){
-				body.set('html', r.item ? r.item(0).outerHTML : r.htmlText);
-			} else {
-				body.set('html', r.toString());
-			}
-			
-			var content = body.get('html');
-			return content;
-		},
-		getText : function(){
-			var r = this.getRange();
-			var s = this.getSelection();
-			
-			return this.isCollapsed() ? '' : r.text || (s.toString ? s.toString() : '');
-		},
-		getNode: function(){
-			var r = this.getRange();
-			
-			if (!Browser.Engine.trident){
-				var el = null;
-				
-				if (r){
-					el = r.commonAncestorContainer;
-					
-					// Handle selection a image or other control like element such as anchors
-					if (!r.collapsed)
-						if (r.startContainer == r.endContainer)
-							if (r.startOffset - r.endOffset < 2)
-								if (r.startContainer.hasChildNodes())
-									el = r.startContainer.childNodes[r.startOffset];
-					
-					while ($type(el) != 'element') el = el.parentNode;
-				}
-				
-				return $(el);
-			}
-			
-			return $(r.item ? r.item(0) : r.parentElement());
-		},
-		insertContent: function(content){
-			if (Browser.Engine.trident){
-				var r = this.getRange();
-				r.pasteHTML(content);
-				r.collapse(false);
-				r.select();
-			} else {
-				this.win.document.execCommand('insertHTML', false, content);
-			}
-		}
-	});
+	var Selection = pygowave.view.Selection;
 	
 	/**
 	 * An editable div which generates events for the controller and is able to
@@ -197,8 +68,6 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			this._onContextMenu = this._onContextMenu.bind(this);
 			this._onMouseUp = this._onMouseUp.bind(this);
 			
-			this.selection = new Selection(window);
-			
 			this.parent(parentElement, contentElement, where);
 			
 			contentElement.contentEditable = "true";
@@ -224,10 +93,7 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			else
 				blip = this._blip;
 			
-			var content = blip.content().replace(/\n/g, "<br/>").replace(/ /g, "\u00a0");
-			if (content.contains("<br/>") || content == "")
-				content += "<br/>"; // Append implicit newline
-			this.contentElement.set('html', content);
+			this.reloadContent();
 			
 			blip.addEvents({
 				insertText: this._onInsertText,
@@ -269,36 +135,114 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		},
 		
 		/**
-		 * Retrieve the html content of this widget.
-		 * @function {public String} getContent
+		 * Build the content elements from the Blip's string and insert it
+		 * into the widget.
+		 * 
+		 * @function {private} reloadContent
 		 */
-		getContent: function () {
-			return this.contentElement.get('html');
+		reloadContent: function () {
+			// Clean up first
+			for (var it = new _Iterator(this.contentElement.getChildren()); it.hasNext(); ) {
+				var oldelt = it.next();
+				if (oldelt.get('tag') == 'p')
+					oldelt.eliminate("isEmpty");
+				oldelt.dispose();
+			}
+			// Build up
+			var content = this._blip.content().replace(/ /g, "\u00a0");
+			var lines = content.split("\n"), line, pg;
+			for (var i = 0; i < lines.length; i++) {
+				line = lines[i];
+				pg = new Element("p");
+				if (line == "") { // Annotate empty nodes
+					//pg.store("isEmpty", true);
+					//line = "\u00a0";
+					Element("div", {'class': 'blip_line_placeholder', 'text': '*'}).inject(pg);
+				}
+				else {
+					//pg.store("isEmpty", false);
+					pg.set('text', line);
+				}
+				pg.inject(this.contentElement);
+			}
 		},
 		
 		/**
-		 * Convert the content into a simple string (converting &lt;br/&gt; to
+		 * Retrieve the content as a simple string (converting paragraphs to
 		 * newlines).
 		 * @function {public String} contentToString
 		 */
 		contentToString: function () {
-			var cleaned = this.getContent().replace(/<br[^>]*>/gi, "\n").replace(/&nbsp;/gi, " ");
-			if (cleaned.endswith("\n"))
-				cleaned = cleaned.slice(0, cleaned.length-1);
+			var cleaned = "", first = true;
+			for (var it = new _Iterator(this.contentElement.getChildren("p")); it.hasNext(); ) {
+				var elt = it.next();
+				if (first)
+					first = false;
+				else
+					cleaned += "\n";
+					
+				if (!elt.retrieve("isEmpty", false))
+					cleaned += elt.get('text').replace(/&nbsp;/gi, " ");
+			}
 			return cleaned;
 		},
 		/**
 		 * Returns the current selected text range as [start, end]. This
-		 * ignores all element nodes except br (which is treated as 1 character).
+		 * ignores all element nodes except iframe (which is treated as 1 character).
 		 * @function {public Array} currentTextRange
+		 * @param {optional pygowave.view.Selection} sel Selection object
+		 *        (will be fetched if not provided).
 		 */
-		currentTextRange: function () {
-			var rng = this.selection.getRange();
+		currentTextRange: function (sel) {
+			if (!$defined(sel))
+				sel = Selection.currentSelection(this.contentElement);
 			
-			var start = this._walkUp(rng.startContainer, rng.startOffset);
-			var end = this._walkUp(rng.endContainer, rng.endOffset);
+			if (!sel.isValid())
+				return null;
 			
+			sel.moveDown();
+			var start = this._walkUp(sel.startNode(), sel.startOffset());
+			var end = this._walkUp(sel.endNode(), sel.endOffset());
+			
+			dbgprint(start, end);
 			return [start, end];
+		},
+		/**
+		 * Check if an empty node was filled.
+		 * @function {private} _checkInsertion
+		 * @param {pygowave.view.Selection} sel Selection object
+		 */
+		_checkEmptyNodes: function (sel) {
+			if (!sel.isValid())
+				return;
+			sel.moveDown(); // Move down, only treat text nodes of p's
+			
+			var elt = sel.endNode(), parent, txt;
+			if ($type(elt) != 'element') {
+				parent = elt.parentNode;
+				txt = parent.get('text');
+				if (parent.retrieve('isEmpty', false) && txt != "\u00a0") {
+					txt = elt.data;
+					if (txt == "") {
+						txt.appendData("\u00a0");
+					}
+					else if (txt.substring(sel.endOffset()) == "\u00a0") {
+						elt.deleteData(txt.length-1, 1);
+						parent.eliminate('isEmpty');
+					}
+					else {
+						elt.deleteData(0, 1);
+						sel._startOffset -= 1; //HACK
+						if (sel.startNode() == sel.endNode())
+							sel._endOffset -= 1; //HACK
+						parent.eliminate('isEmpty');
+					}
+				}
+				else if (txt == "") {
+					txt.appendData("\u00a0");
+					parent.store('isEmpty', true);
+				}
+			}
 		},
 		
 		_onKeyDown: function (e) {
@@ -306,16 +250,15 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		},
 		
 		_onKeyPress: function (e) {
-			if (e.key == "enter" && !Browser.Engine.gecko) {
-				// Only firefox seems to add br's, so override other browsers
-				e.stop();
-				this.selection.insertContent("<br/>");
-			}
+			// Currently not needed
 		},
 		
 		_onKeyUp: function(e) {
+			var sel = Selection.currentSelection(this.contentElement);
+			this._checkEmptyNodes(sel);
+			
 			var newContent = this.contentToString();
-			var newRange = this.currentTextRange();
+			var newRange = this.currentTextRange(sel);
 			
 			// This code should be accurate for now. However, the context menu is not handeled properly.
 			if (e.key == "backspace" || e.key == "delete") {
@@ -390,20 +333,43 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			text = text.replace(/ /g, "\u00a0"); // Convert spaces to protected spaces
 			var ret = this._walkDown(this.contentElement, index);
 			var elt = ret[0], offset = ret[1];
-			if ($type(elt) != "textnode" && $type(elt) != "whitespace") {
+			if ($type(elt) != "textnode" && $type(elt) != "whitespace") { // Should be impossible...
 				var newtn = document.createTextNode("");
 				elt.parentNode.insertBefore(newtn, elt);
 				elt = newtn;
 				offset = 0;
 			}
-			var lines = text.split("\n");
+			var lines = text.split("\n"), rest;
+			var parent = elt.parentNode; // Parent paragraph
 			for (var i = 0; i < lines.length; i++) {
-				if (lines[i].length > 0)
-					elt.insertData(offset, lines[i]);
+				if (lines[i].length > 0) {
+					if (offset == elt.data.length && Browser.Engine.trident) { // Buggy in IE
+						elt.appendData(" ");
+						elt.insertData(offset, lines[i]);
+						elt.deleteData(elt.data.length-1, 1);
+					}
+					else
+						elt.insertData(offset, lines[i]);
+					if (parent.retrieve("isEmpty", false)) {
+						// Remove implicit newline
+						elt.deleteData(elt.data.length-1, 1);
+						parent.eliminate("isEmpty");
+					}
+				}
 				if (i < lines.length-1) { // Handle newlines
-					elt.splitText(offset+lines[i].length);
-					elt = elt.nextSibling;
-					elt.parentNode.insertBefore(new Element("br"), elt);
+					rest = elt.data.substring(offset+lines[i].length);
+					if (rest.length > 0)
+						elt.deleteData(offset+lines[i].length, rest.length); // Cutoff remainder
+					elt = new Element("p");
+					if (rest == "") {
+						elt.set('text', "\u00a0");
+						elt.store("isEmpty", true);
+					}
+					else
+						elt.set('text', rest);
+					elt.inject(parent, 'after');
+					parent = elt;
+					elt = parent.firstChild; // Set to textnode
 					offset = 0;
 				}
 			}
@@ -437,8 +403,8 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		
 		/**
 		 * Walk up the DOM tree while summing up all text lengths. Elements are
-		 * ignored, except br and iframe which count as one character.
-		 * Returns theabsolute offset.
+		 * ignored, except p which is the line container and iframe which count
+		 * as one character. Returns the absolute offset.
 		 * 
 		 * @function {private int} _walkUp
 		 * @param {Node} node The node to start
@@ -448,7 +414,7 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			var offset = 0;
 			var prev = node;
 			
-			if ($type(node) == "textnode")
+			if ($type(node) == "textnode" || $type(node) == "whitespace")
 				offset = nodeOffset;
 			else { // Not completely at the bottom
 				node = node.firstChild;
@@ -470,11 +436,13 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 						if (node.get('tag') == "br" || node.get('tag') == "iframe")
 							offset++;
 						else {
+							if (node.get('tag') == "p")
+								offset++;
 							// descend
 							while ((node = node.lastChild) != null) {
 								prev = node;
 								if ($type(node) == "textnode") {
-									offset += node.textContent.length;
+									offset += node.data.length;
 									break;
 								}
 							}
@@ -482,10 +450,11 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 						node = prev;
 					}
 					else if ($type(node) == "textnode")
-						offset += node.textContent.length;
+						offset += node.data.length;
 				}
 				// ascend
 				node = prev.parentNode;
+				prev = node;
 			}
 			return offset;
 		},
@@ -502,10 +471,11 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			var next;
 			
 			while (offset > 0 && elt != null) {
-				if ($type(elt) == "element" && !elt.get('tag') == "iframe")
-					next = elt.firstChild; // descend
-				else
-					next = null;
+				next = null;
+				if ($type(elt) == "element") {
+					if (elt.get('tag') != "iframe" && (elt.get('tag') != "p" || !elt.retrieve("isEmpty", false)))
+						next = elt.firstChild; // descend
+				}
 				
 				if (next != null) {
 					elt = next;
@@ -513,17 +483,21 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 				}
 				
 				if ($type(elt) == "textnode") {
-					if (offset <= elt.textContent.length)
+					if (offset <= elt.data.length)
 						return [elt, offset];
-					offset -= elt.textContent.length;
+					offset -= elt.data.length;
 				}
-				else if ($type(elt) == "element" && (elt.get('tag') == "br" || elt.get('tag') == "iframe"))
+				else if ($type(elt) == "element" && (elt.get('tag') == "iframe" || elt.get('tag') == "p"))
 					offset--;
 				
 				next = elt.nextSibling;
 				if (next == null) { // ascend
 					elt = elt.parentNode;
 					elt = elt.nextSibling;
+					if ($type(elt) == "element" && elt.get('tag') == "p") {
+						elt = elt.firstChild; // auto-descent
+						offset--;
+					}
 				}
 				else
 					elt = next;

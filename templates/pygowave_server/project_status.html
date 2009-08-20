@@ -1,0 +1,59 @@
+{% load i18n %}
+{% load to_date %}
+<p>
+{% blocktrans %}
+The version running on this server is: <b>{{ VERSION }}</b><br/>
+Please check our <a href="http://code.google.com/p/pygowave-server/issues/list">bug tracker</a>
+for a list of known issues and upcoming changes.
+{% endblocktrans %}
+</p>
+<p>
+{% with "20.08.2009"|todate:"%d.%m.%Y"|date as date %}
+{% blocktrans %}
+PyGoWave has been tested and should work on the following browsers and
+operating systems (the percentages reflect the user base as of {{ date }}).
+{% endblocktrans %}
+{% endwith %}
+<table class="compat_table">
+	<tr>
+		<td class="browser"><img alt="Firefox" src="{{ MEDIA_URL }}images/compat/firefox.png" height="16" width="16" /></td>
+		<td class="used">48.2%</td>
+		<td class="name">Mozilla Firefox</td>
+		<td class="os win">3.5.2</td>
+		<td class="os lin">3.5.2</td>
+		<td class="os mac">?</td>
+	</tr>
+	<tr>
+		<td class="browser"><img alt="Chrome" src="{{ MEDIA_URL }}images/compat/chrome.png" height="16" width="16" /></td>
+		<td class="used">25.6%</td>
+		<td class="name">Google Chrome</td>
+		<td class="os win">2.0.172.39</td>
+		<td class="os lin">3.0.198.1</td>
+		<td class="os mac">?</td>
+	</tr>
+	<tr>
+		<td class="browser"><img alt="Safari" src="{{ MEDIA_URL }}images/compat/safari.png" height="16" width="16" /></td>
+		<td class="used">13.6%</td>
+		<td class="name">Safari</td>
+		<td class="os win">4.0.530.17</td>
+		<td class="os"></td>
+		<td class="os mac">?</td>
+	</tr>
+	<tr>
+		<td class="browser"><img alt="Safari" src="{{ MEDIA_URL }}images/compat/opera.png" height="16" width="16" /></td>
+		<td class="used">4.6%</td>
+		<td class="name">Opera</td>
+		<td class="os win">10.0 b3</td>
+		<td class="os lin">9.64</td>
+		<td class="os mac">?</td>
+	</tr>
+	<tr>
+		<td class="browser"><img alt="IE" src="{{ MEDIA_URL }}images/compat/ie.png" height="16" width="16" /></td>
+		<td class="used">4.4%</td>
+		<td class="name">Internet Explorer</td>
+		<td class="os win">8.0.6001</td>
+		<td class="os"></td>
+		<td class="os"></td>
+	</tr>
+</table>
+</p>

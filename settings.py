@@ -160,5 +160,5 @@ AMQP_PASSWORD = "pygowave_server"
 AMQP_VHOST = "/"
 
 # Orbited settings here
-ORBITED_SERVER = "localhost"
+ORBITED_SERVER = "p2k-i9400-arch"
 ORBITED_PORT = 80

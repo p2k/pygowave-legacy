@@ -312,3 +312,49 @@ p
 	font-size: 0.8em;
 	padding-right: 4px;
 }
+
+.compat_table
+{
+	padding: 0;
+}
+
+.compat_table td
+{
+	height: 22px;
+	padding: 0;
+}
+
+.compat_table img
+{
+	margin-top: 2px;
+}
+
+.compat_table .browser
+{
+	width: 16px;
+	padding-right: 5px;
+}
+
+.compat_table .name
+{
+	padding-right: 5px;
+}
+
+.compat_table .used
+{
+	padding-right: 5px;
+	font-size: 0.7em;
+	text-align: center;
+}
+
+.compat_table .os
+{
+	padding-left: 20px;
+	padding-right: 5px;
+	background-repeat: no-repeat;
+	background-position: 0 3px;
+}
+
+.compat_table .os.win {background-image: url(../images/compat/win.png);}
+.compat_table .os.lin {background-image: url(../images/compat/linux.png);}
+.compat_table .os.mac {background-image: url(../images/compat/mac.png);}
