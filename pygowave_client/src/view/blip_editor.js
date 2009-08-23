@@ -55,9 +55,11 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			this._blip = blip;
 			this._lastRange = [0, 0];
 			this._lastContent = "";
+			this._errDiv = null;
 			
 			var contentElement = new Element('div', {
-				'class': 'blip_editor_widget'
+				'class': 'blip_editor_widget',
+				'spellcheck': 'false'
 			});
 			
 			this._onInsertText = this._onInsertText.bind(this);
@@ -67,10 +69,11 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			this._onKeyUp = this._onKeyUp.bind(this);
 			this._onContextMenu = this._onContextMenu.bind(this);
 			this._onMouseUp = this._onMouseUp.bind(this);
+			this._onMouseDown = this._onMouseDown.bind(this);
+			this._onWindowResize = this._onWindowResize.bind(this);
+			this._onOutOfSync = this._onOutOfSync.bind(this);
 			
 			this.parent(parentElement, contentElement, where);
-			
-			contentElement.contentEditable = "true";
 		},
 		/**
 		 * Overridden from {@link pygowave.view.Widget.dispose Widget.dispose}.<br/>
@@ -97,15 +100,22 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			
 			blip.addEvents({
 				insertText: this._onInsertText,
-				deleteText: this._onDeleteText
+				deleteText: this._onDeleteText,
+				outOfSync: this._onOutOfSync
 			});
+			
 			this.contentElement.addEvents({
 				keydown: this._onKeyDown,
 				keypress: this._onKeyPress,
 				keyup: this._onKeyUp,
 				contextmenu: this._onContextMenu,
-				mouseup: this._onMouseUp
+				mouseup: this._onMouseUp,
+				mousedown: this._onMouseDown
 			});
+			
+			this._processing = false;
+			window.addEvent('resize', this._onWindowResize);
+			this._onSyncCheckTimer = this._onSyncCheck.periodical(2000, this);
 			
 			return this;
 		},
@@ -123,7 +133,8 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			this._lastContent = "";
 			this._blip.removeEvents({
 				insertText: this._onInsertText,
-				deleteText: this._onDeleteText
+				deleteText: this._onDeleteText,
+				outOfSync: this._onOutOfSync
 			});
 			this.contentElement.removeEvents({
 				keydown: this._onKeyDown,
@@ -132,6 +143,8 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 				contextmenu: this._onContextMenu,
 				mouseup: this._onMouseUp
 			});
+			window.removeEvent('resize', this._onWindowResize);
+			$clear(this._onSyncCheckTimer);
 		},
 		
 		/**
@@ -142,29 +155,96 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		 */
 		reloadContent: function () {
 			// Clean up first
-			for (var it = new _Iterator(this.contentElement.getChildren()); it.hasNext(); ) {
-				var oldelt = it.next();
-				if (oldelt.get('tag') == 'p')
-					oldelt.eliminate("isEmpty");
-				oldelt.dispose();
-			}
+			for (var it = new _Iterator(this.contentElement.getChildren()); it.hasNext(); )
+				it.next().destroy();
+			
+			this.contentElement.setStyle("opacity", 1);
+			this._removeErrorOverlay();
+			
 			// Build up
 			var content = this._blip.content().replace(/ /g, "\u00a0");
 			var lines = content.split("\n"), line, pg;
 			for (var i = 0; i < lines.length; i++) {
 				line = lines[i];
 				pg = new Element("p");
-				if (line == "") { // Annotate empty nodes
-					//pg.store("isEmpty", true);
-					//line = "\u00a0";
-					Element("div", {'class': 'blip_line_placeholder', 'text': '*'}).inject(pg);
-				}
-				else {
-					//pg.store("isEmpty", false);
+				if (line != "")
 					pg.set('text', line);
-				}
+				if (!Browser.Engine.trident) // IE allows empty paragraphs
+					new Element("br").inject(pg); // Others use an implicit br
 				pg.inject(this.contentElement);
 			}
+			
+			this._lastContent = this.contentToString();
+			if (this._blip.content() != this._lastContent)
+				this._displayErrorOverlay("render_fail");
+			else
+				this.contentElement.contentEditable = "true";
+		},
+		/**
+		 * Places an overlay over the editor and displays an error message with
+		 * a button.
+		 * @function {private} _displayErrorOverlay
+		 * @param {String} type Error type. May be 'resync', 'render_fail'.
+		 */
+		_displayErrorOverlay: function (type) {
+			this._removeErrorOverlay();
+				
+			this._errDiv = new Element("div", {'class': 'error_overlay'}).inject(this.parentElement);
+			var msgdiv = new Element("div", {'class': 'msg_div'}).inject(this._errDiv);
+			var bg_div = new Element("div", {'class': 'bg_div'}).inject(this._errDiv);
+			bg_div.setStyle("opacity", 0.5);
+			var coords = this.contentElement.getCoordinates(false);
+			
+			switch (type) {
+				case "resync":
+					new Element("div", {'class': 'msg', 'text': gettext("Sorry, but this Blip Editor has gone out of sync with the internal representation. Please click resync.")}).inject(msgdiv);
+					new Element("button", {'class': 'mochaButton', 'text': gettext("Resync")})
+						.inject(msgdiv).addEvent('click', this.reloadContent.bind(this));
+					break;
+				
+				case "render_fail":
+					new Element("div", {'class': 'msg', 'text': gettext("The text content could not be rendered correctly. This may be a bug or you are using an unsupported browser.")}).inject(msgdiv);
+					new Element("button", {'class': 'mochaButton', 'text': gettext("Dismiss")})
+						.inject(msgdiv).addEvent('click', this._removeErrorOverlay.bind(this));
+					$clear(this._onSyncCheckTimer);
+					break;
+				
+				case "checksum_fail":
+					new Element("div", {'class': 'msg', 'text': gettext("Unfortunately, this Blip has gone out of sync with the server. You have to reload the page to be able to use it again.")}).inject(msgdiv);
+					new Element("button", {'class': 'mochaButton', 'text': gettext("Reload")})
+						.inject(msgdiv).addEvent('click', function () {
+							window.location.href = window.location.href;
+						});
+					$clear(this._onSyncCheckTimer);
+					break;
+			}
+			
+			this._errDiv.setStyles({
+				position: "absolute",
+				top: coords.top,
+				left: coords.left,
+				width: coords.width,
+				height: coords.height,
+				opacity: 0
+			});
+			new Fx.Tween(this._errDiv, {duration: 250}).start("opacity", 0, 1);
+			new Fx.Tween(this.contentElement, {duration: 250}).start("opacity", 1, 0.5);
+			this.contentElement.contentEditable = "false";
+		},
+		/**
+		 * Removes the error overlay displayed by _displayErrorOverlay.
+		 * @function {private} _removeErrorOverlay
+		 */
+		_removeErrorOverlay: function ()  {
+			if (!$defined(this._errDiv))
+				return;
+			this.contentElement.setStyle("opacity", 1);
+			var toKill = this._errDiv;
+			this._errDiv = null;
+			new Fx.Tween(toKill, {duration: 250}).start("opacity", 1, 0).chain(function () {
+				toKill.destroy();
+				toKill = null;
+			});
 		},
 		
 		/**
@@ -181,8 +261,7 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 				else
 					cleaned += "\n";
 					
-				if (!elt.retrieve("isEmpty", false))
-					cleaned += elt.get('text').replace(/&nbsp;/gi, " ");
+				cleaned += elt.get('text').replace(/\u00a0/gi, " ");
 			}
 			return cleaned;
 		},
@@ -204,61 +283,24 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			var start = this._walkUp(sel.startNode(), sel.startOffset());
 			var end = this._walkUp(sel.endNode(), sel.endOffset());
 			
-			dbgprint(start, end);
+			var dbg = $('debug_cursor_pos');
+			if ($defined(dbg))
+				dbg.set('text', start + " / " + end);
 			return [start, end];
-		},
-		/**
-		 * Check if an empty node was filled.
-		 * @function {private} _checkInsertion
-		 * @param {pygowave.view.Selection} sel Selection object
-		 */
-		_checkEmptyNodes: function (sel) {
-			if (!sel.isValid())
-				return;
-			sel.moveDown(); // Move down, only treat text nodes of p's
-			
-			var elt = sel.endNode(), parent, txt;
-			if ($type(elt) != 'element') {
-				parent = elt.parentNode;
-				txt = parent.get('text');
-				if (parent.retrieve('isEmpty', false) && txt != "\u00a0") {
-					txt = elt.data;
-					if (txt == "") {
-						txt.appendData("\u00a0");
-					}
-					else if (txt.substring(sel.endOffset()) == "\u00a0") {
-						elt.deleteData(txt.length-1, 1);
-						parent.eliminate('isEmpty');
-					}
-					else {
-						elt.deleteData(0, 1);
-						sel._startOffset -= 1; //HACK
-						if (sel.startNode() == sel.endNode())
-							sel._endOffset -= 1; //HACK
-						parent.eliminate('isEmpty');
-					}
-				}
-				else if (txt == "") {
-					txt.appendData("\u00a0");
-					parent.store('isEmpty', true);
-				}
-			}
 		},
 		
 		_onKeyDown: function (e) {
-			// Currently not needed
+			this._processing = true;
 		},
 		
 		_onKeyPress: function (e) {
-			// Currently not needed
+			this._processing = true;
 		},
 		
 		_onKeyUp: function(e) {
-			var sel = Selection.currentSelection(this.contentElement);
-			this._checkEmptyNodes(sel);
-			
+			this._processing = true;
 			var newContent = this.contentToString();
-			var newRange = this.currentTextRange(sel);
+			var newRange = this.currentTextRange();
 			
 			// This code should be accurate for now. However, the context menu is not handeled properly.
 			if (e.key == "backspace" || e.key == "delete") {
@@ -321,6 +363,10 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			
 			this._lastContent = newContent;
 			this._lastRange = newRange;
+			this._processing = false;
+		},
+		_onMouseDown: function (e) {
+			// Currently not needed
 		},
 		_onMouseUp: function(e) {
 			this._lastRange = this.currentTextRange();
@@ -330,12 +376,18 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		},
 		
 		_onInsertText: function (index, text) {
+			//TODO: this function assumes no formatting elements
+			this._processing = true;
+			
 			text = text.replace(/ /g, "\u00a0"); // Convert spaces to protected spaces
 			var ret = this._walkDown(this.contentElement, index);
-			var elt = ret[0], offset = ret[1];
-			if ($type(elt) != "textnode" && $type(elt) != "whitespace") { // Should be impossible...
-				var newtn = document.createTextNode("");
-				elt.parentNode.insertBefore(newtn, elt);
+			var elt = ret[0], offset = ret[1], newelt, newtn;
+			if ($type(elt) == "element"	&& elt.get('tag') == "p") { // Empty paragraphs
+				newtn = document.createTextNode("");
+				if (!Browser.Engine.trident)
+					elt.insertBefore(newtn, elt.firstChild);
+				else
+					elt.appendChild(newtn);
 				elt = newtn;
 				offset = 0;
 			}
@@ -343,62 +395,98 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			var parent = elt.parentNode; // Parent paragraph
 			for (var i = 0; i < lines.length; i++) {
 				if (lines[i].length > 0) {
-					if (offset == elt.data.length && Browser.Engine.trident) { // Buggy in IE
+					if (!$defined(elt.data)) {
+						dbgprint("wtf!");
+					}
+					if (offset == elt.data.length && Browser.Engine.trident) { // Appending is buggy in IE
 						elt.appendData(" ");
 						elt.insertData(offset, lines[i]);
 						elt.deleteData(elt.data.length-1, 1);
 					}
 					else
 						elt.insertData(offset, lines[i]);
-					if (parent.retrieve("isEmpty", false)) {
-						// Remove implicit newline
-						elt.deleteData(elt.data.length-1, 1);
-						parent.eliminate("isEmpty");
-					}
 				}
 				if (i < lines.length-1) { // Handle newlines
-					rest = elt.data.substring(offset+lines[i].length);
-					if (rest.length > 0)
-						elt.deleteData(offset+lines[i].length, rest.length); // Cutoff remainder
-					elt = new Element("p");
-					if (rest == "") {
-						elt.set('text', "\u00a0");
-						elt.store("isEmpty", true);
+					if (offset < elt.data.length && offset+lines[i].length == 0) {
+						// Special case: effectively append an empty node before the current node
+						newelt = new Element("p").inject(parent, 'before');
+						if (!Browser.Engine.trident)
+							new Element("br").inject(newelt);
+						newelt = elt;
 					}
-					else
-						elt.set('text', rest);
-					elt.inject(parent, 'after');
-					parent = elt;
-					elt = parent.firstChild; // Set to textnode
+					else {
+						newelt = new Element("p").inject(parent, 'after');
+						if (offset < elt.data.length) {
+							if (offset+lines[i].length > 0)
+								elt.splitText(offset+lines[i].length); // Split
+						}
+						
+						// Move siblings to new node
+						if (!Browser.Engine.trident) {
+							new Element("br").inject(newelt);
+							while ($defined(elt.nextSibling) && elt.nextSibling != parent.lastChild)
+								newelt.insertBefore(elt.nextSibling, newelt.firstChild);
+						}
+						else {
+							while ($defined(elt.nextSibling)) {
+								if ($defined(newelt.firstChild))
+									newelt.insertBefore(elt.nextSibling, newelt.firstChild);
+								else
+									newelt.appendChild(elt.nextSibling);
+							}
+						}
+						
+						if (!$defined(newelt.firstChild))
+							newelt.appendChild(document.createTextNode(""));
+					}
+					
+					elt = newelt.firstChild;
 					offset = 0;
 				}
 			}
+			this._processing = false;
 		},
 		_onDeleteText: function (index, length) {
+			// Safe for formatting elements
+			this._processing = true;
+			
 			var ret = this._walkDown(this.contentElement, index);
 			var elt = ret[0], next = null;
 			var offset = ret[1], dellength = 0;
-			while (length > 0) {
-				next = elt.nextSibling;
-				if ($type(elt) == "element") {
-					if (elt.get("tag") == "br") {
-						elt.parentNode.removeChild(elt);
-						length--;
-						offset = 0;
-					}
-				}
-				else if ($type(elt) == "textnode") {
+			if ($type(elt) == "element" && elt.get('tag') == "br") // Got the implicit br (TODO should be impossible to reach; check again)
+				elt = elt.parentElement;
+			while (length > 0 && $defined(elt)) {
+				next = this._nextTextOrPara(elt);
+				if ($type(elt) == "textnode") {
 					dellength = elt.data.length-offset;
 					if (dellength > length)
 						dellength = length;
 					if (dellength > 0)
 						elt.deleteData(offset, dellength);
 					length -= dellength;
+					if (length > 0 && $type(next) == "element" && next.get('tag') == "p") {
+						// Merge, then next is empty and will be deleted
+						if (!Browser.Engine.trident) {
+							while ($defined(next.firstChild) && next.firstChild != next.lastChild)
+								elt.parentNode.insertBefore(next.firstChild, elt.parentNode.lastChild);
+						}
+						else {
+							while ($defined(next.firstChild))
+								elt.parentNode.appendChild(next.firstChild);
+						}
+					}
+				}
+				else if ($type(elt) == "element" && elt.get('tag') == "p") { // Empty p
+					elt.dispose();
+					length--;
 				}
 				elt = next;
-				if (!$defined(elt))
-					break; // Deleted past end...
+				offset = 0;
 			}
+			this._processing = false;
+		},
+		_onOutOfSync: function () {
+			this._displayErrorOverlay('checksum_fail');
 		},
 		
 		/**
@@ -468,42 +556,127 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		 */
 		_walkDown: function (body, offset) {
 			var elt = body.firstChild;
-			var next;
+			
+			var next = this._nextTextOrPara(elt, true, true); // Try to descend to first text node
+			if ($type(next) == "textnode")
+				elt = next;
 			
 			while (offset > 0 && elt != null) {
-				next = null;
-				if ($type(elt) == "element") {
-					if (elt.get('tag') != "iframe" && (elt.get('tag') != "p" || !elt.retrieve("isEmpty", false)))
-						next = elt.firstChild; // descend
+				next = this._nextTextOrPara(elt, true, true);
+				if ($type(elt) == "element") { // p or iframe
+					offset--;
+					if (offset == 0 && elt.get('tag') == "p" && (next == null || $type(next) == "element")) // Empty p
+						break;
 				}
-				
-				if (next != null) {
-					elt = next;
-					continue;
-				}
-				
-				if ($type(elt) == "textnode") {
+				else if ($type(elt) == "textnode") {
 					if (offset <= elt.data.length)
-						return [elt, offset];
+						break;
 					offset -= elt.data.length;
 				}
-				else if ($type(elt) == "element" && (elt.get('tag') == "iframe" || elt.get('tag') == "p"))
-					offset--;
-				
-				next = elt.nextSibling;
-				if (next == null) { // ascend
-					elt = elt.parentNode;
-					elt = elt.nextSibling;
-					if ($type(elt) == "element" && elt.get('tag') == "p") {
-						elt = elt.firstChild; // auto-descent
-						offset--;
-					}
-				}
-				else
+				elt = next;
+			}
+			
+			if (offset == 0 && $type(elt) == "element" && elt.get('tag') == "p") {
+				next = this._nextTextOrPara(elt, true, true); // Try to descend to first text node
+				if ($type(next) == "textnode")
 					elt = next;
 			}
 			
 			return [elt, offset];
+		},
+		/**
+		 * Find the next TextNode or Paragraph.
+		 * 
+		 * @function {private Node} _nextTextOrPara
+		 * @param {Node} elt Start node
+		 * @param {optional Boolean} descend Set to true if you want to descend
+		 *        first if possible, rather than moving to the next sibling.
+		 * @param {optional Boolean} iframe_stop Set to true if you also want
+		 *        iframes to be returned.
+		 */
+		_nextTextOrPara: function (elt, descend, iframe_stop) {
+			if (!$defined(descend))
+				descend = false;
+			if (!$defined(iframe_stop))
+				iframe_stop = false;
+			
+			var next;
+			if (descend
+					&& $type(elt) == "element"
+					&& elt.get('tag') != "iframe"
+					&& $defined(elt.firstChild))
+				next = elt.firstChild;
+			else
+				next = elt.nextSibling;
+			
+			while (!$defined(next) || $type(next) == "element") {
+				if (!$defined(next)) { // ascend
+					elt = elt.parentNode;
+					if (elt == this.contentElement)
+						return null; // The end
+					next = elt.nextSibling;
+					continue;
+				}
+				if (next.get('tag') == "p")
+					return next; // Done
+				else { // descend or move forward
+					elt = next;
+					if (iframe_stop && elt.get('tag') == "iframe")
+						return elt;
+					if (elt.get('tag') != "iframe" && $defined(elt.firstChild))
+						next = elt.firstChild;
+					else
+						next = elt.nextSibling;
+				}
+			}
+			
+			return next;
+		},
+		/**
+		 * Callback on window resize.
+		 *
+		 * @function {private} _onWindowResize
+		 */
+		_onWindowResize: function () {
+			if ($defined(this._errDiv)) {
+				var coords = this.contentElement.getCoordinates(false);
+				this._errDiv.setStyles({
+					top: coords.top,
+					left: coords.left,
+					width: coords.width,
+					height: coords.height
+				});
+			}
+		},
+		/**
+		 * This function is called periodically to check Blip rendering
+		 * consistency.
+		 * @function {private} _onSyncCheck
+		 */
+		_onSyncCheck: function () {
+			if (this._processing)
+				return;
+			
+			var content = this.contentToString();
+			if (content != this._blip.content()) {
+				if (!$defined(this._errDiv)) {
+					window.console.info("diff: "+this._diff(content, this._blip.content()));
+					this._displayErrorOverlay("resync");
+				}
+			}
+			else if ($defined(this._errDiv))
+				this._removeErrorOverlay();
+		},
+		_diff: function (a, b) {
+			if (a.length > b.length)
+				return "a > b";
+			if (a.length < b.length)
+				return "a < b";
+			for (var i = 0; i < a.length; i++) {
+				if (a[i] != b[i])
+					return "a[%d] != b[%d] / %d != %d".sprintf(i,i,a.charCodeAt(i),b.charCodeAt(i));
+			}
+			return "a == b";
 		}
 	});
 

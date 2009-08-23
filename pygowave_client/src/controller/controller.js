@@ -161,7 +161,7 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 		 * @param {int} code Error code provided by socket API.
 		 */
 		onConnError: function (code) {
-			alert("Error: " + code);
+			this._iview.showControllerError(gettext("A connection error occured.<br/><br/>Error code: %d").sprintf(code));
 		},
 		
 		/**
@@ -196,16 +196,22 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 						this._requestParticipantInfo(wavelet_id);
 						break;
 					case "OPERATION_MESSAGE_BUNDLE_ACK":
-						wavelet_model.options.version = msg.property;
+						wavelet_model.options.version = msg.property.version;
 						this.wavelets[wavelet_id].mpending.fetch(); // Clear
 						if (!this.wavelets[wavelet_id].mcached.isEmpty())
-							this._transferOperations(wavelet_id);
-						else
+							this._transferOperations(wavelet_id); // Send cached
+						else {
+							// All done, we can do a check-up
+							this._checkBlips(wavelet_id, msg.property.blipsums);
 							this.wavelets[wavelet_id].pending = false;
+						}
 						break;
 					case "OPERATION_MESSAGE_BUNDLE":
 						this._processOperations(wavelet_model, msg.property.operations);
 						wavelet_model.options.version = msg.property.version;
+						// Do a check-up if possible
+						if (!this.hasPendingOperations(wavelet_id))
+							this._checkBlips(wavelet_id, msg.property.blipsums);
 						break;
 					case "PARTICIPANT_INFO":
 						this._processParticipantsInfo(msg.property);
@@ -439,6 +445,24 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 							wavelet.blipById(op.blip_id).deleteText(op.index, op.property);
 					}
 				}
+			}
+		},
+		/**
+		 * Calculate and compare checksums of all Blips to the given map.
+		 * Show an error message, usually when it's already too late ;)
+		 * 
+		 * @function _checkBlips
+		 * @param {String} waveletId ID of the Wavelet
+		 * @param {Object} blipsums Checksums to compare to
+		 */
+		_checkBlips: function (waveletId, blipsums) {
+			var wavelet_model = this.wavelets[waveletId].model;
+			for (var it = new _Iterator(blipsums); it.hasNext(); ) {
+				var checksum = it.next();
+				var blipId = it.key();
+				var blip = wavelet_model.blipById(blipId);
+				if ($defined(blip))
+					blip.checkSync(checksum);
 			}
 		},
 		

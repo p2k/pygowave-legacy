@@ -24,6 +24,8 @@ limitations under the License.
 from pycow.decorators import Class, Implements
 from pycow.utils import Events, Options, Hash
 
+# BIG NOTE: Python-compatibility currently broken, because a SHA1 function is missing
+
 __all__ = ["WaveModel", "Participant"]
 
 @Implements(Options, Events)
@@ -432,6 +434,12 @@ class Blip(object):
 	@param {int} index Offset where the text is deleted
 	@param {int} length Number of characters to delete
 	"""
+	
+	"""
+	Fired if the Blip has gone out of sync with the server.
+	
+	@event onOutOfSync
+	"""
 	# ---------------------------
 	
 	def __init__(self, wavelet, id, options, content = "", parent = None):
@@ -459,6 +467,8 @@ class Blip(object):
 		self._content = content
 		self._elements = []
 		self._annotations = []
+		
+		self._outofsync = False
 	
 	def id(self):
 		"""
@@ -541,6 +551,27 @@ class Blip(object):
 		@function {public String} content
 		"""
 		return self._content
+	
+	def checkSync(self, sum):
+		"""
+		Calculate a checksum of this Blip and compare it against the given
+		checksum. Fires {@link pygowave.model.Blip.onOutOfSync onOutOfSync} if the checksum is wrong. Returns
+		true if the checksum is ok.
+		
+		Note: Currently this only calculates the SHA-1 of the Blip's text. This
+		is tentative and subject to change
+		
+		@function {public Boolean} checkSync
+		@param {String} sum Input checksum to compare against
+		"""
+		if self._outofsync:
+			return False
+		if SHA1(self._content) != sum:
+			self.fireEvent("outOfSync")
+			self._outofsync = True
+			return False
+		else:
+			return True
 
 @Implements(Options, Events)
 @Class

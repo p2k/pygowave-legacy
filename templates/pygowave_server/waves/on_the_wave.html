@@ -29,6 +29,7 @@
 	<link rel="stylesheet" href="{{ MEDIA_URL }}css/MooEditable.css" type="text/css" />
 	<script type="text/javascript" src="{{ MEDIA_URL }}js/MooEditable.js"></script>
 	<script type="text/javascript" src="{{ MEDIA_URL }}js/pycow.js"></script>
+	<script type="text/javascript" src="{{ MEDIA_URL }}js/sha1.js"></script>
 	<script type="text/javascript" src="{% url django.views.i18n.javascript_catalog %}"></script>
 {% client_scripts %}
 
@@ -59,7 +60,7 @@ wave by clicking the "Leave Wave" button on the right hand side.<br/>
 Again, this application is experimental and may not work as expected.
 {% endblocktrans %}
 </div>
-<h4>{% trans "Playground" %}</h4>
+<h4>{% trans "Playground" %} (Cursor: <span id="debug_cursor_pos"></span>)</h4>
 <div class="section">
 	<div id="wave_container">
 		<!-- The content is dynamically rendered through our client script. -->

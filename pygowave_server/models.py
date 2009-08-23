@@ -23,6 +23,7 @@ from django.contrib.auth.models import User
 from django.utils.translation import ugettext_lazy as _
 from django.conf import settings
 from django.db import transaction
+from django.utils.hashcompat import sha_constructor as sha1
 
 from django.utils import simplejson
 
@@ -238,7 +239,7 @@ class Wavelet(models.Model):
 		for blip in self.blips.all():
 			blipmap[blip.id] = blip.serialize()
 		return blipmap
-
+	
 	def applyOperations(self, ops):
 		"""
 		Apply the operations on the wavelet.
@@ -253,6 +254,16 @@ class Wavelet(models.Model):
 				elif op.type == DOCUMENT_INSERT:
 					blip.text = blip.text[:op.index] + op.property + blip.text[op.index:]
 				blip.save()
+	
+	def blipsums(self):
+		"""
+		Calculates the checksums of all Blips.
+		
+		"""
+		blipsums = {}
+		for blip in self.blips.all():
+			blipsums[blip.id] = blip.checksum()
+		return blipsums
 	
 class DataDocument(models.Model):
 	"""
@@ -349,9 +360,19 @@ class Blip(models.Model):
 			"lastModifiedTime": datetime2milliseconds(self.last_modified),
 			"childBlipIds": map(lambda c: c.id, self.children.all()),
 			"waveId": self.wavelet.wave.id,
-			"submitted": bool(self.submitted)
+			"submitted": bool(self.submitted),
+			"checksum": self.checksum() # Note: This is tentative and subject to change
 		}
 	
+	def checksum(self):
+		"""
+		Calculate a checksum of this Blip.
+		Note: Currently this is only the SHA-1 of the Blip's text. This is
+		tentative and subject to change
+		
+		"""
+		return sha1(self.text.encode("utf-8")).hexdigest()
+
 	def __unicode__(self):
 		return u"Blip %s on %s" % (self.id, unicode(self.wavelet))
 

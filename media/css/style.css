@@ -355,6 +355,12 @@ p
 	background-position: 0 3px;
 }
 
+.compat_table .os.used
+{
+	text-align: left;
+	height: 24px;
+}
+
 .compat_table .os.win {background-image: url(../images/compat/win.png);}
 .compat_table .os.lin {background-image: url(../images/compat/linux.png);}
 .compat_table .os.mac {background-image: url(../images/compat/mac.png);}

@@ -452,6 +452,12 @@ pygowave.model = (function() {
 		 * @param {int} index Offset where the text is deleted
 		 * @param {int} length Number of characters to delete
 		 */
+		
+		/**
+		 * Fired if the Blip has gone out of sync with the server.
+		 *
+		 * @event onOutOfSync
+		 */
 		,
 
 		/**
@@ -480,6 +486,7 @@ pygowave.model = (function() {
 			this._content = content;
 			this._elements = [];
 			this._annotations = [];
+			this._outofsync = false;
 		},
 
 		/**
@@ -575,6 +582,29 @@ pygowave.model = (function() {
 		 */
 		content: function () {
 			return this._content;
+		},
+
+		/**
+		 * Calculate a checksum of this Blip and compare it against the given
+		 * checksum. Fires {@link pygowave.model.Blip.onOutOfSync onOutOfSync} if the checksum is wrong. Returns
+		 * true if the checksum is ok.
+		 *
+		 * Note: Currently this only calculates the SHA-1 of the Blip's text. This
+		 * is tentative and subject to change
+		 *
+		 * @function {public Boolean} checkSync
+		 * @param {String} sum Input checksum to compare against
+		 */
+		checkSync: function (sum) {
+			if (this._outofsync)
+				return false;
+			if (SHA1(this._content) != sum) {
+				this.fireEvent("outOfSync");
+				this._outofsync = true;
+				return false;
+			}
+			else
+				return true;
 		}
 	});
 

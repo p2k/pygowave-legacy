@@ -323,9 +323,12 @@ class PyGoWaveMessageProcessor(object):
 				
 				Delta.createByOpManager(newdelta, wavelet.version).save()
 				
+				# Create tentative checksums
+				blipsums = wavelet.blipsums()
+				
 				# Respond
-				self.emit(pconn, "OPERATION_MESSAGE_BUNDLE_ACK", wavelet.version)
-				self.broadcast(wavelet, "OPERATION_MESSAGE_BUNDLE", {"version": wavelet.version, "operations": newdelta.serialize()}, [pconn])
+				self.emit(pconn, "OPERATION_MESSAGE_BUNDLE_ACK", {"version": wavelet.version, "blipsums": blipsums})
+				self.broadcast(wavelet, "OPERATION_MESSAGE_BUNDLE", {"version": wavelet.version, "operations": newdelta.serialize(), "blipsums": blipsums}, [pconn])
 				
 				logger.info("[%s/%d@%s] Processed delta #%d -> v%d" % (participant.name, pconn.id, wavelet.wave.id, version, wavelet.version))
 				

@@ -237,6 +237,25 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 				rng.setEnd(this._endNode, this._endOffset);
 			}
 			return rng;
+		},
+		/**
+		 * Set the user's current selection to this selection.
+		 * @function {public} select
+		 */
+		select: function () {
+			var range = this.toNativeRange();
+			if (range.select){
+				$try(function(){
+					range.select();
+				});
+			} else {
+				var win = this._doc.window;
+				var s = $defined(win.getSelection) ? win.getSelection() : this._doc.selection;
+				if (s.addRange) {
+					s.removeAllRanges();
+					s.addRange(range);
+				}
+			}
 		}
 	});
 	/**
@@ -251,6 +270,7 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		var elt = scope;
 		var ret = new Selection(null, 0, null, 0, ownerDocument);
 		var todo = 'Start';
+		var emptyElement = false;
 		var rng = ownerDocument.body.createTextRange();
 		while (true) {
 			setRangeToNode(rng, elt);
@@ -276,8 +296,22 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			pos = textrange.compareEndPoints(todo + 'ToEnd', rng);
 			if (pos <= 0) { // left of/hit - descend/found
 				if ($type(elt) == "element") {
-					elt = elt.firstChild;
-					continue;
+					if ($defined(elt.firstChild)) {
+						elt = elt.firstChild;
+						continue;
+					}
+					else { // Empty element; treat as hit
+						emptyElement = true;
+						if (todo == 'Start') {
+							ret.setStart(elt, 0);
+							todo = 'End';
+							continue;
+						}
+						else {
+							ret.setEnd(elt, 0);
+							break;
+						}
+					}
 				}
 				else {
 					// In textnode
@@ -323,8 +357,8 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 				elt = elt.nextSibling;
 		}
 		
-		if (!textrange.isEqual(ret.toNativeRange()))
-			alert("IE bug: Could not create Selection object from TextRange!");
+		if (!emptyElement && !textrange.isEqual(ret.toNativeRange()))
+			alert(gettext("Internet Explorer bug:\nCould not create Selection object from TextRange!"));
 		
 		return ret;
 	};

@@ -160,6 +160,7 @@
 	width: 100%;
 	height: auto;
 	padding: 0;
+	background-color: #FFFFFF;
 }
 
 .blip_container_widget hr
@@ -181,6 +182,7 @@
 	border-bottom: 2px solid #ddd;
 	overflow: auto;
 	font-size: 1.3em;
+	outline: none;
 }
 
 .blip_editor_widget p
@@ -192,10 +194,12 @@
 	padding: 0;
 }
 
-.blip_line_placeholder
+.blip_editor_placeholder
 {
-	background-color: yellow;
-	overflow: hidden;
+	margin-left: 2px;
+	width: 5px;
+	height: 1.1em;
+	background-color: rgb(201, 226, 252);
 }
 
 .search_widget
@@ -333,4 +337,41 @@
 {
 	width: 40%;
 	height: 100%;
+}
+
+.error_overlay
+{
+	width: 100%;
+	overflow: hidden;
+}
+
+.error_overlay .bg_div
+{
+	background: url(../images/ui-bg_diagonals-thick_18_b81900_40x40.png) repeat scroll 50% 50%;
+	height: 100%;
+	clear: both;
+}
+
+.error_overlay .msg_div
+{
+	background-color: #CCCCCC;
+	width: 100%;
+	height: 31px;
+	background-image: url(../images/blip_error.png);
+	background-repeat: no-repeat;
+	background-position: 4px 4px;
+}
+
+.error_overlay .msg
+{
+	float: left;
+	padding-left: 31px;
+	padding-top: 7px;
+	padding-bottom: 7px;
+}
+
+.error_overlay button
+{
+	margin-top: 3px;
+	margin-bottom: 0px;
 }
