@@ -210,7 +210,7 @@ p
 
 .section
 {
-	margin: 0 4px 1.6em;
+	margin: 0 4px 1.1em;
 	padding: 4px;
 }
 
@@ -295,7 +295,7 @@ p
 #wave_container
 {
 	width: 100%;
-	height: 600px;
+	height: auto;
 }
 
 .donate_div
@@ -364,3 +364,9 @@ p
 .compat_table .os.win {background-image: url(../images/compat/win.png);}
 .compat_table .os.lin {background-image: url(../images/compat/linux.png);}
 .compat_table .os.mac {background-image: url(../images/compat/mac.png);}
+
+.doc_text
+{
+	font-size: 0.9em;
+	margin-bottom: 5px;
+}

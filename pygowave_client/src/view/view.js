@@ -32,33 +32,7 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 	var AddParticipantWidget = pygowave.view.AddParticipantWidget;
 	var ParticipantWidget = pygowave.view.ParticipantWidget;
 	var BlipEditorWidget = pygowave.view.BlipEditorWidget;
-	
-	/**
-	 * A widget for rendering blips.
-	 * @class {private} pygowave.view.BlipWidget
-	 * @extends pygowave.view.Widget
-	 */
-	var BlipWidget = new Class({
-		Extends: Widget,
-		/**
-		 * Called on instantiation.
-		 * @constructor {public} initialize
-		 * @param {WaveView} view A reference back to the main view
-		 * @param {pygowave.model.Blip} blip Blip to be rendered
-		 * @param {Element} parentElement Parent DOM element to insert the widget
-		 * @param {optional String} where Where to inject the contentElement
-		 *        relative to the parent element. Can be 'top', 'bottom',
-		 *        'after', or 'before'.
-		 */
-		initialize: function (view, blip, parentElement, where) {
-			var text = blip.content().replace(/\n/g, "<br/>").replace(/ /g, "\u00a0");
-			if (text.contains("<br/>"))
-				text += "<br/>"; // Append implicit newline
-			var contentElement = new Element('textarea', {'class': 'blip_widget', 'text': text});
-			this.parent(parentElement, contentElement, where);
-			this._medit = new BlipEditor(view, blip, contentElement, {'paragraphise': false, 'toolbar': false});
-		}
-	});
+	var WaveletStatusBar = pygowave.view.WaveletStatusBar;
 	
 	/**
 	 * A widget for rendering multiple BlipWidgets in a wavelet.
@@ -82,9 +56,10 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		},
 		
 		/**
-		 * Insert a new BlipEditorWidget at the specified index.
+		 * Insert a new BlipEditorWidget at the specified index. Returns the
+		 * created blip editor widget.
 		 * 
-		 * @function {public} insertBlip
+		 * @function {public BlipEditorWidget} insertBlip
 		 * @param {int} index Index to insert the BlipEditorWidget
 		 * @param {pygowave.model.Blip} blip Blip object to connect the new
 		 *        BlipEditorWidget to
@@ -102,6 +77,8 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			
 			if (blip.isRoot())
 				this._rootBlip = blipwgt;
+			
+			return blipwgt;
 		}
 	});
 	
@@ -131,6 +108,7 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			this._participantWidgets = new Hash();
 			this._addParticipantWidget = new AddParticipantWidget(this._view, this._participantsDiv);
 			this._blipContainerWidget = new BlipContainerWidget(this._view, contentElement);
+			this._statusBar = new WaveletStatusBar(wavelet, contentElement);
 			this.updateParticipants();
 			
 			// Connect event listeners
@@ -181,7 +159,20 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		 * @param {String} blip_id ID of the inserted Blip
 		 */
 		_onBlipInserted: function (index, blip_id) {
-			this._blipContainerWidget.insertBlip(index, this._wavelet.blipByIndex(index));
+			var blipwgt = this._blipContainerWidget.insertBlip(index, this._wavelet.blipByIndex(index));
+			this._statusBar.connectBlipEditor(blipwgt);
+		},
+		
+		/**
+		 * Fit the wavlet subwidgets to the available space.
+		 * 
+		 * @function {private} fitWidget
+		 */
+		fitWidget: function () {
+			var height = this.contentElement.getCoordinates().height;
+			height -= this._statusBar.contentElement.getCoordinates().height + 2;
+			height -= this._participantsDiv.getCoordinates().height;
+			this._blipContainerWidget.contentElement.setStyle("height", height);
 		}
 	});
 	
@@ -277,6 +268,8 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			
 			// Connect event listener(s)
 			this.model.addEvent('waveletAdded', this._onModelWaveletAdded.bind(this));
+			
+			window.addEvent('resize', this._onWindowResize.bind(this));
 		},
 		
 		/**
@@ -430,6 +423,21 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 				rtl: this.options.rtl,
 				buttons: buttons
 			});
+		},
+		
+		/**
+		 * Callback on window resize
+		 * @function {private} _onWindowResize
+		 * @param {Object} e Event object
+		 */
+		_onWindowResize: function (e) {
+			var viewport = window.getSize();
+			var doc = window.getScrollSize();
+			var coords = this.container.getCoordinates();
+			if (viewport.y < coords.top + 150)
+				viewport.y = coords.top + 150;
+			this.container.setStyle("height", viewport.y - coords.top - 25);
+			this.rootWaveletWidget.fitWidget();
 		}
 	});
 	

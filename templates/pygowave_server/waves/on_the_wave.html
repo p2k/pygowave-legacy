@@ -29,15 +29,13 @@
 	<link rel="stylesheet" href="{{ MEDIA_URL }}css/MooEditable.css" type="text/css" />
 	<script type="text/javascript" src="{{ MEDIA_URL }}js/MooEditable.js"></script>
 	<script type="text/javascript" src="{{ MEDIA_URL }}js/pycow.js"></script>
-	<script type="text/javascript" src="{{ MEDIA_URL }}js/sha1.js"></script>
 	<script type="text/javascript" src="{% url django.views.i18n.javascript_catalog %}"></script>
 {% client_scripts %}
 
 {% endblock %}
 
 {% block content %}
-<h1>{{ wavelet_title }}</h1>
-<h4>{% trans "Hints" %}</h4>
+<h4>{{ wavelet_title }}</h4>
 <div class="section">
 	<div class="button_box">
 	<button id="leave_button" class="mochaButton mochaImageButton" type="button">
@@ -51,17 +49,17 @@
 		{% if not LANGUAGE_BIDI %}<div>{% trans "Debug" %}</div>{% endif %}
 	</button>
 	</div>
-{% blocktrans %}
-Some quick documentation: Click on the "+" to add a friend to your wave. The
-search currently covers the whole database of users.<br/>
-Any user can be added by everyone who participates in the wave. No one can
-remove any other participant than him/herself. You can remove yourself from a
-wave by clicking the "Leave Wave" button on the right hand side.<br/>
-Again, this application is experimental and may not work as expected.
-{% endblocktrans %}
-</div>
-<h4>{% trans "Playground" %} (Cursor: <span id="debug_cursor_pos"></span>)</h4>
-<div class="section">
+	
+	<div class="doc_text">
+	{% blocktrans %}
+	Hints: Click on the "+" to add a friend to your wave. The search currently
+	covers the whole database of users. You cannot remove other people but you
+	can remove yourself from a wave by clicking the "Leave Wave" button on the
+	right hand side. Again, this application is experimental and may not work
+	as expected.
+	{% endblocktrans %}
+	</div>
+
 	<div id="wave_container">
 		<!-- The content is dynamically rendered through our client script. -->
 	</div>
@@ -70,6 +68,8 @@ Again, this application is experimental and may not work as expected.
 		$("leave_button").set("disabled", "disabled");
 		
 		document.addEvent('domready', function () {
+			
+			document.body.setStyle("overflow-y", "hidden");
 			
 			model = new pygowave.model.WaveModel("{{ wave_id|escapejs }}", "{{ participant_id|escapejs }}");
 			
@@ -111,8 +111,8 @@ Again, this application is experimental and may not work as expected.
 			controller.addEvent("waveletOpened", function (wave_id, wavelet_id) {
 				$("debug_button").set("disabled", "");
 				$("leave_button").set("disabled", "");
+				window.fireEvent("resize");
 			});
-			
 		});
 	</script>
 </div>

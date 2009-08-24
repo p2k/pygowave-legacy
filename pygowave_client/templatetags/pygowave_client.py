@@ -24,6 +24,9 @@ register = Library()
 
 STATIC_LOAD_ORDER = (
 	(
+		"utils", ("sha1",)
+	),
+	(
 		"model", ("model",)
 	),
 	(
@@ -33,8 +36,8 @@ STATIC_LOAD_ORDER = (
 			"common",
 			"participants",
 			"blip_editor",
-			"view",
 			"debug_tools",
+			"view",
 		),
 	),
 	(

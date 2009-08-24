@@ -24,7 +24,7 @@ limitations under the License.
 from pycow.decorators import Class, Implements
 from pycow.utils import Events, Options, Hash
 
-# BIG NOTE: Python-compatibility currently broken, because a SHA1 function is missing
+from hashlib import sha1 as sha_constructor
 
 __all__ = ["WaveModel", "Participant"]
 
@@ -496,7 +496,8 @@ class Blip(object):
 	def insertText(self, index, text, noevent = False):
 		"""
 		Insert a text at the specified index. This moves annotations and
-		elements as appropriate.
+		elements as appropriate.<br/>
+		Note: This sets the wavelet status to 'dirty'.
 		
 		@function {public} insertText
 		@param {int} index Index of insertion
@@ -517,13 +518,15 @@ class Blip(object):
 				anno.setStart(anno.start() + length)
 				anno.setEnd(anno.end() + length)
 		
+		self._wavelet._setStatus("dirty")
 		if not noevent:
 			self.fireEvent("insertText", [index, text])
 	
 	def deleteText(self, index, length, noevent = False):
 		"""
 		Delete text at the specified index. This moves annotations and
-		elements as appropriate.
+		elements as appropriate.<br/>
+		Note: This sets the wavelet status to 'dirty'.
 		
 		@function {public} deleteText
 		@param {int} index Index of deletion
@@ -542,6 +545,7 @@ class Blip(object):
 				anno.setStart(anno.start() - length)
 				anno.setEnd(anno.end() - length)
 		
+		self._wavelet._setStatus("dirty")
 		if not noevent:
 			self.fireEvent("deleteText", [index, length])
 	
@@ -555,8 +559,8 @@ class Blip(object):
 	def checkSync(self, sum):
 		"""
 		Calculate a checksum of this Blip and compare it against the given
-		checksum. Fires {@link pygowave.model.Blip.onOutOfSync onOutOfSync} if the checksum is wrong. Returns
-		true if the checksum is ok.
+		checksum. Fires {@link pygowave.model.Blip.onOutOfSync onOutOfSync} if
+		the checksum is wrong. Returns true if the checksum is ok.
 		
 		Note: Currently this only calculates the SHA-1 of the Blip's text. This
 		is tentative and subject to change
@@ -566,7 +570,7 @@ class Blip(object):
 		"""
 		if self._outofsync:
 			return False
-		if SHA1(self._content) != sum:
+		if sha_constructor(self._content.encode("utf-8")).hexdigest() != sum:
 			self.fireEvent("outOfSync")
 			self._outofsync = True
 			return False
@@ -589,7 +593,8 @@ class Wavelet(object):
 		"created": None,
 		"last_modified": None,
 		"title": "",
-		"version": 0
+		"version": 0,
+		"status": "clean"
 	}
 	
 	# --- Event documentation ---
@@ -603,6 +608,13 @@ class Wavelet(object):
 	@event onBlipInserted
 	@param {int} index Index of the inserted Blip
 	@param {String} blip_id ID of the inserted Blip
+	"""
+	
+	"""
+	Fired when the Wavelet's status changed.
+	
+	@event onStatusChange
+	@param {String} status The new status; can be 'clean', 'dirty' or 'invalid'
 	"""
 	# ---------------------------
 	
@@ -621,6 +633,7 @@ class Wavelet(object):
 		@... {Date} last_modified Date of last modification
 		@... {String} title Title of the Wavelet
 		@... {int} version Version of the Wavelet
+		@... {String} status Status of the Wavelet; can be 'clean', 'dirty' or 'invalid'
 		"""
 		self.setOptions(options)
 		self._wave = wave
@@ -776,6 +789,39 @@ class Wavelet(object):
 		@param {Blip} blip Blip to be set as root Blip
 		"""
 		self._rootBlip = blip
+	
+	def _setStatus(self, status):
+		"""
+		Internal method to set the status. Fires
+		{@link pygowave.model.Wavelet.onStatusChange onStatusChange} if the
+		status changed.
+		
+		@function {private} _setStatus
+		@param {String} status The status to set
+		"""
+		if self.options["status"] != status:
+			self.options["status"] = status
+			self.fireEvent("statusChange", status)
+	
+	def checkSync(self, blipsums):
+		"""
+		Calculate and compare checksums of all Blips to the given map.
+		Fires {@link pygowave.model.Wavelet.onStatusChange onStatusChange} if
+		the status changes.
+		
+		@function {public} checkSync
+		@param {Object} blipsums Checksums to compare to
+		"""
+		valid = True
+		for blipId, checksum in blipsums.iteritems():
+			blip = self.blipById(blipId);
+			if blip != None:
+				if not blip.checkSync(checksum):
+					valid = False
+		if valid:
+			self._setStatus("clean")
+		else:
+			self._setStatus("invalid")
 
 @Implements(Events)
 @Class

@@ -50,7 +50,7 @@ def view_module(request, package, module):
 				translate_file(srcfile, cachefile, namespace=namespace, warnings=False)
 			except ParseError, e:
 				os.unlink(cachefile)
-				return HttpResponse(PARSE_ERROR_MESSAGE % (filename, e.value), mimetype="text/javascript")
+				return HttpResponse(PARSE_ERROR_MESSAGE % (srcfile, e.value), mimetype="text/javascript")
 	elif os.path.exists(srcfile + ".js"):
 		srcfile += ".js"
 		if not os.path.exists(cachefile) or os.path.getmtime(srcfile) > os.path.getmtime(cachefile):

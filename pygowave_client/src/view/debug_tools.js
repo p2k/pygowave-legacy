@@ -22,11 +22,14 @@ window.pygowave = $defined(window.pygowave) ? window.pygowave : new Hash();
 pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 
 /**
- * Debug windows and functions.
+ * Debug windows, bars and functions.
  * 
  * @module pygowave.view.debug_tools
  */
 (function () {
+	/* Imports */
+	var Widget = pygowave.view.Widget;
+	
 	/**
 	 * A window that displays two tables of outgoing operations (pending and
 	 * cached). This is for debugging purposes.
@@ -288,8 +291,89 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			this.generic_updateRow(this._ptable.getChildren()[index], this._mpending.operations[index]);
 		}
 	});
-
+	
+	/**
+	 * Displays various status messages.
+	 *
+	 * @class {private} pygowave.view.WaveletStatusBar
+	 * @extends pygowave.view.Widget
+	 */
+	var WaveletStatusBar = new Class({
+		Extends: Widget,
+		
+		/**
+		 * Called on instantiation.
+		 * @constructor {public} initialize
+		 * @param {pygowave.model.Wavelet} wavelet Wavelet to be monitored
+		 * @param {Element} parentElement Parent DOM element to insert the widget
+		 * @param {String} where Where to inject the widget relative to the
+		 *        parent element. Can be 'top', 'bottom', 'after', or 'before'.
+		 */
+		initialize: function (wavelet, parentElement, where) {
+			this._wavelet = wavelet;
+			
+			var contentElement = new Element('div', {'class': 'wavelet_status_bar'});
+			
+			this._documentIcon = new Element('div', {'class': 'document'}).inject(contentElement);
+			this._onStatusChange("clean");
+			
+			this._textRange = new Element('div', {'class': 'message'}).inject(contentElement);
+			
+			this.parent(parentElement, contentElement, where);
+			
+			wavelet.addEvent("statusChange", this._onStatusChange.bind(this));
+			this._onCurrentTextRangeChanged = this._onCurrentTextRangeChanged.bind(this);
+		},
+		
+		/**
+		 * Connect a blip editor to the status bar.<br/>
+		 * Currently captures text range changes.
+		 * @function {public} connectBlipEditor
+		 * @param {pygowave.view.BlipEditorWidget} wgt A blip editor instance
+		 */
+		connectBlipEditor: function (wgt) {
+			wgt.addEvent("currentTextRangeChanged", this._onCurrentTextRangeChanged);
+		},
+		
+		/**
+		 * Callback from wavelet on status change.
+		 *
+		 * @function {private} _onStatusChange
+		 * @param {String} status The new status
+		 */
+		_onStatusChange: function (status) {
+			switch (status) {
+				case "dirty":
+					this._documentIcon.addClass("dirty").removeClass("clean").removeClass("invalid");
+					this._documentIcon.set('title', gettext("Status: Waiting for acknowledgement"));
+					break;
+				case "clean":
+					this._documentIcon.addClass("clean").removeClass("dirty").removeClass("invalid");
+					this._documentIcon.set('title', gettext("Status: Document in sync with server"));
+					break;
+				case "invalid":
+					this._documentIcon.addClass("invalid").removeClass("clean").removeClass("dirty");
+					this._documentIcon.set('title', gettext("Status: Document not in sync with server"));
+					break;
+			}
+		},
+		
+		/**
+		 * Callback on text range change in a blip.
+		 * @function {private} _onCurrentTextRangeChanged
+		 * @param {int} start
+		 * @param {int} end
+		 */
+		_onCurrentTextRangeChanged: function (start, end) {
+			if (start == end)
+				this._textRange.set('text', gettext("Position: %d").sprintf(start));
+			else
+				this._textRange.set('text', gettext("Selected: %d-%d").sprintf(start, end));
+		}
+	});
+	
 	pygowave.view.extend({
-		OperationsViewer: OperationsViewer
+		OperationsViewer: OperationsViewer,
+		WaveletStatusBar: WaveletStatusBar
 	});
 })();

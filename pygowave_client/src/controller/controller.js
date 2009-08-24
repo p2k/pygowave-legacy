@@ -202,7 +202,7 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 							this._transferOperations(wavelet_id); // Send cached
 						else {
 							// All done, we can do a check-up
-							this._checkBlips(wavelet_id, msg.property.blipsums);
+							wavelet_model.checkSync(msg.property.blipsums);
 							this.wavelets[wavelet_id].pending = false;
 						}
 						break;
@@ -211,7 +211,7 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 						wavelet_model.options.version = msg.property.version;
 						// Do a check-up if possible
 						if (!this.hasPendingOperations(wavelet_id))
-							this._checkBlips(wavelet_id, msg.property.blipsums);
+							wavelet_model.checkSync(msg.property.blipsums);
 						break;
 					case "PARTICIPANT_INFO":
 						this._processParticipantsInfo(msg.property);
@@ -445,24 +445,6 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 							wavelet.blipById(op.blip_id).deleteText(op.index, op.property);
 					}
 				}
-			}
-		},
-		/**
-		 * Calculate and compare checksums of all Blips to the given map.
-		 * Show an error message, usually when it's already too late ;)
-		 * 
-		 * @function _checkBlips
-		 * @param {String} waveletId ID of the Wavelet
-		 * @param {Object} blipsums Checksums to compare to
-		 */
-		_checkBlips: function (waveletId, blipsums) {
-			var wavelet_model = this.wavelets[waveletId].model;
-			for (var it = new _Iterator(blipsums); it.hasNext(); ) {
-				var checksum = it.next();
-				var blipId = it.key();
-				var blip = wavelet_model.blipById(blipId);
-				if ($defined(blip))
-					blip.checkSync(checksum);
 			}
 		},
 		

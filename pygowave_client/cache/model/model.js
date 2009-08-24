@@ -29,6 +29,8 @@ pygowave.model = (function() {
 
 	/* from pycow.utils import Events, Options, Hash */;
 
+	/* from hashlib import sha1 as sha_constructor */;
+
 	/**
 	 * Models a participant to a Wavelet. Note that the implementation (i.e.
 	 * the controller) should only create one participant object per participant
@@ -517,7 +519,8 @@ pygowave.model = (function() {
 
 		/**
 		 * Insert a text at the specified index. This moves annotations and
-		 * elements as appropriate.
+		 * elements as appropriate.<br/>
+		 * Note: This sets the wavelet status to 'dirty'.
 		 *
 		 * @function {public} insertText
 		 * @param {int} index Index of insertion
@@ -542,13 +545,15 @@ pygowave.model = (function() {
 				}
 			}
 			delete __iter0_;
+			this._wavelet._setStatus("dirty");
 			if (!noevent)
 				this.fireEvent("insertText", [index, text]);
 		},
 
 		/**
 		 * Delete text at the specified index. This moves annotations and
-		 * elements as appropriate.
+		 * elements as appropriate.<br/>
+		 * Note: This sets the wavelet status to 'dirty'.
 		 *
 		 * @function {public} deleteText
 		 * @param {int} index Index of deletion
@@ -572,6 +577,7 @@ pygowave.model = (function() {
 				}
 			}
 			delete __iter0_;
+			this._wavelet._setStatus("dirty");
 			if (!noevent)
 				this.fireEvent("deleteText", [index, length]);
 		},
@@ -586,8 +592,8 @@ pygowave.model = (function() {
 
 		/**
 		 * Calculate a checksum of this Blip and compare it against the given
-		 * checksum. Fires {@link pygowave.model.Blip.onOutOfSync onOutOfSync} if the checksum is wrong. Returns
-		 * true if the checksum is ok.
+		 * checksum. Fires {@link pygowave.model.Blip.onOutOfSync onOutOfSync} if
+		 * the checksum is wrong. Returns true if the checksum is ok.
 		 *
 		 * Note: Currently this only calculates the SHA-1 of the Blip's text. This
 		 * is tentative and subject to change
@@ -598,7 +604,7 @@ pygowave.model = (function() {
 		checkSync: function (sum) {
 			if (this._outofsync)
 				return false;
-			if (SHA1(this._content) != sum) {
+			if (sha_constructor(this._content.encode("utf-8")).hexdigest() != sum) {
 				this.fireEvent("outOfSync");
 				this._outofsync = true;
 				return false;
@@ -622,7 +628,8 @@ pygowave.model = (function() {
 			created: null,
 			last_modified: null,
 			title: "",
-			version: 0
+			version: 0,
+			status: "clean"
 		}
 		/**
 		 * Fired if a participant joins or leaves.
@@ -634,6 +641,13 @@ pygowave.model = (function() {
 		 * @event onBlipInserted
 		 * @param {int} index Index of the inserted Blip
 		 * @param {String} blip_id ID of the inserted Blip
+		 */
+		
+		/**
+		 * Fired when the Wavelet's status changed.
+		 *
+		 * @event onStatusChange
+		 * @param {String} status The new status; can be 'clean', 'dirty' or 'invalid'
 		 */
 		,
 
@@ -651,6 +665,7 @@ pygowave.model = (function() {
 		 * @... {Date} last_modified Date of last modification
 		 * @... {String} title Title of the Wavelet
 		 * @... {int} version Version of the Wavelet
+		 * @... {String} status Status of the Wavelet; can be 'clean', 'dirty' or 'invalid'
 		 */
 		initialize: function (wave, id, options) {
 			this.setOptions(options);
@@ -831,6 +846,47 @@ pygowave.model = (function() {
 		 */
 		_setRootBlip: function (blip) {
 			this._rootBlip = blip;
+		},
+
+		/**
+		 * Internal method to set the status. Fires
+		 * {@link pygowave.model.Wavelet.onStatusChange onStatusChange} if the
+		 * status changed.
+		 *
+		 * @function {private} _setStatus
+		 * @param {String} status The status to set
+		 */
+		_setStatus: function (status) {
+			if (this.options.status != status) {
+				this.options.status = status;
+				this.fireEvent("statusChange", status);
+			}
+		},
+
+		/**
+		 * Calculate and compare checksums of all Blips to the given map.
+		 * Fires {@link pygowave.model.Wavelet.onStatusChange onStatusChange} if
+		 * the status changes.
+		 *
+		 * @function {public} checkSync
+		 * @param {Object} blipsums Checksums to compare to
+		 */
+		checkSync: function (blipsums) {
+			var valid = true;
+			for (var __iter0_ = new _Iterator(blipsums); __iter0_.hasNext();) {
+				var checksum = __iter0_.next();
+				var blipId = __iter0_.key();
+				var blip = this.blipById(blipId);
+				if (blip != null) {
+					if (!blip.checkSync(checksum))
+						valid = false;
+				}
+			}
+			delete __iter0_;
+			if (valid)
+				this._setStatus("clean");
+			else
+				this._setStatus("invalid");
 		}
 	});
 

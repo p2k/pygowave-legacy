@@ -42,6 +42,15 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		Extends: Widget,
 		
 		/**
+		 * Fired if the currently selected text range changed (mainly for
+		 * debugging purposes).
+		 *
+		 * @event onCurrentTextRangeChanged
+		 * @param {int} start
+		 * @param {int} end
+		 */
+		
+		/**
 		 * Called on instantiation.
 		 * @constructor {public} initialize
 		 * @param {WaveView} view A reference back to the main view
@@ -283,9 +292,7 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			var start = this._walkUp(sel.startNode(), sel.startOffset());
 			var end = this._walkUp(sel.endNode(), sel.endOffset());
 			
-			var dbg = $('debug_cursor_pos');
-			if ($defined(dbg))
-				dbg.set('text', start + " / " + end);
+			this.fireEvent("currentTextRangeChanged", [start, end]);
 			return [start, end];
 		},
 		
