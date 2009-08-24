@@ -215,9 +215,11 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		 * Called on instantiation.
 		 * @constructor {public} initialize
 		 * @param {WaveView} view A reference back to the main view
+		 * @param {String} waveletId ID of the Wavelet
 		 */
-		initialize: function (view) {
+		initialize: function (view, waveletId) {
 			this._view = view;
+			this._waveletId = waveletId;
 			var buttons = {};
 			buttons[gettext("Cancel")] = this._onCancel.bind(this);
 			buttons[gettext("OK")] = this._onOK.bind(this);
@@ -278,7 +280,7 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			if (this._selected == null)
 				this._view.showMessage(gettext("You must select a participant from your search results first."), gettext("Notice"));
 			else {
-				this._view.fireEvent('addParticipant', [this._view.model.rootWavelet().id(), this._selected.participant().id()]);
+				this._view.fireEvent('addParticipant', [this._waveletId, this._selected.participant().id()]);
 				MochaUI.closeWindow(this.windowEl);
 			}
 		},
@@ -290,7 +292,7 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		_onClose: function () {
 			if (this._found != null) {
 				for (var i = 0; i < this._found.length; i++)
-					this._cleanupParticipantWidget(this._found[i].dispose());
+					this._cleanupParticipantWidget(this._found[i]);
 				this._found = null;
 			}
 		},
@@ -301,7 +303,7 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		 * @param {String} text Entered query text
 		 */
 		_onQueryChange: function (text) {
-			this._view.fireEvent('searchForParticipant', [this._view.model.rootWavelet().id(), text]);
+			this._view.fireEvent('searchForParticipant', [this._waveletId, text]);
 		},
 		
 		/**
@@ -318,7 +320,7 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		
 		/**
 		 * Helper function to remove event handlers etc. from used
-		 * ParticipantWidgets.
+		 * ParticipantWidgets. Destroys the widget afterwards.
 		 * @function {private} _cleanupParticipantWidget
 		 * @param {ParticipantWidget} widget ParticipantWidget to be cleaned
 		 */
@@ -326,6 +328,8 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			widget.removeEvent('click', this._onSelect);
 			if (this._selected == widget)
 				this._selected = null;
+			widget.dispose();
+			widget.destroy();
 		},
 		
 		/**
@@ -344,7 +348,7 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			var i, j, deleted, id, newwgt;
 			for (i = 0; i < this._found.length; i++) {
 				if (i >= results.length) {
-					this._cleanupParticipantWidget(this._found.pop(i).dispose());
+					this._cleanupParticipantWidget(this._found.pop(i));
 					i--;
 					continue;
 				}
@@ -357,7 +361,7 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 							deleted = false;
 					}
 					if (deleted) {
-						this._cleanupParticipantWidget(this._found.pop(i).dispose());
+						this._cleanupParticipantWidget(this._found.pop(i));
 						i--;
 					}
 					else {
@@ -384,7 +388,7 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		invalidSearch: function (chars) {
 			if (this._found != null) {
 				for (var i = 0; i < this._found.length; i++)
-					this._cleanupParticipantWidget(this._found[i].dispose())
+					this._cleanupParticipantWidget(this._found[i])
 			}
 			this._found = null;
 			this._results.set("html", "<div class=\"results_invalid\">" + gettext("Please enter at least %d letters.").sprintf(chars) + "</div>");
@@ -403,10 +407,12 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		 * Called on instantiation.
 		 * @constructor {public} initialize
 		 * @param {WaveView} view A reference back to the main view
+		 * @param {String} waveletId ID of the Wavelet
 		 * @param {Element} parentElement Parent DOM element to insert the widget
 		 */
-		initialize: function (view, parentElement) {
+		initialize: function (view, waveletId, parentElement) {
 			this._view = view;
+			this._waveletId = waveletId;
 			var contentElement = new Element('div', {
 				'class': 'wavelet_add_participant_widget',
 				'title': gettext("Add participant")
@@ -431,7 +437,7 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		 */
 		_onClick: function () {
 			if (this._addParticipantWindow == null) {
-				this._addParticipantWindow = new AddParticipantWindow(this._view);
+				this._addParticipantWindow = new AddParticipantWindow(this._view, this._waveletId);
 				this._addParticipantWindow.addEvent('closeComplete', this._onClose.bind(this));
 			}
 			else

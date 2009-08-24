@@ -8,6 +8,57 @@
 	height: 100%;
 }
 
+.wavelet_toolbar
+{
+	background: #E5ECF9 url(../images/ui-bg_glass_100_E5ECF9_1x400.png) repeat-x scroll 50% 50%;
+	border-bottom: 1px solid #B8C6D9;
+	height: 22px;
+	width: 100%;
+	padding: 2px 0;
+	margin: 0;
+}
+
+.wavelet_toolbar .toolbar_button
+{
+	float: left;
+	height: 16px;
+	padding: 3px;
+	margin-left: 2px;
+	cursor: pointer;
+}
+
+.wavelet_toolbar .toolbar_button .toolbar_text
+{
+	float: left;
+	padding-left: 4px;
+	padding-right: 1px;
+	line-height: 16px;
+	font-size: 0.9em;
+}
+
+.wavelet_toolbar .toolbar_button:hover
+{
+	background: #E5ECF9 url(../images/ui-bg_glass_100_cadef4_1x400.png) repeat-x scroll 50% 50%;
+	border: 1px solid #B8C6D9;
+	padding: 2px;
+}
+
+.wavelet_toolbar .toolbar_button:active
+{
+	background: #E5ECF9 url(../images/ui-bg_glass_65_C3D9FF_1x400.png) repeat-x scroll 50% 50%;
+	border: 1px solid #B8C6D9;
+	padding: 3px 1px 1px 3px;
+}
+
+.wavelet_toolbar .toolbar_button .wavelet_toolbar_add_gadget
+{
+	float: left;
+	height: 16px;
+	width: 16px;
+	background-image: url(../images/blip_editor_toolbarbuttons.png);
+	background-repeat: no-repeat;
+}
+
 .wavelet_participants_div
 {
 	height: 56px;
@@ -179,11 +230,12 @@
 	float: right;
 	padding-right: 2px;
 	background-repeat: no-repeat;
+	background-image: url(../images/document_status.png);
 }
 
-.wavelet_status_bar .document.clean {background-image: url(../images/document-clean.png);}
-.wavelet_status_bar .document.dirty {background-image: url(../images/document-dirty.png);}
-.wavelet_status_bar .document.invalid {background-image: url(../images/document-invalid.png);}
+.wavelet_status_bar .document.clean {background-position: 0 0;}
+.wavelet_status_bar .document.dirty {background-position: 0 -16px;}
+.wavelet_status_bar .document.invalid {background-position: 0 -32px;}
 
 .blip_container_widget
 {
@@ -397,4 +449,16 @@
 {
 	margin-top: 3px;
 	margin-bottom: 0px;
+}
+
+.wavelet_add_gadget_div div
+{
+	padding-left: 10px;
+	padding-top: 10px;
+	padding-right: 10px;
+}
+
+.wavelet_add_gadget_div select
+{
+	width: 100%;
 }

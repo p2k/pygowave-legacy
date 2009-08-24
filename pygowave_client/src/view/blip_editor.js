@@ -203,6 +203,7 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			var bg_div = new Element("div", {'class': 'bg_div'}).inject(this._errDiv);
 			bg_div.setStyle("opacity", 0.5);
 			var coords = this.contentElement.getCoordinates(false);
+			var container_coords = this.parentElement.getCoordinates(false);
 			
 			switch (type) {
 				case "resync":
@@ -233,7 +234,7 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 				top: coords.top,
 				left: coords.left,
 				width: coords.width,
-				height: coords.height,
+				height: Math.min(coords.height, container_coords.height),
 				opacity: 0
 			});
 			new Fx.Tween(this._errDiv, {duration: 250}).start("opacity", 0, 1);
@@ -346,7 +347,8 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 						);
 				}
 			}
-			else if (newRange[0] > this._lastRange[0] && e.code != 35 && e.code != 39 && e.code != 40) {
+			else if (newRange[0] > this._lastRange[0] && e.code != 35
+					&& e.code != 37 && e.code != 38 && e.code != 39 && e.code != 40) {
 				if (this._lastRange[0] != this._lastRange[1])
 					this._view.fireEvent(
 						'textDeleted',
@@ -647,11 +649,12 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		_onWindowResize: function () {
 			if ($defined(this._errDiv)) {
 				var coords = this.contentElement.getCoordinates(false);
+				var container_coords = this.parentElement.getCoordinates(false);
 				this._errDiv.setStyles({
 					top: coords.top,
 					left: coords.left,
 					width: coords.width,
-					height: coords.height
+					height: Math.min(coords.height, container_coords.height)
 				});
 			}
 		},

@@ -34,7 +34,9 @@ STATIC_LOAD_ORDER = (
 		(
 			"selection",
 			"common",
+			"toolbar",
 			"participants",
+			"gadgets",
 			"blip_editor",
 			"debug_tools",
 			"view",

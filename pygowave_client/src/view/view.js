@@ -33,6 +33,9 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 	var ParticipantWidget = pygowave.view.ParticipantWidget;
 	var BlipEditorWidget = pygowave.view.BlipEditorWidget;
 	var WaveletStatusBar = pygowave.view.WaveletStatusBar;
+	var ToolbarWidget = pygowave.view.ToolbarWidget;
+	var ToolbarButton = pygowave.view.ToolbarButton;
+	var AddGadgetWindow = pygowave.view.AddGadgetWindow;
 	
 	/**
 	 * A widget for rendering multiple BlipWidgets in a wavelet.
@@ -96,17 +99,18 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		 * Called on instantiation.
 		 * @constructor {public} initialize
 		 * @param {WaveView} view A reference back to the main view
-		 * @param {Element} parentElement Parent DOM element to insert the widget
 		 * @param {pygowave.model.Wavelet} wavelet Wavelet to be rendered
+		 * @param {Element} parentElement Parent DOM element to insert the widget
 		 */
-		initialize: function (view, parentElement, wavelet) {
+		initialize: function (view, wavelet, parentElement) {
 			this._view = view;
 			var contentElement = new Element('div', {'class': 'wavelet_widget'});
 			this._participantsDiv = new Element('div', {'class': 'wavelet_participants_div'}).inject(contentElement);
 			this.parent(parentElement, contentElement);
 			this._wavelet = wavelet;
 			this._participantWidgets = new Hash();
-			this._addParticipantWidget = new AddParticipantWidget(this._view, this._participantsDiv);
+			this._addParticipantWidget = new AddParticipantWidget(this._view, wavelet.id(), this._participantsDiv);
+			this._toolBar = new ToolbarWidget(contentElement, 'wavelet_toolbar');
 			this._blipContainerWidget = new BlipContainerWidget(this._view, contentElement);
 			this._statusBar = new WaveletStatusBar(wavelet, contentElement);
 			this.updateParticipants();
@@ -114,6 +118,10 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			// Connect event listeners
 			wavelet.addEvent('participantsChanged', this.updateParticipants.bind(this));
 			wavelet.addEvent('blipInserted', this._onBlipInserted.bind(this));
+			
+			// Build toolbar
+			this._addGadgetWindow = null;
+			this._buildToolbar();
 		},
 		
 		/**
@@ -170,9 +178,31 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		 */
 		fitWidget: function () {
 			var height = this.contentElement.getCoordinates().height;
-			height -= this._statusBar.contentElement.getCoordinates().height + 2;
 			height -= this._participantsDiv.getCoordinates().height;
+			height -= this._toolBar.contentElement.getCoordinates().height;
+			height -= this._statusBar.contentElement.getCoordinates().height + 2;
 			this._blipContainerWidget.contentElement.setStyle("height", height);
+		},
+		
+		/**
+		 * Set up the wavelet toolbar.
+		 *
+		 * @function {private} _buildToolbar
+		 */
+		_buildToolbar: function () {
+			this._toolBar.addButton(new ToolbarButton("add_gadget", {
+				icon_class: "wavelet_toolbar_add_gadget",
+				label: gettext("Add Gadget"),
+				tiptext: gettext("Add a gadget to the blip"),
+				onClick: function () {
+					if (this._addGadgetWindow == null) {
+						this._addGadgetWindow = new AddGadgetWindow(this._view, this._wavelet.id());
+						this._addGadgetWindow.addEvent('closeComplete', function () {this._addGadgetWindow = null;}.bind(this));
+					}
+					else
+						MochaUI.focusWindow(this._addGadgetWindow.windowEl);
+				}.bind(this)
+			}));
 		}
 	});
 	
@@ -260,7 +290,7 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			
 			var rwv = this.model.rootWavelet();
 			if (rwv != null) {
-				this.rootWaveletWidget = new WaveletWidget(this, this.container);
+				this.rootWaveletWidget = new WaveletWidget(this, rwv, this.container);
 				this.waveletWidgets.set(rwv.id(), this.rootWaveletWidget);
 			}
 			else
@@ -283,7 +313,7 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 				return;
 			
 			var rwv = this.model.wavelet(waveletId);
-			this.rootWaveletWidget = new WaveletWidget(this, this.container, rwv);
+			this.rootWaveletWidget = new WaveletWidget(this, rwv, this.container);
 			this.waveletWidgets.set(rwv.id(), this.rootWaveletWidget);
 		},
 		
