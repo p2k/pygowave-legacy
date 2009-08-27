@@ -49,10 +49,15 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			this._view = view;
 			this._waveletId = waveletId;
 			
-			this._content = new Element('div', {'class': 'wavelet_add_gadget_div'});
+			this._content = new Element('div', {'class': 'wavelet_add_gadget'});
 			new Element('div', {'text': gettext("Choose a Gadget from the list below:")}).inject(this._content);
-			this._selectDiv = new Element('div').inject(this._content);
+			this._selectDiv = new Element('div', {'class': 'select_div'}).inject(this._content);
 			this._select = new Element('select', {'disabled': true}).inject(this._selectDiv);
+			this._refreshButton = new Element('div', {'class': 'refresh_button'}).inject(this._selectDiv);
+			this._descr = new Element('div', {'class': 'description'}).inject(this._content);
+			
+			this._selection = 0;
+			this._select.addEvent('change', this._onSelect.bind(this));
 			
 			var buttons = {};
 			buttons[gettext("Cancel")] = this._onCancel.bind(this);
@@ -62,7 +67,7 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 				title: gettext("Add Gadget"),
 				content: this._content,
 				width: 310,
-				height: 75,
+				height: 150,
 				headerStartColor: [95, 163, 237],
 				headerStopColor: [85, 144, 210],
 				bodyBgColor: [201, 226, 252],
@@ -72,12 +77,23 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 				resizable: false,
 				footerHeight: 34,
 				rtl: this._view.options.rtl,
-				buttons: buttons,
-				padding: {top: 0, right: 0, bottom: 0, left: 0}
+				buttons: buttons
 			});
+			
+			this._gadgetInfo = new Hash();
+			this._refreshButton.addEvent('click', this._onRefreshClicked.bind(this));
 			
 			this._select.grab(new Element('option', {'text': gettext("Loading..."), 'value': 0}));
 			this.showSpinner(this.spinnerEl);
+		},
+		
+		/**
+		 * Fire an event to initially load the Gadgets list.
+		 *
+		 * @function {public} initLoadGadgetList
+		 */
+		initLoadGadgetList: function () {
+			this._view.fireEvent('refreshGadgetList', [this._waveletId, false]);
 		},
 		
 		/**
@@ -93,12 +109,202 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		 * @function {private} _onOK
 		 */
 		_onOK: function () {
+			if (this._selection == 0)
+				this._view.showMessage(gettext("You must choose a gadget from the list first."), gettext("Notice"));
+			else {
+				var info = this._gadgetInfo[this._selection];
+				if (this._view.insertGadgetAtCursor(this._waveletId, info[2]))
+					MochaUI.closeWindow(this.windowEl);
+			}
+		},
+		
+		/**
+		 * Updates the gadget list and descriptions. Forwarded from the view.
+		 *
+		 * @function {public} updateGadgetList
+		 * @param {Object[]} gadgets List of gadgets with the following fields:
+		 * @... {int} id ID of the gadget
+		 * @... {String} name Display name of the gadget
+		 * @... {String} descr Description of the gadget
+		 */
+		updateGadgetList: function (gadgets) {
+			var found = false;
+			this._select.empty();
+			this._select.grab(new Element('option', {'text': gettext("(Please choose...)"), 'value': 0}));
+			this._gadgetInfo.empty();
+			for (var i = 0; i < gadgets.length; i++) {
+				var gadget = gadgets[i];
+				this._gadgetInfo.set(gadget.id, [gadget.uploaded_by, gadget.descr, gadget.url]);
+				var opt = new Element('option', {'text': gadget.name, 'value': gadget.id}).inject(this._select);
+				if (gadget.id == this._selection)
+					found = true;
+			}
 			
+			if (found)
+				this._select.set('value', this._selection);
+			this._onSelect();
+			
+			this._select.set('disabled', false);
+			this.hideSpinner(this.spinnerEl);
+		},
+		
+		/**
+		 * Callback from select; displays description.
+		 *
+		 * @function {private} _onSelect
+		 */
+		_onSelect: function () {
+			var id = parseInt(this._select.get('value'));
+			this._selection = id;
+			if (id == 0) {
+				this._descr.set('html', "<p>" + gettext("Description") + ":<br/>-</p>");
+			}
+			else {
+				var info = this._gadgetInfo[id];
+				this._descr.set('html', "<p>" + gettext("Description") + ":<br/>" + info[1] + "</p><p>" + gettext("Uploaded by %s").sprintf(info[0]) + "</p>");
+			}
+		},
+		
+		/**
+		 * Callback from refresh button. Fires event.
+		 *
+		 * @function {private} _onRefreshClicked
+		 */
+		_onRefreshClicked: function () {
+			this._select.empty();
+			this._select.set('disabled', true);
+			this._select.grab(new Element('option', {'text': gettext("Loading..."), 'value': 0}));
+			this.showSpinner(this.spinnerEl);
+			this._view.fireEvent('refreshGadgetList', [this._waveletId, true]);
+		}
+	});
+	
+	/**
+	 * Widget for managing a GadgetElement. This also is a RPC handler.
+	 *
+	 * @class {private} pygowave.view.GadgetElementWidget
+	 * @extends pygowave.view.Widget
+	 */
+	var GadgetElementWidget = new Class({
+		Extends: Widget,
+		
+		/**
+		 * Called on instantiation.
+		 * @constructor {public} initialize
+		 * @param {WaveView} view A reference back to the main view
+		 * @param {pygowave.model.GadgetElement} gadgetElement GadgetElement to be rendered
+		 * @param {Element} parentElement Parent DOM element to insert the widget
+		 * @param {String} where Where to inject the widget relative to the
+		 *        parent element. Can be 'top', 'bottom', 'after', or 'before'.
+		 */
+		initialize: function (view, gadgetElement, parentElement, where) {
+			this._onParticipantsChanged = this._onParticipantsChanged.bind(this);
+			this._onStateChange = this._onStateChange.bind(this);
+			this._onSetUserPref = this._onSetUserPref.bind(this);
+			
+			this._view = view;
+			this._gadgetElement = gadgetElement;
+			var blip = gadgetElement.blip();
+			this._wavelet = blip.wavelet();
+			this._blipId = blip.id();
+			this._viewerId = this._wavelet.waveModel().viewerId();
+			
+			this._callbacksOnLoad = new Array();
+			this._callbacksRegistered = new Hash();
+			
+			window.gadget_rpc.registerModuleHandler(gadgetElement.id(), this);
+			this._wavelet.addEvent('participantsChanged', this._onParticipantsChanged);
+			this._gadgetElement.addEvent('stateChange', this._onStateChange);
+			this._gadgetElement.addEvent('setUserPref', this._onSetUserPref);
+			
+			var contentElement = new Element('iframe', {
+				'class': 'gadget_element',
+				'src': "%surl=%s&gadget_id=%d".sprintf(view.options.gadgetLoaderUrl, encodeURIComponent(gadgetElement.url()), gadgetElement.id())
+			});
+			contentElement.addEvent('load', this._onGadgetLoaded.bind(this));
+			contentElement.contentEditable = "false";
+			this.parent(parentElement, contentElement, where);
+		},
+		
+		dispose: function () {
+			this.parent();
+			this._wavelet.removeEvent('participantsChanged', this._onParticipantsChanged);
+			window.gadget_rpc.unregisterModuleHandler(this._gadgetElement.id());
+		},
+		
+		_onGadgetLoaded: function () {
+			for (var it = new _Iterator(this._callbacksOnLoad); it.hasNext(); ) {
+				var callback = it.next();
+				callback();
+			}
+			this._callbacksOnLoad.empty();
+			this._onParticipantsChanged();
+			this._onStateChange();
+		},
+		_onParticipantsChanged: function () {
+			this.invokeCallbacks(
+				"wave_participants",
+				{
+					myId: this._viewerId,
+					authorId: 0,
+					participants: this._wavelet.allParticipantsForGadget()
+				}
+			);
+		},
+		_onStateChange: function () {
+			this.invokeCallbacks("wave_gadget_state", this._gadgetElement.fields());
+		},
+		_onSetUserPref: function (key, value) {
+			this.invokeCallbacks("set_pref", ["unknown", key, value]);
+		},
+		invokeCallbacks: function (serviceName, var_args) {
+			if (!this._callbacksRegistered.has(serviceName))
+				return;
+			for (var it = new _Iterator(this._callbacksRegistered.get(serviceName)); it.hasNext(); ) {
+				var callback = it.next();
+				var takethis = {a: var_args};
+				callback.call(takethis, var_args);
+			}
+		},
+		
+		call: function (targetId, serviceName, callback, var_args) {
+			if (targetId == null) {
+				switch (serviceName) {
+					case "wave_gadget_state":
+						this._view.fireEvent('elementDeltaSubmitted', [this._wavelet.id(), this._blipId, this._gadgetElement.position(), var_args]);
+						break;
+					case "wave_log":
+						dbgprint(gettext("Gadget #%d at index %d says:").sprintf(this._gadgetElement.id(), this._gadgetElement.position()), var_args);
+						break;
+					case "wave_enable":
+						//TODO?
+						break;
+				}
+			}
+		},
+		register: function (serviceName, handler) {
+			if (!this._callbacksRegistered.has(serviceName))
+				this._callbacksRegistered.set(serviceName, new Array());
+			this._callbacksRegistered.get(serviceName).push(handler);
+		},
+		registerOnLoadHandler: function (callback) {
+			this._callbacksOnLoad.push(callback);
+		},
+		adjustHeight: function (opt_height) {
+			if ($defined(opt_height))
+				this.contentElement.setStyle('height', opt_height);
+			else
+				this.contentElement.setStyle('height', this.contentElement.getScrollSize().y);
+		},
+		set_pref: function (key, value) {
+			this._view.fireEvent('elementSetUserpref', [this._wavelet.id(), this._blipId, this._gadgetElement.position(), key, value]);
 		}
 	});
 	
 	/**
 	 * Singleton class for handling Gadget RPC calls.
+	 * Acts as a proxy between the actual gadget in the iframe and the
+	 * associated GadgetElementWidget.
 	 *
 	 * @class {private} GadgetRPCHandler
 	 */
@@ -113,32 +319,45 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			this._modules = new Hash();
 		},
 		
+		registerModuleHandler: function (moduleId, handler) {
+			this._modules.set(moduleId, handler);
+		},
+		
+		unregisterModuleHandler: function (moduleId) {
+			this._modules.erase(moduleId);
+		},
 		
 		
 		call: function (moduleId, targetId, serviceName, callback, var_args) {
-			//if (this._modules.has(moduleId))
+			if (this._modules.has(moduleId))
+				this._modules[moduleId].call(targetId, serviceName, callback, var_args);
 		},
 		
 		register: function (moduleId, serviceName, handler) {
-			
+			if (this._modules.has(moduleId))
+				this._modules[moduleId].register(serviceName, handler);
 		},
 		
 		registerOnLoadHandler: function (moduleId, callback) {
-			
+			if (this._modules.has(moduleId))
+				this._modules[moduleId].registerOnLoadHandler(callback);
 		},
 		
 		adjustHeight: function (moduleId, opt_height) {
-			
+			if (this._modules.has(moduleId))
+				this._modules[moduleId].adjustHeight(opt_height);
 		},
 		
-		set_pref: function (moduleId, key, val) {
-			
+		set_pref: function (moduleId, key, value) {
+			if (this._modules.has(moduleId))
+				this._modules[moduleId].set_pref(key, value);
 		}
 	});
 	
 	window.gadget_rpc = new GadgetRPCHandler();
 	
 	pygowave.view.extend({
-		AddGadgetWindow: AddGadgetWindow
+		AddGadgetWindow: AddGadgetWindow,
+		GadgetElementWidget: GadgetElementWidget
 	});
 })();

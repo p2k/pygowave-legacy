@@ -329,7 +329,7 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			if (this._selected == widget)
 				this._selected = null;
 			widget.dispose();
-			widget.destroy();
+			widget.contentElement.destroy();
 		},
 		
 		/**

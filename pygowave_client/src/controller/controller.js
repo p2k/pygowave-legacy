@@ -94,9 +94,14 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 			this._iview = view;
 			this._iview.addEvent('textInserted', this._onTextInserted.bind(this));
 			this._iview.addEvent('textDeleted', this._onTextDeleted.bind(this));
+			this._iview.addEvent('elementInsert', this._onElementInsert.bind(this));
+			this._iview.addEvent('elementDelete', this._onElementDelete.bind(this));
+			this._iview.addEvent('elementDeltaSubmitted', this._onElementDeltaSubmitted.bind(this));
+			this._iview.addEvent('elementSetUserpref', this._onElementSetUserpref.bind(this));
 			this._iview.addEvent('searchForParticipant', this._onSearchForParticipant.bind(this));
 			this._iview.addEvent('addParticipant', this._onAddParticipant.bind(this));
 			this._iview.addEvent('leaveWavelet', this._onLeaveWavelet.bind(this));
+			this._iview.addEvent('refreshGadgetList', this._onRefreshGadgetList.bind(this));
 			
 			this.waves = new Hash();
 			this.waves.set(model.id(), model);
@@ -104,6 +109,7 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 			this.wavelets = new Hash();
 			this.new_participants = new Array();
 			this.participants = new Hash();
+			this._cachedGadgetList = null;
 			
 			// The connection object must be stored in this.conn and must have a sendJson and subscribeWavelet method (defined below).
 			this.conn = new STOMPClient(); // STOMP is used as communication protocol
@@ -239,6 +245,10 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 						}
 						else
 							wavelet_model.removeParticipant(msg.property);
+						break;
+					case "GADGET_LIST":
+						this._cachedGadgetList = msg.property;
+						this._iview.updateGadgetList(msg.property);
 						break;
 				}
 			}
@@ -439,17 +449,34 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 						var op = tr2.next();
 						if (op.isNull()) continue;
 						// Apply operation
-						if (op.type == pygowave.operations.DOCUMENT_INSERT)
-							wavelet.blipById(op.blip_id).insertText(op.index, op.property);
-						else if (op.type == pygowave.operations.DOCUMENT_DELETE)
-							wavelet.blipById(op.blip_id).deleteText(op.index, op.property);
+						switch (op.type) {
+							case pygowave.operations.DOCUMENT_INSERT:
+								wavelet.blipById(op.blip_id).insertText(op.index, op.property);
+								break;
+							case pygowave.operations.DOCUMENT_DELETE:
+								wavelet.blipById(op.blip_id).deleteText(op.index, op.property);
+								break;
+							case pygowave.operations.DOCUMENT_ELEMENT_INSERT:
+								wavelet.blipById(op.blip_id).insertElement(op.index, op.property.type, op.property.properties);
+								break;
+							case pygowave.operations.DOCUMENT_ELEMENT_DELETE:
+								wavelet.blipById(op.blip_id).deleteElement(op.index);
+								break;
+							case pygowave.operations.DOCUMENT_ELEMENT_DELTA:
+								wavelet.blipById(op.blip_id).applyElementDelta(op.index, op.property);
+								break;
+							case pygowave.operations.DOCUMENT_ELEMENT_SETPREF:
+								wavelet.blipById(op.blip_id).setElementUserpref(op.index, op.property.key, op.property.value);
+								break;
+						}
 					}
 				}
 			}
 		},
 		
 		/**
-		 * Callback from view on text insertion.
+		 * Callback from view on text insertion.<br/>
+		 * Note: Does not generate an event in the model.
 		 *
 		 * @function {private} _onTextInserted
 		 * @param {String} waveletId ID of the Wavelet
@@ -462,7 +489,8 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 			this.wavelets[waveletId].model.blipById(blipId).insertText(index, content, true);
 		},
 		/**
-		 * Callback from view on text deletion.
+		 * Callback from view on text deletion.<br/>
+		 * Note: Does not generate an event in the model.
 		 *
 		 * @event {private} _onTextDeleted
 		 * @param {String} waveletId ID of the Wavelet
@@ -473,6 +501,59 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 		_onTextDeleted: function (waveletId, blipId, start, end) {
 			this.wavelets[waveletId].mcached.documentDelete(blipId, start, end);
 			this.wavelets[waveletId].model.blipById(blipId).deleteText(start, end-start, true);
+		},
+		/**
+		 * Callback from view on element insertion.<br/>
+		 * Note: This generates an event in the model.
+		 *
+		 * @function {private} _onElementInsert
+		 * @param {String} waveletId ID of the Wavelet
+		 * @param {String} blipId ID of the Blip
+		 * @param {int} index Position of the new element
+		 * @param {String} type Element type
+		 * @param {Object} properties Element properties
+		 */
+		_onElementInsert: function (waveletId, blipId, index, type, properties) {
+			this.wavelets[waveletId].mcached.documentElementInsert(blipId, index, type, properties);
+			this.wavelets[waveletId].model.blipById(blipId).insertElement(index, type, properties);
+		},
+		/**
+		 * Callback from view on element deletion.<br/>
+		 * Note: This generates an event in the model.
+		 *
+		 * @event {private} _onElementDelete
+		 * @param {String} waveletId ID of the Wavelet
+		 * @param {String} blipId ID of the Blip
+		 * @param {int} index Position of the element to delete
+		 */
+		_onElementDelete: function (waveletId, blipId, index) {
+			this.wavelets[waveletId].mcached.documentElementDelete(blipId, index);
+			this.wavelets[waveletId].model.blipById(blipId).deleteElement(index);
+		},
+		/**
+		 * Callback from view on element delta submission.
+		 * 
+		 * @param {String} waveletId ID of the Wavelet
+		 * @param {String} blipId ID of the Blip
+		 * @param {int} index Position of the element
+		 * @param {Object} delta Delta to apply to the element
+		 */
+		_onElementDeltaSubmitted: function (waveletId, blipId, index, delta) {
+			this.wavelets[waveletId].mcached.documentElementDelta(blipId, index, delta);
+			this.wavelets[waveletId].model.blipById(blipId).applyElementDelta(index, delta);
+		},
+		/**
+		 * Callback from view on element UserPref setting.
+		 * 
+		 * @param {String} waveletId ID of the Wavelet
+		 * @param {String} blipId ID of the Blip
+		 * @param {int} index Position of the element
+		 * @param {Object} key Name of the UserPref
+		 * @param {Object} value Value of the UserPref
+		 */
+		_onElementSetUserpref: function (waveletId, blipId, index, key, value) {
+			this.wavelets[waveletId].mcached.documentElementSetpref(blipId, index, key, value);
+			this.wavelets[waveletId].model.blipById(blipId).setElementUserpref(index, key, value, true);
 		},
 		/**
 		 * Callback from view on searching.
@@ -506,9 +587,23 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 		 */
 		_onLeaveWavelet: function (waveletId) {
 			this.conn.sendJson(waveletId, {
-				type: "WAVELET_REMOVE_SELF",
-				property: null
+				type: "WAVELET_REMOVE_SELF"
 			});
+		},
+		/**
+		 * Callback from view on gadget adding.
+		 * @function {private} _onRefreshGadgetList
+		 * @param {String} waveletId ID of the Wavelet
+		 * @param {Boolean} forced True if the user explicitly clicked refresh
+		 */
+		_onRefreshGadgetList: function (waveletId, forced) {
+			if (forced || this._cachedGadgetList == null) {
+				this.conn.sendJson(waveletId, {
+					type: "GADGET_LIST"
+				});
+			}
+			else
+				this._iview.updateGadgetList(this._cachedGadgetList);
 		}
 	});
 	

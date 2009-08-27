@@ -112,6 +112,7 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			this._addParticipantWidget = new AddParticipantWidget(this._view, wavelet.id(), this._participantsDiv);
 			this._toolBar = new ToolbarWidget(contentElement, 'wavelet_toolbar');
 			this._blipContainerWidget = new BlipContainerWidget(this._view, contentElement);
+			this._activeBlipEditor = null;
 			this._statusBar = new WaveletStatusBar(wavelet, contentElement);
 			this.updateParticipants();
 			
@@ -132,6 +133,16 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		 */
 		addParticipantWindow: function () {
 			return this._addParticipantWidget.addParticipantWindow();
+		},
+		
+		/**
+		 * Returns a reference to the AddGadgetWindow, if it is opened; null
+		 * otherwise.
+		 * 
+		 * @function {public AddGadgetWindow} addGadgetWindow
+		 */
+		addGadgetWindow: function () {
+			return this._addGadgetWindow;
 		},
 		
 		/**
@@ -168,6 +179,7 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		 */
 		_onBlipInserted: function (index, blip_id) {
 			var blipwgt = this._blipContainerWidget.insertBlip(index, this._wavelet.blipByIndex(index));
+			this._activeBlipEditor = blipwgt; //TODO change this if multiple blips supported
 			this._statusBar.connectBlipEditor(blipwgt);
 		},
 		
@@ -197,12 +209,22 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 				onClick: function () {
 					if (this._addGadgetWindow == null) {
 						this._addGadgetWindow = new AddGadgetWindow(this._view, this._wavelet.id());
+						this._addGadgetWindow.initLoadGadgetList();
 						this._addGadgetWindow.addEvent('closeComplete', function () {this._addGadgetWindow = null;}.bind(this));
 					}
 					else
 						MochaUI.focusWindow(this._addGadgetWindow.windowEl);
 				}.bind(this)
 			}));
+		},
+		
+		/**
+		 * Returns the currently active BlipWidget or null if no BlipWidget is active.
+		 *
+		 * @function {public BlipEditorWidget} activeBlipEditorWidget
+		 */
+		activeBlipEditorWidget: function () {
+			return this._activeBlipEditor;
 		}
 	});
 	
@@ -262,10 +284,62 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		 */
 		
 		/**
+		 * Fired on element insertion.
+		 * 
+		 * @event onElementInsert
+		 * @param {String} waveletId ID of the Wavelet
+		 * @param {String} blipId ID of the Blip
+		 * @param {int} index Position of the new element
+		 * @param {String} type Element type
+		 * @param {Object} properties Element properties
+		 */
+		
+		/**
+		 * Fired on element deletion.
+		 * 
+		 * @event onElementDelete
+		 * @param {String} waveletId ID of the Wavelet
+		 * @param {String} blipId ID of the Blip
+		 * @param {int} index Position of the element to delete
+		 */
+		
+		/**
+		 * Fired if an element submits a delta.
+		 * <br/>Note: This event is fired by a GadgetElementWidget instance.
+		 *
+		 * @event onElementDeltaSubmitted
+		 * @param {String} waveletId ID of the Wavelet
+		 * @param {String} blipId ID of the Blip
+		 * @param {int} index Position of the element
+		 * @param {Object} delta Delta to apply to the element
+		 */
+		
+		/**
+		 * Fired if an element sets a UserPref.
+		 * <br/>Note: This event is fired by a GadgetElementWidget instance.
+		 *
+		 * @event onElementSetUserpref
+		 * @param {String} waveletId ID of the Wavelet
+		 * @param {String} blipId ID of the Blip
+		 * @param {int} index Position of the element
+		 * @param {Object} key Name of the UserPref
+		 * @param {Object} value Value of the UserPref
+		 */
+		
+		/**
 		 * Fired if the user wants to leave a wavelet.
 		 *
 		 * @event onLeaveWavelet
 		 * @param {String} waveletId ID of the Wave
+		 */
+		
+		/**
+		 * Fired if the user wants to add a gadget or clicked the refresh button.
+		 * <br/>Note: This event is fired by a AddGadgetWindow instance.
+		 * 
+		 * @event onRefreshGadgetList
+		 * @param {String} waveletId ID of the Wavelet
+		 * @param {Boolean} forced True if the user explicitly clicked refresh
 		 */
 		// ---------------------------
 		
@@ -468,6 +542,54 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 				viewport.y = coords.top + 150;
 			this.container.setStyle("height", viewport.y - coords.top - 25);
 			this.rootWaveletWidget.fitWidget();
+		},
+		
+		/**
+		 * Update the gadget list. Forwards to the
+		 * opened AddGadgetWindow.
+		 * 
+		 * @function {public} updateGadgetList
+		 * @param {Object[]} gadgets List of gadgets with the following fields:
+		 * @... {int} id ID of the gadget
+		 * @... {String} name Display name of the gadget
+		 * @... {String} descr Description of the gadget
+		 */
+		updateGadgetList: function (gadgets) {
+			if (this.rootWaveletWidget == null)
+				return;
+			var agw = this.rootWaveletWidget.addGadgetWindow();
+			if (agw != null)
+				agw.updateGadgetList(gadgets);
+		},
+		
+		/**
+		 * Insert a Gadget at the current cursor position. Returns false on
+		 * error, true on success.<br/>
+		 * Note: This is called by a AddGadgetWindow instance.
+		 * 
+		 * @function {public} insertGadgetAtCursor
+		 * @param {String} waveletId ID of the Wavelet to insert the Gadget into
+		 * @param {String} url URL of the Gadget to insert
+		 */
+		insertGadgetAtCursor: function (waveletId, url) {
+			var waveletWidget = this.waveletWidgets.get(waveletId);
+			if (!$defined(waveletWidget))
+				return false;
+			var editor = waveletWidget.activeBlipEditorWidget();
+			if (!$defined(editor))
+				return false;
+			var textrange = editor.lastTextRange();
+			if (!$defined(textrange))
+				return false;
+			
+			this.fireEvent('elementInsert', [
+				waveletId,
+				editor.blip().id(),
+				textrange[0],
+				pygowave.model.ELEMENT_TYPE.GADGET,
+				{"url": url}
+			]);
+			return true;
 		}
 	});
 	

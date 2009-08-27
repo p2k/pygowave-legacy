@@ -28,7 +28,8 @@ from django.utils.hashcompat import sha_constructor as sha1
 from django.utils import simplejson
 
 from pygowave_server.utils import find_random_id, gen_random_id, datetime2milliseconds
-from pygowave_server.common.operations import OpManager, DOCUMENT_DELETE, DOCUMENT_INSERT
+from pygowave_server.common.operations import OpManager, DOCUMENT_DELETE, DOCUMENT_INSERT, \
+	DOCUMENT_ELEMENT_INSERT, DOCUMENT_ELEMENT_DELETE, DOCUMENT_ELEMENT_DELTA, DOCUMENT_ELEMENT_SETPREF
 
 __author__ = "patrick.p2k.schneider@gmail.com"
 
@@ -65,7 +66,7 @@ class Participant(models.Model):
 	objects = ParticipantManager()
 	
 	id = models.CharField(max_length=255, primary_key=True)
-	user = models.ForeignKey(User, unique=True)
+	user = models.ForeignKey(User, blank=True, null=True, unique=True, related_name="participants")
 	is_bot = models.BooleanField()
 	last_contact = models.DateTimeField()
 	
@@ -250,9 +251,23 @@ class Wavelet(models.Model):
 			if op.blip_id != "":
 				blip = self.blips.get(pk=op.blip_id)
 				if op.type == DOCUMENT_DELETE:
-					blip.text = blip.text[:op.index] + blip.text[op.index+op.property:]
+					blip.deleteText(op.index, op.property)
 				elif op.type == DOCUMENT_INSERT:
-					blip.text = blip.text[:op.index] + op.property + blip.text[op.index:]
+					blip.insertText(op.index, op.property)
+				elif op.type == DOCUMENT_ELEMENT_DELETE:
+					blip.deleteElement(op.index, op.property)
+				elif op.type == DOCUMENT_ELEMENT_INSERT:
+					blip.insertElement(op.index, op.property["type"], op.property["properties"])
+				elif op.type == DOCUMENT_ELEMENT_DELTA:
+					try:
+						blip.applyElementDelta(op.index, op.property)
+					except:
+						pass #TODO: error handling
+				elif op.type == DOCUMENT_ELEMENT_SETPREF:
+					try:
+						blip.setElementUserpref(op.index, op.property["key"], op.property["value"])
+					except:
+						pass #TODO: error handling
 				blip.save()
 	
 	def blipsums(self):
@@ -314,7 +329,7 @@ class Blip(models.Model):
 			anno.start += length
 			anno.end += length
 		
-		for elt in self.elements.filter(position__get=index):
+		for elt in self.elements.filter(position__gte=index):
 			elt.position += length
 	
 	@transaction.commit_on_success
@@ -331,8 +346,62 @@ class Blip(models.Model):
 			anno.start -= length
 			anno.end -= length
 		
-		for elt in self.elements.filter(position__get=index):
+		for elt in self.elements.filter(position__gte=index):
 			elt.position -= length
+	
+	@transaction.commit_on_success
+	def insertElement(self, index, type, properties):
+		"""
+		Insert an element at the specified index. This implicitly adds a
+		protected newline character at the index.
+		
+		"""
+		
+		self.insertText(index, "\n")
+		if type == 2:
+			elt = GadgetElement(blip=self, position=index)
+		else:
+			elt = Element(blip=self, position=index, type=type)
+		elt.set_data(properties)
+		elt.save()
+	
+	@transaction.commit_on_success
+	def deleteElement(self, index):
+		"""
+		Delete an element at the specified index. This implicitly deletes the
+		protected newline character at the index.
+		
+		"""
+		
+		elt = self.elements.get(position=index)
+		if elt.type == 2:
+			elt = elt.to_gadget()
+		elt.delete()
+		self.deleteText(index, 1)
+	
+	@transaction.commit_on_success
+	def applyElementDelta(self, index, delta):
+		"""
+		Apply an element delta. Currently only for gadget elements.
+		
+		"""
+		
+		elt = self.elements.get(position=index)
+		if elt.type != 2:
+			raise TypeError("Element #%d is not a Gadget Element" % (id))
+		elt.to_gadget().apply_delta(delta)
+	
+	@transaction.commit_on_success
+	def setElementUserpref(self, index, key, value):
+		"""
+		Set an UserPref of an element. Currently only for gadget elements.
+		
+		"""
+		
+		elt = self.elements.get(position=index)
+		if elt.type != 2:
+			raise TypeError("Element #%d is not a Gadget Element" % (id))
+		elt.to_gadget().set_userpref(key, value)
 	
 	def save(self, force_insert=False, force_update=False):
 		if not self.id:
@@ -350,7 +419,7 @@ class Blip(models.Model):
 		return {
 			"blipId": self.id,
 			"content": self.text,
-			"elements": {},
+			"elements": map(lambda e: e.serialize(), self.elements.all()),
 			"contributors": map(lambda p: p.id, self.contributors.all()),
 			"creator": self.creator.id,
 			"parentBlipId": getattr(self.parent, "id", None),
@@ -420,7 +489,7 @@ class Element(models.Model):
 	"""
 	Element-objects are all the non-text elements in a Blip.
 	An element has no physical presence in the text of a Blip, but it maintains
-	an implicit protected space (or newline) to keep positions distinct.
+	an implicit protected newline character to keep positions distinct.
 	
 	Only special Wave Client elements are treated here.
 	There are no HTML elements in any Blip. All markup is handled by Annotations.
@@ -449,12 +518,60 @@ class Element(models.Model):
 	type = models.IntegerField(choices=ELEMENT_TYPES)
 	properties = models.TextField() # JSON is used here
 	
+	def get_data(self):
+		"""
+		Return data as python map (JSON decoded).
+		
+		"""
+		if self.properties == "":
+			return {}
+		else:
+			return simplejson.loads(self.properties)
+	
+	def set_data(self, data):
+		"""
+		Set data by a python map (encoding to JSON).
+		
+		"""
+		self.properties = simplejson.dumps(data)
+	
 	def to_gadget(self):
 		"""
 		Returns a GadgetElement for this Element if possible.
 		
 		"""
 		return GadgetElement.objects.get(pk=self.id)
+	
+	def serialize(self):
+		"""
+		Serialize the annotation into a format that is compatible with robots
+		and the client.
+		
+		"""
+		return {
+			"id": self.id,
+			"index": self.position,
+			"type": self.type,
+			"properties": self.get_data(),
+		}
+	
+	def type_name(self):
+		"""
+		Return the type of this element as string.
+		
+		"""
+		return self.conv_type_name(self.type)
+	
+	@classmethod
+	def conv_type_name(cls, typeId):
+		"""
+		Convert a type ID to the corresponding string.
+		
+		"""
+		for id, name in cls.ELEMENT_TYPES:
+			if id == typeId:
+				return name
+		return "NOTHING"
 
 # Now some fancy subclasses
 
@@ -473,9 +590,19 @@ class GadgetElement(Element):
 	
 	"""
 	
-	url = models.URLField(verify_exists=False, max_length=1024)
-	fields = models.TextField() # JSON is used here
-	userprefs = models.TextField() # ditto
+	@property
+	def url(self):
+		d = self.get_data()
+		if d.has_key("url"):
+			return d["url"]
+		else:
+			return ""
+	
+	@url.setter
+	def url(self, value):
+		d = self.get_data()
+		d["url"] = value
+		self.set_data(d)
 	
 	def apply_delta(self, delta, save=True):
 		"""
@@ -484,65 +611,58 @@ class GadgetElement(Element):
 		
 		"""
 		d = self.get_data()
+		if not d.has_key("fields"):
+			d["fields"] = {}
+		fields = d["fields"]
 		
-		d.update(delta)
+		fields.update(delta)
 		
 		# Check for null-value keys and delete them
 		for key in delta.iterkeys():
 			if delta[key] == None:
-				del d[key]
+				del fields[key]
 		
 		self.set_data(d)
 		
 		if save:
 			self.save()
 	
-	def get_data(self):
-		"""
-		Return data as python map (JSON decoded).
-		
-		"""
-		if self.fields == "":
-			return {}
-		else:
-			return simplejson.loads(self.fields)
-	
-	def set_data(self, data):
-		"""
-		Set data by a python map (encoding to JSON).
-		
-		"""
-		self.fields = simplejson.dumps(data)
-
 	def set_userpref(self, key, value, save=True):
 		"""
 		Set a UserPref value.
 		Also saves the object.
 		
 		"""
-		prefs = self.get_userprefs()
+		d = self.get_data()
+		if not d.has_key("userprefs"):
+			d["userprefs"] = {}
+		prefs = d["userprefs"]
+		
 		prefs[key] = value
-		self.set_userprefs(prefs)
+		
+		self.set_data(d)
 		
 		if save:
 			self.save()
-
+	
 	def set_userprefs(self, data):
 		"""
 		Set userprefs (name:value) by a python map (encoding to JSON).
 		
 		"""
-		self.userprefs = simplejson.dumps(data)
+		d = self.get_data()
+		d["userprefs"] = data
+		self.set_data(d)
 	
 	def get_userprefs(self):
 		"""
 		Return userprefs (name:value) as python map (JSON decoded).
 		
 		"""
-		if self.userprefs == "":
+		d = self.get_data()
+		if not d.has_key("userprefs"):
 			return {}
-		else:
-			return simplejson.loads(self.userprefs)
+		return d["userprefs"]
 
 	def save(self, force_insert=False, force_update=False):
 		self.type = 2

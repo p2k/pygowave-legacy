@@ -27,47 +27,20 @@ from pycow.utils import Events
 
 DOCUMENT_INSERT = 'DOCUMENT_INSERT'
 DOCUMENT_DELETE = 'DOCUMENT_DELETE'
-DOCUMENT_REPLACE = 'DOCUMENT_REPLACE'
+DOCUMENT_ELEMENT_INSERT = 'DOCUMENT_ELEMENT_INSERT'
+DOCUMENT_ELEMENT_DELETE = 'DOCUMENT_ELEMENT_DELETE'
+DOCUMENT_ELEMENT_DELTA = 'DOCUMENT_ELEMENT_DELTA'
+DOCUMENT_ELEMENT_SETPREF = 'DOCUMENT_ELEMENT_SETPREF'
 
-__all__ = ["Range", "OpManager", "DOCUMENT_INSERT", "DOCUMENT_DELETE", "DOCUMENT_REPLACE"]
-
-@Class
-class Range(object):
-	"""
-	Represents a start and end range with integers.
-	
-	Ranges map positions in the document. A range must have at least a length
-	of zero. If zero, the range is considered to be a single point (collapsed).
-	
-	@class {public} Range
-	"""
-	
-	def __init__(self, start=0, end=1):
-		"""
-		Initializes the range with a start and end position.
-		
-		@constructor {public} initialize
-		
-		@param {int} start Start index of the range.
-		@param {int} end End index of the range.
-		
-		#@throws ValueError Value error if the range is invalid (less than zero).
-		"""
-		self.start = start
-		self.end = end
-		#if self.end - self.start < 0:
-		#	raise ValueError('Range cannot be less than 0')
-	
-	def __repr__(self):
-		return 'Range(%d,%d)' % (self.start, self.end)
-	
-	def isCollapsed(self):
-		""""
-		Returns true if this represents a single point as opposed to a range.
-		
-		@function {public Boolean} isCollapsed
-		"""
-		return self.end == self.start
+__all__ = [
+	"OpManager",
+	"DOCUMENT_INSERT",
+	"DOCUMENT_DELETE",
+	"DOCUMENT_ELEMENT_INSERT",
+	"DOCUMENT_ELEMENT_DELETE",
+	"DOCUMENT_ELEMENT_DELTA",
+	"DOCUMENT_ELEMENT_SETPREF",
+]
 
 @Class
 class Operation(object):
@@ -139,14 +112,14 @@ class Operation(object):
 		@function {public Boolean} isCompatibleTo
 		@param {Operation} other_op
 		"""
-		if (self.type == DOCUMENT_INSERT or self.type == DOCUMENT_DELETE) and \
-				(other_op.type == DOCUMENT_INSERT or other_op.type == DOCUMENT_DELETE):
-			if self.wave_id != other_op.wave_id \
-					or self.wavelet_id != other_op.wavelet_id \
-					or self.blip_id != self.blip_id:
-				return False
-			return True
-		return False
+		
+		# Currently all supported operations are compatible to each other (if on the same blip)
+		# DOCUMENT_INSERT DOCUMENT_DELETE DOCUMENT_ELEMENT_INSERT DOCUMENT_ELEMENT_DELETE DOCUMENT_ELEMENT_DELTA DOCUMENT_ELEMENT_SETPREF
+		if self.wave_id != other_op.wave_id \
+				or self.wavelet_id != other_op.wavelet_id \
+				or self.blip_id != self.blip_id:
+			return False
+		return True
 
 	def isInsert(self):
 		"""
@@ -154,7 +127,7 @@ class Operation(object):
 		
 		@function {public Boolean} isInsert
 		"""
-		return self.type == DOCUMENT_INSERT
+		return (self.type == DOCUMENT_INSERT or self.type == DOCUMENT_ELEMENT_INSERT)
 	
 	def isDelete(self):
 		"""
@@ -162,7 +135,15 @@ class Operation(object):
 		
 		@function {public Boolean} isDelete
 		"""
-		return self.type == DOCUMENT_DELETE
+		return (self.type == DOCUMENT_DELETE or self.type == DOCUMENT_ELEMENT_DELETE)
+
+	def isChange(self):
+		"""
+		Returns true, if this op is an (attribute) change operation.
+		
+		@function {public Boolean} isChange
+		"""
+		return (self.type == DOCUMENT_ELEMENT_DELTA or self.type == DOCUMENT_ELEMENT_SETPREF)
 
 	def length(self):
 		"""
@@ -176,6 +157,8 @@ class Operation(object):
 			return len(self.property)
 		elif self.type == DOCUMENT_DELETE:
 			return self.property
+		elif self.type == DOCUMENT_ELEMENT_INSERT or self.type == DOCUMENT_ELEMENT_DELETE:
+			return 1
 		return 0
 	
 	def resize(self, value):
@@ -401,6 +384,27 @@ class OpManager(object):
 						self.fireEvent("operationChanged", i)
 					else: # op.index > myop.index
 						op.index += myop.length()
+				elif op.isChange() and myop.isDelete():
+					if op.index > myop.index:
+						if op.index <= myop.index + myop.length():
+							op.index = myop.index
+						else:
+							op.index -= myop.length()
+				elif op.isChange() and myop.isInsert():
+					if op.index >= myop.index:
+						op.index += myop.length()
+				elif op.isDelete() and myop.isChange():
+					if op.index < myop.index:
+						if myop.index <= op.index + op.length():
+							myop.index = op.index
+							self.fireEvent("operationChanged", i)
+						else:
+							myop.index -= op.length()
+							self.fireEvent("operationChanged", i)
+				elif op.isInsert() and myop.isChange():
+					if op.index <= myop.index:
+						myop.index += op.length()
+						self.fireEvent("operationChanged", i)
 				
 				j += 1
 				
@@ -480,7 +484,18 @@ class OpManager(object):
 		@param {Operation} newop
 		"""
 		
-		# Only merge with the last op (otherwise this may get a bit complicated)
+		# Element delta's can always merge with predecessors
+		op = None
+		i = 0
+		if newop.type == DOCUMENT_ELEMENT_DELTA:
+			for i in xrange(len(self.operations)):
+				op = self.operations[i]
+				if op.type == DOCUMENT_ELEMENT_DELTA and newop.property["id"] == op.property["id"]:
+					op.property["delta"].update(newop.property["delta"])
+					self.fireEvent("operationChanged", i)
+					return
+		
+		# Others: Only merge with the last op (otherwise this may get a bit complicated)
 		i = len(self.operations) - 1
 		if i >= 0:
 			op = self.operations[i]
@@ -567,4 +582,75 @@ class OpManager(object):
 			self.wave_id, self.wavelet_id, blip_id,
 			start,
 			end-start # = length
+		))
+	
+	def documentElementInsert(self, blip_id, index, type, properties):
+		"""
+		Requests to insert an element at the given position.
+		
+		@function {public} documentElementInsert
+		@param {String} blip_id The blip id that this operation is applied to
+		@param {int} index Position of the new element
+		@param {String} type Element type
+		@param {Object} properties Element properties
+		"""
+		self.__insert(Operation(
+			DOCUMENT_ELEMENT_INSERT,
+			self.wave_id, self.wavelet_id, blip_id,
+			index,
+			{
+				"type": type,
+				"properties": properties
+			}
+		))
+
+	def documentElementDelete(self, blip_id, index):
+		"""
+		Requests to delete an element from the given position.
+		
+		@function {public} documentElementDelete
+		@param {String} blip_id The blip id that this operation is applied to
+		@param {int} index Position of the element to delete
+		"""
+		self.__insert(Operation(
+			DOCUMENT_ELEMENT_DELETE,
+			self.wave_id, self.wavelet_id, blip_id,
+			index,
+			None
+		))
+	
+	def documentElementDelta(self, blip_id, index, delta):
+		"""
+		Requests to apply a delta to the element at the given position.
+		
+		@function {public} documentElementDelta
+		@param {String} blip_id The blip id that this operation is applied to
+		@param {int} index Position of the element
+		@param {Object} delta Delta to apply to the element
+		"""
+		self.__insert(Operation(
+			DOCUMENT_ELEMENT_DELTA,
+			self.wave_id, self.wavelet_id, blip_id,
+			index,
+			delta
+		))
+
+	def documentElementSetpref(self, blip_id, index, key, value):
+		"""
+		Requests to set a UserPref of the element at the given position.
+		
+		@function {public} documentElementSetpref
+		@param {String} blip_id The blip id that this operation is applied to
+		@param {int} index Position of the element
+		@param {Object} key Name of the UserPref
+		@param {Object} value Value of the UserPref
+		"""
+		self.__insert(Operation(
+			DOCUMENT_ELEMENT_SETPREF,
+			self.wave_id, self.wavelet_id, blip_id,
+			index,
+			{
+				"key": key,
+				"value": value
+			}
 		))

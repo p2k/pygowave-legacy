@@ -265,6 +265,7 @@
 	overflow: auto;
 	font-size: 1.3em;
 	outline: none;
+	padding-bottom: 2px;
 	border-bottom: 1px solid #B8C6D9;
 }
 
@@ -272,9 +273,18 @@
 {
 	line-height: normal !important;
 	margin-left: 5px;
-	margin-bottom: 10px;
-	margin-top: 5px;
+	margin-bottom: 0;
+	margin-top: 2px;
 	padding: 0;
+}
+
+.blip_editor_widget .gadget_element
+{
+	width: 90%;
+	height: 400px;
+	margin-left: 5px;
+	margin-top: 2px;
+	border: 1px solid black;
 }
 
 .search_widget
@@ -432,7 +442,7 @@
 	background-color: #CCCCCC;
 	width: 100%;
 	height: 31px;
-	background-image: url(../images/blip_error.png);
+	background-image: url(../images/generic_error.png);
 	background-repeat: no-repeat;
 	background-position: 4px 4px;
 }
@@ -451,14 +461,32 @@
 	margin-bottom: 0px;
 }
 
-.wavelet_add_gadget_div div
+.wavelet_add_gadget .description
 {
-	padding-left: 10px;
-	padding-top: 10px;
-	padding-right: 10px;
+	font-size: 0.8em;
 }
 
-.wavelet_add_gadget_div select
+.wavelet_add_gadget .select_div
 {
-	width: 100%;
+	padding-top: 10px;
+	padding-bottom: 10px;
+	height: 26px;
+}
+
+.wavelet_add_gadget select
+{
+	float: left;
+	width: 260px;
+}
+
+.wavelet_add_gadget .refresh_button
+{
+	float: left;
+	height: 16px;
+	width: 16px;
+	padding: 2px;
+	margin-top: 4px;
+	margin-left: 6px;
+	background: url(../images/view-refresh.png) no-repeat;
+	cursor: pointer;
 }

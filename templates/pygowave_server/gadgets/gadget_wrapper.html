@@ -13,7 +13,7 @@
 	<script type="text/javascript">
 		__MODULE_ID__ = {% if gadget_id %}{{ gadget_id }}{% else %}null{% endif %};
 		gadgets._urlParameters = {% if url_parameters %}{{ url_parameters|safe }}{% else %}{}{% endif %};
-		gadgets._prefs = {{ gadget.prefs_json|safe }};
+		gadgets._prefs = {% if gadget %}{{ gadget.prefs_json|safe }}{% else %}null{% endif %};
 		gadgets._lang = "{{ LANGUAGE_CODE|slice:":2"|upper }}";
 	</script>
 {% block additional_header %}{% endblock %}

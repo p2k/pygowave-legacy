@@ -26,7 +26,7 @@ from pycow.utils import Events, Options, Hash
 
 from hashlib import sha1 as sha_constructor
 
-__all__ = ["WaveModel", "Participant"]
+__all__ = ["WaveModel", "Participant", "ELEMENT_TYPE"]
 
 @Implements(Options, Events)
 @Class
@@ -256,7 +256,7 @@ class Element(object):
 	"""
 	Element-objects are all the non-text elements in a Blip.
 	An element has no physical presence in the text of a Blip, but it maintains
-	an implicit protected space (or newline) to keep positions distinct.
+	an implicit protected newline character to keep positions distinct.
 	
 	Only special Wave Client elements are treated here.
 	There are no HTML elements in any Blip. All markup is handled by Annotations.
@@ -264,17 +264,28 @@ class Element(object):
 	@class {private} pygowave.model.Element
 	"""
 	
-	def __init__(self, blip, position, type):
+	def __init__(self, blip, id, position, type, properties):
 		"""
 		Called on instantiation. Documented for internal purposes.
 		@constructor {private} initialize
 		@param {Blip} blip The element's parent Blip
+		@param {int} id ID of the element, setting this to null will assign
+		             a new temporaty ID
 		@param {int} position Index where this element resides
 		@param {int} type Type of the element
+		@param {Object} properties The element's properties
 		"""
 		self._blip = blip
+		if id == None:
+			self._id = Element.newTempId()
+		else:
+			self._id = id
 		self._pos = position
 		self._type = type
+		if properties == None:
+			self._properties = Hash()
+		else:
+			self._properties = Hash(properties)
 	
 	def blip(self):
 		"""
@@ -284,6 +295,24 @@ class Element(object):
 		"""
 		return self._blip
 	
+	def setBlip(self, blip):
+		"""
+		Set the parent Blip to the given Blip.
+		
+		@function {public} setBlip
+		"""
+		self._blip = blip
+
+	def id(self):
+		"""
+		Return the ID of the element. A negative ID represents a temporary ID,
+		that is only valid for this session and will be replaced by a real ID
+		on reload.
+		
+		@function {public int} id
+		"""
+		return self._id
+
 	def type(self):
 		"""
 		Returns the type of the element.
@@ -308,6 +337,13 @@ class Element(object):
 		@param {int} pos New position
 		"""
 		self._pos = pos
+
+	@staticmethod
+	def newTempId():
+		Element.lastTempId -= 1
+		return Element.lastTempId
+
+Element.lastTempId = 0
 
 @Class
 class GadgetElement(Element):
@@ -334,18 +370,22 @@ class GadgetElement(Element):
 	"""
 	# ---------------------------
 	
-	def __init__(self, blip, position, url):
+	def __init__(self, blip, id, position, properties):
 		"""
 		Called on instantiation. Documented for internal purposes.
 		@constructor {private} initialize
 		@param {Blip} blip The gadget's parent Blip
+		@param {int} id ID of the element, setting this to null will assign
+		             a new temporaty ID
 		@param {int} position Index where this gadget resides
-		@param {String} url URL of the gadget xml
+		@param {Object} properties The gadget element's properties
+		@param {int} id
 		"""
-		super(GadgetElement, self).__init__(blip, position, ELEMENT_TYPE["GADGET"])
-		self._url = url
-		self._fields = Hash()
-		self._userprefs = Hash()
+		super(GadgetElement, self).__init__(blip, id, position, ELEMENT_TYPE["GADGET"], properties)
+		if self._properties.has("fields"): # Convert fields to hash
+			self._properties.set("fields", Hash(self._properties.get("fields")))
+		if self._properties.has("userprefs"): # Convert userprefs to hash
+			self._properties.set("userprefs", Hash(self._properties.get("userprefs")))
 	
 	def fields(self):
 		"""
@@ -353,15 +393,21 @@ class GadgetElement(Element):
 		
 		@function {public Object} fields
 		"""
-		return self._fields.getClean()
+		if self._properties.has("fields"):
+			return self._properties.get("fields").getClean()
+		else:
+			return {}
 	
 	def userPrefs(self):
 		"""
-		Return all UserPrefs as object.
+		Return all UserPrefs as hash.
 		
-		@function {public Object} userPrefs
+		@function {public Hash} userPrefs
 		"""
-		return self._userprefs.getClean()
+		if self._properties.has("userprefs"):
+			return self._properties.get("userprefs")
+		else:
+			return {}
 
 	def url(self):
 		"""
@@ -369,7 +415,10 @@ class GadgetElement(Element):
 		
 		@function {public String} url
 		"""
-		return self._url
+		if self._properties.has("url"):
+			return self._properties.get("url")
+		else:
+			return ""
 	
 	def applyDelta(self, delta):
 		"""
@@ -379,16 +428,20 @@ class GadgetElement(Element):
 		@param {Object} delta An object whose fields will be merged into the
 			gadget state.
 		"""
-		self._fields.update(delta)
+		if not self._properties.has("fields"):
+			self._properties.set("fields", Hash())
+		
+		fields = self._properties.get("fields")
+		fields.update(delta)
 		
 		# Delete keys with null values
-		for key, value in self._fields.iteritems():
+		for key, value in self._properties.iteritems():
 			if value == None:
-				del self._fields[key]
+				del fields[key]
 		
 		self.fireEvent("stateChange")
 	
-	def setUserPref(self, key, value):
+	def setUserPref(self, key, value, noevent = False):
 		"""
 		Set a UserPref.
 		
@@ -396,9 +449,12 @@ class GadgetElement(Element):
 		@param {String} key
 		@param {Object} value
 		"""
+		if not self._properties.has("userprefs"):
+			self._properties.set("userprefs", Hash())
 		
-		self._userprefs[key] = value
-		self.fireEvent("setUserPref", [key, value])
+		self._properties.get("userprefs").set(key, value)
+		if not noevent:
+			self.fireEvent("setUserPref", [key, value])
 
 @Implements(Options, Events)
 @Class
@@ -436,13 +492,27 @@ class Blip(object):
 	"""
 	
 	"""
+	Fired on element insertion.
+	
+	@event onInsertElement
+	@param {int} index Offset where the element is inserted
+	"""
+	
+	"""
+	Fired on element deletion.
+	
+	@event onDeleteElement
+	@param {int} index Offset where the element is deleted
+	"""
+	
+	"""
 	Fired if the Blip has gone out of sync with the server.
 	
 	@event onOutOfSync
 	"""
 	# ---------------------------
 	
-	def __init__(self, wavelet, id, options, content = "", parent = None):
+	def __init__(self, wavelet, id, options, content = "", elements = [], parent = None):
 		"""
 		Called on instantiation. Documented for internal purposes.
 		@constructor {private} initialize
@@ -457,6 +527,8 @@ class Blip(object):
 		@... {int} version Version of the Blip
 		@... {Boolean} submitted True if this Blip is submitted
 		@param {options String} content Content of the Blip
+		@param {optional Element[]} elements Element objects which initially
+		       reside in this Blip
 		@param {optional Blip} parent Parent Blip if this is a nested Blip
 		"""
 		self.setOptions(options)
@@ -465,7 +537,10 @@ class Blip(object):
 		self._parent = parent
 		
 		self._content = content
-		self._elements = []
+		self._elements = elements
+		for element in self._elements:
+			element.setBlip(self)
+		
 		self._annotations = []
 		
 		self._outofsync = False
@@ -492,6 +567,30 @@ class Blip(object):
 		@function {public Boolean} isRoot
 		"""
 		return self.options["is_root"]
+
+	def elementAt(self, index):
+		"""
+		Returns the Element object at the given position or null.
+		
+		@function {public Element} elementAt
+		@param {int} index Index of the element to retrieve
+		"""
+		
+		for i in xrange(len(self._elements)):
+			elt = self._elements[i]
+			if elt.position() == index:
+				return elt
+		
+		return None
+
+	def allElements(self):
+		"""
+		Returns all Elements of this Blip.
+		
+		@function {public Element[]} allElements
+		"""
+		
+		return self._elements
 
 	def insertText(self, index, text, noevent = False):
 		"""
@@ -549,6 +648,81 @@ class Blip(object):
 		if not noevent:
 			self.fireEvent("deleteText", [index, length])
 	
+	def insertElement(self, index, type, properties, noevent = False):
+		"""
+		Insert an element at the specified index. This implicitly adds a
+		protected newline character at the index.<br/>
+		Note: This sets the wavelet status to 'dirty'.
+		
+		@function {public} insertElement
+		@param {int} index Position of the new element
+		@param {String} type Element type
+		@param {Object} properties Element properties
+		@param {optional Boolean} noevent Set to true if no event should be generated
+		"""
+		
+		self.insertText(index, "\n", True)
+		if type == 2:
+			elt = GadgetElement(self, None, index, properties)
+		else:
+			elt = Element(self, None, index, type, properties)
+		self._elements.append(elt)
+		
+		self._wavelet._setStatus("dirty")
+		if not noevent:
+			self.fireEvent("insertElement", index)
+	
+	def deleteElement(self, index, noevent = False):
+		"""
+		Delete an element at the specified index. This implicitly deletes the
+		protected newline character at the index.<br/>
+		Note: This sets the wavelet status to 'dirty'.
+		
+		@function {public} deleteElement
+		@param {int} index Position of the element to delete
+		@param {optional Boolean} noevent Set to true if no event should be generated
+		"""
+		
+		for i in xrange(len(self._elements)):
+			elt = self._elements[i]
+			if elt.position() == index:
+				self._elements.pop(i)
+				break
+		self.deleteText(index, 1, True)
+		if not noevent:
+			self.fireEvent("deleteElement", index)
+	
+	def applyElementDelta(self, index, delta):
+		"""
+		Apply an element delta. Currently only for gadget elements.<br/>
+		Note: This action always emits stateChange.
+		
+		@function {public} applyElementDelta
+		@param {int} index Position of the element
+		@param {Object} delta Delta to apply to the element
+		"""
+		
+		for elt in self._elements:
+			if elt.position() == index:
+				elt.applyDelta(delta)
+				break
+	
+	def setElementUserpref(self, index, key, value, noevent = False):
+		"""
+		Set an UserPref of an element. Currently only for gadget elements.
+		
+		@function {public} setElementUserpref
+		param {int} index Position of the element
+		@param {Object} key Name of the UserPref
+		@param {Object} value Value of the UserPref
+		@param {optional Boolean} noevent Set to true if no event should be generated
+		"""
+		
+		for elt in self._elements:
+			if elt.position() == index:
+				elt.setUserPref(key, value, noevent)
+				break
+
 	def content(self):
 		"""
 		Returns the text content of this Blip.
@@ -668,6 +842,13 @@ class Wavelet(object):
 		"""
 		return self._wave.id()
 	
+	def waveModel(self):
+		"""
+		Returns the parent WaveModel object.
+		@function {public WaveModel} waveModel
+		"""
+		return self._wave
+
 	def addParticipant(self, participant):
 		"""
 		Add a participant to this Wavelet.<br/>
@@ -726,7 +907,7 @@ class Wavelet(object):
 			ret[id] = participant.toGadgetFormat()
 		return ret
 	
-	def appendBlip(self, id, options, content = ""):
+	def appendBlip(self, id, options, content = "", elements = []):
 		"""
 		Convenience function for inserting a new Blip at the end.
 		For options see the {@link pygowave.model.Blip.initialize Blip constructor}.<br/>
@@ -735,11 +916,13 @@ class Wavelet(object):
 		@function {public Blip} appendBlip
 		@param {String} id ID of the new Blip
 		@param {Object} options Information about the Blip
-		@param {options String} content Content of the Blip
+		@param {optional String} content Content of the Blip
+		@param {optional Element[]} elements Element objects which initially
+		    reside in this Blip
 		"""
-		return self.insertBlip(len(self._blips), id, options, content)
+		return self.insertBlip(len(self._blips), id, options, content, elements)
 
-	def insertBlip(self, index, id, options, content = ""):
+	def insertBlip(self, index, id, options, content = "", elements = []):
 		"""
 		Insert a new Blip at the specified index.
 		For options see the {@link pygowave.model.Blip.initialize Blip constructor}.<br/>
@@ -749,9 +932,11 @@ class Wavelet(object):
 		@param {int} index Index where to insert the Blip
 		@param {String} id ID of the new Blip
 		@param {Object} options Information about the Blip
-		@param {options String} content Content of the Blip
+		@param {optional String} content Content of the Blip
+		@param {optional Element[]} elements Element objects which initially
+		    reside in this Blip
 		"""
-		blip = Blip(self, id, options, content)
+		blip = Blip(self, id, options, content, elements)
 		self._blips.insert(index, blip)
 		self.fireEvent('blipInserted', [index, id])
 		return blip
@@ -861,6 +1046,14 @@ class WaveModel(object):
 		"""
 		return self._waveId
 
+	def viewerId(self):
+		"""
+		Returns the ID of the viewer.
+		
+		@function {public String} viewerId
+		"""
+		return self._viewerId
+
 	def loadFromSnapshot(self, obj, participants):
 		"""
 		Load the wave's contents from a JSON-serialized snapshot and a map of
@@ -896,7 +1089,13 @@ class WaveModel(object):
 				"version": blip["version"],
 				"submitted": blip["submitted"]
 			}
-			blipObj = rootWaveletObj.appendBlip(blip_id, blip_options, blip["content"])
+			blip_elements = []
+			for serialelement in blip["elements"]:
+				if serialelement["type"] == ELEMENT_TYPE["GADGET"]:
+					blip_elements.append(GadgetElement(None, serialelement["id"], serialelement["index"], serialelement["properties"]))
+				else:
+					blip_elements.append(Element(None, serialelement["id"], serialelement["index"], serialelement["type"], serialelement["properties"]))
+			blipObj = rootWaveletObj.appendBlip(blip_id, blip_options, blip["content"], blip_elements)
 
 	def createWavelet(self, id, options):
 		"""

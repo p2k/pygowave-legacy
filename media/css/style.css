@@ -269,8 +269,31 @@ p
 
 .gadget_loader_fail
 {
+	width: 100%;
+	height: 100%;
+	overflow: hidden;
+}
+
+.gadget_loader_fail .bg_div
+{
+	width: 100%;
+	height: 100%;
+	background: url(../images/ui-bg_diagonals-thick_18_b81900_40x40.png) repeat scroll 50% 50%;
+	opacity: 0.5;
+}
+
+.gadget_loader_fail .msg_div
+{
 	color: #CC0000;
 	font-weight: bold;
+	background-image: url(../images/generic_error.png);
+	background-repeat: no-repeat;
+	background-position: 5px 8px;
+	background-color: #CCCCCC;
+	padding-left: 32px;
+	padding-top: 5px;
+	padding-bottom: 5px;
+	font-size: 1.3em;
 }
 
 .button_box

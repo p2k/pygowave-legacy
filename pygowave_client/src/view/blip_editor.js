@@ -30,6 +30,7 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 	/* Imports */
 	var Widget = pygowave.view.Widget;
 	var Selection = pygowave.view.Selection;
+	var GadgetElementWidget = pygowave.view.GadgetElementWidget;
 	
 	/**
 	 * An editable div which generates events for the controller and is able to
@@ -73,6 +74,7 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			
 			this._onInsertText = this._onInsertText.bind(this);
 			this._onDeleteText = this._onDeleteText.bind(this);
+			this._onInsertElement = this._onInsertElement.bind(this);
 			this._onKeyDown = this._onKeyDown.bind(this);
 			this._onKeyPress = this._onKeyPress.bind(this);
 			this._onKeyUp = this._onKeyUp.bind(this);
@@ -104,13 +106,15 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 				this._blip = blip;
 			else
 				blip = this._blip;
+			this._elements = new Array();
 			
-			this.reloadContent();
+			var ok = this.reloadContent();
 			
 			blip.addEvents({
 				insertText: this._onInsertText,
 				deleteText: this._onDeleteText,
-				outOfSync: this._onOutOfSync
+				outOfSync: this._onOutOfSync,
+				insertElement: this._onInsertElement
 			});
 			
 			this.contentElement.addEvents({
@@ -124,7 +128,8 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			
 			this._processing = false;
 			window.addEvent('resize', this._onWindowResize);
-			this._onSyncCheckTimer = this._onSyncCheck.periodical(2000, this);
+			if (ok)
+				this._onSyncCheckTimer = this._onSyncCheck.periodical(2000, this);
 			
 			return this;
 		},
@@ -143,7 +148,8 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			this._blip.removeEvents({
 				insertText: this._onInsertText,
 				deleteText: this._onDeleteText,
-				outOfSync: this._onOutOfSync
+				outOfSync: this._onOutOfSync,
+				insertElement: this._onInsertElement
 			});
 			this.contentElement.removeEvents({
 				keydown: this._onKeyDown,
@@ -157,22 +163,40 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		},
 		
 		/**
+		 * Returns the Blip rendered through this editor.
+		 *
+		 * @function {public pygowave.model.Blip} blip
+		 */
+		blip: function () {
+			return this._blip;
+		},
+		
+		/**
 		 * Build the content elements from the Blip's string and insert it
-		 * into the widget.
+		 * into the widget. Returns true on success, false otherwise.
 		 * 
-		 * @function {private} reloadContent
+		 * @function {private Boolean} reloadContent
 		 */
 		reloadContent: function () {
 			// Clean up first
+			for (var it = new _Iterator(this._elements); it.hasNext(); )
+				it.next().destroy();
+			this._elements.empty();
 			for (var it = new _Iterator(this.contentElement.getChildren()); it.hasNext(); )
 				it.next().destroy();
 			
 			this.contentElement.setStyle("opacity", 1);
 			this._removeErrorOverlay();
 			
+			var elementPosMap = new Hash();
+			for (var it = new _Iterator(this._blip.allElements()); it.hasNext(); ) {
+				var element = it.next();
+				elementPosMap.set(element.position(), element);
+			}
+			
 			// Build up
 			var content = this._blip.content().replace(/ /g, "\u00a0");
-			var lines = content.split("\n"), line, pg;
+			var lines = content.split("\n"), line, pg, pos = 0;
 			for (var i = 0; i < lines.length; i++) {
 				line = lines[i];
 				pg = new Element("p");
@@ -181,13 +205,23 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 				if (!Browser.Engine.trident) // IE allows empty paragraphs
 					new Element("br").inject(pg); // Others use an implicit br
 				pg.inject(this.contentElement);
+				pos += line.length;
+				if (elementPosMap.has(pos)) {
+					this._elements.push(new GadgetElementWidget(this._view, elementPosMap.get(pos), this.contentElement));
+					i++;
+				}
+				pos++;
 			}
 			
 			this._lastContent = this.contentToString();
-			if (this._blip.content() != this._lastContent)
+			if (this._blip.content() != this._lastContent) {
+				$clear(this._onSyncCheckTimer);
 				this._displayErrorOverlay("render_fail");
-			else
-				this.contentElement.contentEditable = "true";
+				return false;
+			}
+			
+			this.contentElement.contentEditable = "true";
+			return true;
 		},
 		/**
 		 * Places an overlay over the editor and displays an error message with
@@ -264,8 +298,11 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		 */
 		contentToString: function () {
 			var cleaned = "", first = true;
-			for (var it = new _Iterator(this.contentElement.getChildren("p")); it.hasNext(); ) {
+			for (var it = new _Iterator(this.contentElement.getChildren()); it.hasNext(); ) {
 				var elt = it.next();
+				if (elt.get('tag') != "p" && elt.get('tag') != "iframe")
+					continue;
+				
 				if (first)
 					first = false;
 				else
@@ -296,6 +333,15 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			this.fireEvent("currentTextRangeChanged", [start, end]);
 			return [start, end];
 		},
+		/**
+		 * Returns the last text range which was succesfully retrieved
+		 * as [start, end].
+		 *
+		 * @function  {public Array} lastTextRange
+		 */
+		lastTextRange: function () {
+			return this._lastRange;
+		},
 		
 		_onKeyDown: function (e) {
 			this._processing = true;
@@ -305,6 +351,13 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			this._processing = true;
 		},
 		
+		/**
+		 * Callback from underlying DOM element on key release. Generates events
+		 * for the controller (which in turn generates operations).
+		 *
+		 * @function {private} _onKeyUp
+		 * @param {Object} e Event object
+		 */
 		_onKeyUp: function(e) {
 			this._processing = true;
 			var newContent = this.contentToString();
@@ -384,6 +437,13 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			return false; // Context menu is blocked
 		},
 		
+		/**
+		 * Callback from model on text insertion
+		 *
+		 * @function {private} _onInsertText
+		 * @param {int} index Index of the inserion
+		 * @param {String} text Text to be inserted
+		 */
 		_onInsertText: function (index, text) {
 			//TODO: this function assumes no formatting elements
 			this._processing = true;
@@ -455,6 +515,13 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			}
 			this._processing = false;
 		},
+		/**
+		 * Callback from model on text deletion
+		 *
+		 * @function {private} _onDeleteText
+		 * @param {int} index Index of the deletion
+		 * @param {String} length How many characters to delete
+		 */
 		_onDeleteText: function (index, length) {
 			// Safe for formatting elements
 			this._processing = true;
@@ -494,10 +561,60 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			}
 			this._processing = false;
 		},
+		/**
+		 * Callback from model if an element was inserted.
+		 *
+		 * @param {int} index Offset where the element is inserted
+		 */
+		_onInsertElement: function (index) {
+			this._processing = true;
+			
+			var elt = this._blip.elementAt(index);
+			
+			// Note: There is always an implicit newline at the index, so fake
+			// a newline insertion here and replace the resulting empty paragraph
+			this._onInsertText(index, "\n");
+			var para = this._walkDown(this.contentElement, index+1)[0];
+			
+			var parent = para.previousSibling, where = 'after';
+			para.destroy();
+			
+			if (!$defined(parent)) {
+				parent = this.contentElement;
+				where = 'top';
+			}
+			
+			//TODO other elements
+			var ew = new GadgetElementWidget(this._view, elt, parent, where);
+			
+			this._elements.push(ew);
+			
+			this._processing = false;
+		},
+		/**
+		 * Callback from model if blip has gone out of sync with the server
+		 *
+		 * @function {private} _onOutOfSync
+		 */
 		_onOutOfSync: function () {
 			this._displayErrorOverlay('checksum_fail');
 		},
 		
+		/**
+		 * Utility function. Splits up a textnode in a paragraph at the
+		 * given position.
+		 *
+		 * @function {private} _spitPara
+		 * @param {Element} elt The textnode to split
+		 * @param {int} offset Spit offset
+		 */
+		_spitPara: function (elt, offset) {
+			var parent = elt.parentNode;
+			while (parent.get('tag') == "p")
+				parent = elt.parentNode;
+			
+			//TODO
+		},
 		/**
 		 * Walk up the DOM tree while summing up all text lengths. Elements are
 		 * ignored, except p which is the line container and iframe which count

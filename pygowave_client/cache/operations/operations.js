@@ -33,49 +33,13 @@ pygowave.operations = (function() {
 
 	var DOCUMENT_DELETE = "DOCUMENT_DELETE";
 
-	var DOCUMENT_REPLACE = "DOCUMENT_REPLACE";
+	var DOCUMENT_ELEMENT_INSERT = "DOCUMENT_ELEMENT_INSERT";
 
-	/**
-	 * Represents a start and end range with integers.
-	 *
-	 * Ranges map positions in the document. A range must have at least a length
-	 * of zero. If zero, the range is considered to be a single point (collapsed).
-	 *
-	 * @class {public} Range
-	 */
-	var Range = new Class({
+	var DOCUMENT_ELEMENT_DELETE = "DOCUMENT_ELEMENT_DELETE";
 
-		/**
-		 * Initializes the range with a start and end position.
-		 *
-		 * @constructor {public} initialize
-		 *
-		 * @param {int} start Start index of the range.
-		 * @param {int} end End index of the range.
-		 *
-		 * #@throws ValueError Value error if the range is invalid (less than zero).
-		 */
-		initialize: function (start, end) {
-			if (!$defined(start)) start = 0;
-			if (!$defined(end)) end = 1;
-			this.start = start;
-			this.end = end;
-		},
+	var DOCUMENT_ELEMENT_DELTA = "DOCUMENT_ELEMENT_DELTA";
 
-		__repr__: function () {
-			return "Range(%d,%d)".sprintf(this.start, this.end);
-		},
-
-		/**
-		 * "
-		 * Returns true if this represents a single point as opposed to a range.
-		 *
-		 * @function {public Boolean} isCollapsed
-		 */
-		isCollapsed: function () {
-			return this.end == this.start;
-		}
-	});
+	var DOCUMENT_ELEMENT_SETPREF = "DOCUMENT_ELEMENT_SETPREF";
 
 	/**
 	 * Represents a generic operation applied on the server.
@@ -151,12 +115,9 @@ pygowave.operations = (function() {
 		 * @param {Operation} other_op
 		 */
 		isCompatibleTo: function (other_op) {
-			if ((this.type == DOCUMENT_INSERT || this.type == DOCUMENT_DELETE) && (other_op.type == DOCUMENT_INSERT || other_op.type == DOCUMENT_DELETE)) {
-				if (this.wave_id != other_op.wave_id || this.wavelet_id != other_op.wavelet_id || this.blip_id != this.blip_id)
-					return false;
-				return true;
-			}
-			return false;
+			if (this.wave_id != other_op.wave_id || this.wavelet_id != other_op.wavelet_id || this.blip_id != this.blip_id)
+				return false;
+			return true;
 		},
 
 		/**
@@ -165,7 +126,7 @@ pygowave.operations = (function() {
 		 * @function {public Boolean} isInsert
 		 */
 		isInsert: function () {
-			return this.type == DOCUMENT_INSERT;
+			return this.type == DOCUMENT_INSERT || this.type == DOCUMENT_ELEMENT_INSERT;
 		},
 
 		/**
@@ -174,7 +135,16 @@ pygowave.operations = (function() {
 		 * @function {public Boolean} isDelete
 		 */
 		isDelete: function () {
-			return this.type == DOCUMENT_DELETE;
+			return this.type == DOCUMENT_DELETE || this.type == DOCUMENT_ELEMENT_DELETE;
+		},
+
+		/**
+		 * Returns true, if this op is an (attribute) change operation.
+		 *
+		 * @function {public Boolean} isChange
+		 */
+		isChange: function () {
+			return this.type == DOCUMENT_ELEMENT_DELTA || this.type == DOCUMENT_ELEMENT_SETPREF;
 		},
 
 		/**
@@ -189,6 +159,8 @@ pygowave.operations = (function() {
 				return len(this.property);
 			else if (this.type == DOCUMENT_DELETE)
 				return this.property;
+			else if (this.type == DOCUMENT_ELEMENT_INSERT || this.type == DOCUMENT_ELEMENT_DELETE)
+				return 1;
 			return 0;
 		},
 
@@ -416,6 +388,36 @@ pygowave.operations = (function() {
 						else
 							op.index += myop.length();
 					}
+					else if (op.isChange() && myop.isDelete()) {
+						if (op.index > myop.index) {
+							if (op.index <= (myop.index + myop.length()))
+								op.index = myop.index;
+							else
+								op.index -= myop.length();
+						}
+					}
+					else if (op.isChange() && myop.isInsert()) {
+						if (op.index >= myop.index)
+							op.index += myop.length();
+					}
+					else if (op.isDelete() && myop.isChange()) {
+						if (op.index < myop.index) {
+							if (myop.index <= (op.index + op.length())) {
+								myop.index = op.index;
+								this.fireEvent("operationChanged", i);
+							}
+							else {
+								myop.index -= op.length();
+								this.fireEvent("operationChanged", i);
+							}
+						}
+					}
+					else if (op.isInsert() && myop.isChange()) {
+						if (op.index <= myop.index) {
+							myop.index += op.length();
+							this.fireEvent("operationChanged", i);
+						}
+					}
 					j++;
 				}
 				i++;
@@ -499,9 +501,23 @@ pygowave.operations = (function() {
 		 * @param {Operation} newop
 		 */
 		__insert: function (newop) {
-			var i = len(this.operations) - 1;
+			var op = null;
+			var i = 0;
+			if (newop.type == DOCUMENT_ELEMENT_DELTA) {
+				for (var __iter0_ = new XRange(len(this.operations)); __iter0_.hasNext();) {
+					i = __iter0_.next();
+					op = this.operations[i];
+					if (op.type == DOCUMENT_ELEMENT_DELTA && newop.property.id == op.property.id) {
+						op.property.delta.update(newop.property.delta);
+						this.fireEvent("operationChanged", i);
+						return;
+					}
+				}
+				delete __iter0_;
+			}
+			i = len(this.operations) - 1;
 			if (i >= 0) {
-				var op = this.operations[i];
+				op = this.operations[i];
 				if (newop.type == DOCUMENT_INSERT && op.type == DOCUMENT_INSERT) {
 					if (newop.index == op.index) {
 						op.property = newop.property + op.property;
@@ -586,14 +602,71 @@ pygowave.operations = (function() {
 		 */
 		documentDelete: function (blip_id, start, end) {
 			this.__insert(new Operation(DOCUMENT_DELETE, this.wave_id, this.wavelet_id, blip_id, start, end - start));
+		},
+
+		/**
+		 * Requests to insert an element at the given position.
+		 *
+		 * @function {public} documentElementInsert
+		 * @param {String} blip_id The blip id that this operation is applied to
+		 * @param {int} index Position of the new element
+		 * @param {String} type Element type
+		 * @param {Object} properties Element properties
+		 */
+		documentElementInsert: function (blip_id, index, type, properties) {
+			this.__insert(new Operation(DOCUMENT_ELEMENT_INSERT, this.wave_id, this.wavelet_id, blip_id, index, {
+				type: type,
+				properties: properties
+			}));
+		},
+
+		/**
+		 * Requests to delete an element from the given position.
+		 *
+		 * @function {public} documentElementDelete
+		 * @param {String} blip_id The blip id that this operation is applied to
+		 * @param {int} index Position of the element to delete
+		 */
+		documentElementDelete: function (blip_id, index) {
+			this.__insert(new Operation(DOCUMENT_ELEMENT_DELETE, this.wave_id, this.wavelet_id, blip_id, index, null));
+		},
+
+		/**
+		 * Requests to apply a delta to the element at the given position.
+		 *
+		 * @function {public} documentElementDelta
+		 * @param {String} blip_id The blip id that this operation is applied to
+		 * @param {int} index Position of the element
+		 * @param {Object} delta Delta to apply to the element
+		 */
+		documentElementDelta: function (blip_id, index, delta) {
+			this.__insert(new Operation(DOCUMENT_ELEMENT_DELTA, this.wave_id, this.wavelet_id, blip_id, index, delta));
+		},
+
+		/**
+		 * Requests to set a UserPref of the element at the given position.
+		 *
+		 * @function {public} documentElementSetpref
+		 * @param {String} blip_id The blip id that this operation is applied to
+		 * @param {int} index Position of the element
+		 * @param {Object} key Name of the UserPref
+		 * @param {Object} value Value of the UserPref
+		 */
+		documentElementSetpref: function (blip_id, index, key, value) {
+			this.__insert(new Operation(DOCUMENT_ELEMENT_SETPREF, this.wave_id, this.wavelet_id, blip_id, index, {
+				key: key,
+				value: value
+			}));
 		}
 	});
 
 	return {
-		Range: Range,
 		OpManager: OpManager,
 		DOCUMENT_INSERT: DOCUMENT_INSERT,
 		DOCUMENT_DELETE: DOCUMENT_DELETE,
-		DOCUMENT_REPLACE: DOCUMENT_REPLACE
+		DOCUMENT_ELEMENT_INSERT: DOCUMENT_ELEMENT_INSERT,
+		DOCUMENT_ELEMENT_DELETE: DOCUMENT_ELEMENT_DELETE,
+		DOCUMENT_ELEMENT_DELTA: DOCUMENT_ELEMENT_DELTA,
+		DOCUMENT_ELEMENT_SETPREF: DOCUMENT_ELEMENT_SETPREF
 	};
 })();

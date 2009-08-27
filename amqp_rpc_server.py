@@ -43,13 +43,16 @@ logger = logging.getLogger("pygowave")
 # WAVELET_OPEN (sync)
 # PARTICIPANT_INFO (sync)
 # PARTICIPANT_SEARCH (sync)
+# GADGET_LIST (sync)
 # WAVELET_ADD_PARTICIPANT (sync)
 # WAVELET_REMOVE_SELF (sync)
-# DOCUMENT_ELEMENT_REPLACE (sync)
-# DOCUMENT_ELEMENT_DELTA (async)
 # OPERATION_MESSAGE_BUNDLE (OT)
 #   DOCUMENT_INSERT
 #   DOCUMENT_DELETE
+#   DOCUMENT_ELEMENT_INSERT
+#   DOCUMENT_ELEMENT_DELETE
+#   DOCUMENT_ELEMENT_DELTA
+#   DOCUMENT_ELEMENT_SETPREF
 # -> OPERATION_MESSAGE_BUNDLE_ACK
 
 class PyGoWaveMessageProcessor(object):
@@ -115,6 +118,7 @@ class PyGoWaveMessageProcessor(object):
 			"type": type,
 			"property": property
 		}
+		logger.debug("Broadcasting Message:\n" + repr(msg_dict))
 		for p in wavelet.participants.all():
 			for conn in p.connections.all():
 				if not conn in except_connections:
@@ -133,6 +137,7 @@ class PyGoWaveMessageProcessor(object):
 			"type": type,
 			"property": property
 		}
+		logger.debug("Emiting Message to %s/%d:\n%s" % (to.participant.name, to.id, repr(msg_dict)))
 		if self.out_queue.has_key(to.rx_key):
 			self.out_queue[to.rx_key].append(msg_dict)
 		else:
@@ -224,6 +229,11 @@ class PyGoWaveMessageProcessor(object):
 						lst.append(p.id)
 					self.emit(pconn, "PARTICIPANT_SEARCH", {"result": "OK", "data": lst})
 			
+			elif message["type"] == "GADGET_LIST":
+				all_gadgets = map(lambda g: {"id": g.id, "uploaded_by": g.by_user.participants.all()[0].name, "name": g.title, "descr": g.description, "url": g.url}, Gadget.objects.all())
+				logger.info("[%s/%d@%s] Sending Gadget list" % (participant.name, pconn.id, wavelet.wave.id))
+				self.emit(pconn, "GADGET_LIST", all_gadgets)
+			
 			elif message["type"] == "WAVELET_ADD_PARTICIPANT":
 				# Find participant
 				try:
@@ -248,60 +258,6 @@ class PyGoWaveMessageProcessor(object):
 					logger.info("[%s/%d@%s] Wave got killed!" % (participant.name, pconn.id, wavelet.wave.id))
 					wavelet.wave.delete()
 				return False
-			
-			elif message["type"] == "DOCUMENT_ELEMENT_REPLACE":
-				# Find Gadget
-				try:
-					g = Gadget.objects.get(pk=message["property"])
-				except ObjectDoesNotExist:
-					logger.error("[%s/%d@%s] Gadget #%s not found" % (participant.name, pconn.id, wavelet.wave.id, message["property"]))
-					return # Fail silently (TODO: report error to user)
-				
-				blip = wavelet.root_blip
-				if blip.elements.count() > 0:
-					blip.elements.all().delete()
-				
-				ge = g.instantiate()
-				ge.blip = blip
-				ge.position = 0
-				ge.save()
-				
-				logger.info("[%s/%d@%s] Gadget #%s (%s) set -> GadgetElement #%d" % (participant.name, pconn.id, wavelet.wave.id, message["property"], g.title, ge.id))
-				
-				self.broadcast(wavelet, "DOCUMENT_ELEMENT_REPLACE", {"url": ge.url, "id": ge.id, "data": {}})
-			
-			elif message["type"] == "DOCUMENT_ELEMENT_DELTA":
-				elt_id = int(message["property"]["id"])
-				delta = message["property"]["delta"]
-				# Find GadgetElement
-				try:
-					ge = GadgetElement.objects.get(pk=elt_id, blip=wavelet.root_blip)
-				except ObjectDoesNotExist:
-					logger.error("[%s/%d@%s] GadgetElement #%d not found (or not accessible)" % (participant.name, pconn.id, wavelet.wave.id, elt_id))
-					return # Fail silently (TODO: report error to user)
-				
-				ge.apply_delta(delta) # Apply delta and save
-				logger.info("[%s/%d@%s] Applied delta to GadgetElement #%d" % (participant.name, pconn.id, wavelet.wave.id, elt_id))
-				
-				# Asynchronous event, so send to all part. except the sender
-				self.broadcast(wavelet, "DOCUMENT_ELEMENT_DELTA", {"id": elt_id, "delta": delta}, [pconn])
-			
-			elif message["type"] == "DOCUMENT_ELEMENT_SETPREF":
-				elt_id = int(message["property"]["id"])
-				key = message["property"]["key"]
-				value = message["property"]["value"]
-				# Find GadgetElement
-				try:
-					ge = GadgetElement.objects.get(pk=elt_id, blip=wavelet.root_blip)
-				except ObjectDoesNotExist:
-					logger.error("[%s/%d@%s] GadgetElement #%d not found (or not accessible)" % (participant.name, pconn.id, wavelet.wave.id, elt_id))
-					return # Fail silently (TODO: report error to user)
-				
-				ge.set_userpref(key, value)
-				logger.info("[%s/%d@%s] Set UserPref '%s' on GadgetElement #%d" % (participant.name, pconn.id, wavelet.wave.id, key, elt_id))
-				
-				# Asynchronous event, so send to all part. except the sender
-				self.broadcast(wavelet, "DOCUMENT_ELEMENT_SETPREF", {"id": elt_id, "key": key, "value": value}, [pconn])
 			
 			elif message["type"] == "OPERATION_MESSAGE_BUNDLE":
 				# Build OpManager

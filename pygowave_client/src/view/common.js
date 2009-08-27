@@ -61,6 +61,15 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		},
 		
 		/**
+		 * Destroys the widget, its content element and all children of the
+		 * content element.
+		 */
+		destroy: function () {
+			this.dispose();
+			this.contentElement.destroy();
+		},
+		
+		/**
 		 * Inject this widget somewhere else. Sets the parent element.<br/>
 		 * Note: Called by initialize.
 		 * @function {public Widget} inject

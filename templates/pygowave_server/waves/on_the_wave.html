@@ -2,7 +2,7 @@
 {% load i18n %}
 {% get_current_language_bidi as LANGUAGE_BIDI %}
 {% load pgw_nav %}
-{% load pygowave_client %}
+{% load pygowave_client_scripts %}
 
 {% block title %}{% trans "On the Wave" %}{% endblock %}
 {% block nav %}{% pgw_navbar "waves" "on_the_wave" %}{% endblock %}
@@ -30,7 +30,7 @@
 	<script type="text/javascript" src="{{ MEDIA_URL }}js/MooEditable.js"></script>
 	<script type="text/javascript" src="{{ MEDIA_URL }}js/pycow.js"></script>
 	<script type="text/javascript" src="{% url django.views.i18n.javascript_catalog %}"></script>
-{% client_scripts %}
+{% script_links %}
 
 {% endblock %}
 

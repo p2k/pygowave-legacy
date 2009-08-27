@@ -250,12 +250,13 @@ def gadget_loader(request):
 		return render_to_response('pygowave_server/gadgets/gadget_error.html', {"error_message": _(u'Gadget quick-check failed: %s.') % (e.args[0])}, context_instance=RequestContext(request))
 	
 	if request.GET.has_key("gadget_id"):
-		gadget_id = request.GET["gadget_id"]
-		try:
-			ge = GadgetElement.objects.get(pk=gadget_id)
+		gadget_id = int(request.GET["gadget_id"])
+		if gadget_id > 0:
+			try:
+				ge = GadgetElement.objects.get(pk=gadget_id)
+			except:
+				return render_to_response('pygowave_server/gadgets/gadget_error.html', {"error_message": _(u"GadgetElement could not be found.")}, context_instance=RequestContext(request))
 			gadget.update_prefs(ge.get_userprefs())
-		except:
-			return render_to_response('pygowave_server/gadgets/gadget_error.html', {"error_message": _(u"GadgetElement could not be found.")}, context_instance=RequestContext(request))
 	else:
 		gadget_id = None
 

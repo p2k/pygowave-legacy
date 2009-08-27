@@ -269,7 +269,7 @@ pygowave.model = (function() {
 	/**
 	 * Element-objects are all the non-text elements in a Blip.
 	 * An element has no physical presence in the text of a Blip, but it maintains
-	 * an implicit protected space (or newline) to keep positions distinct.
+	 * an implicit protected newline character to keep positions distinct.
 	 *
 	 * Only special Wave Client elements are treated here.
 	 * There are no HTML elements in any Blip. All markup is handled by Annotations.
@@ -283,13 +283,24 @@ pygowave.model = (function() {
 		 * Called on instantiation. Documented for internal purposes.
 		 * @constructor {private} initialize
 		 * @param {Blip} blip The element's parent Blip
+		 * @param {int} id ID of the element, setting this to null will assign
+		 * a new temporaty ID
 		 * @param {int} position Index where this element resides
 		 * @param {int} type Type of the element
+		 * @param {Object} properties The element's properties
 		 */
-		initialize: function (blip, position, type) {
+		initialize: function (blip, id, position, type, properties) {
 			this._blip = blip;
+			if (id == null)
+				this._id = Element.newTempId();
+			else
+				this._id = id;
 			this._pos = position;
 			this._type = type;
+			if (properties == null)
+				this._properties = new Hash();
+			else
+				this._properties = new Hash(properties);
 		},
 
 		/**
@@ -299,6 +310,26 @@ pygowave.model = (function() {
 		 */
 		blip: function () {
 			return this._blip;
+		},
+
+		/**
+		 * Set the parent Blip to the given Blip.
+		 *
+		 * @function {public} setBlip
+		 */
+		setBlip: function (blip) {
+			this._blip = blip;
+		},
+
+		/**
+		 * Return the ID of the element. A negative ID represents a temporary ID,
+		 * that is only valid for this session and will be replaced by a real ID
+		 * on reload.
+		 *
+		 * @function {public int} id
+		 */
+		id: function () {
+			return this._id;
 		},
 
 		/**
@@ -329,6 +360,12 @@ pygowave.model = (function() {
 			this._pos = pos;
 		}
 	});
+	Element.newTempId = function () {
+		Element.lastTempId--;
+		return Element.lastTempId;
+	};
+
+	Element.lastTempId = 0;
 
 	/**
 	 * A gadget element.
@@ -355,14 +392,18 @@ pygowave.model = (function() {
 		 * Called on instantiation. Documented for internal purposes.
 		 * @constructor {private} initialize
 		 * @param {Blip} blip The gadget's parent Blip
+		 * @param {int} id ID of the element, setting this to null will assign
+		 * a new temporaty ID
 		 * @param {int} position Index where this gadget resides
-		 * @param {String} url URL of the gadget xml
+		 * @param {Object} properties The gadget element's properties
+		 * @param {int} id
 		 */
-		initialize: function (blip, position, url) {
-			this.parent(blip, position, ELEMENT_TYPE.GADGET);
-			this._url = url;
-			this._fields = new Hash();
-			this._userprefs = new Hash();
+		initialize: function (blip, id, position, properties) {
+			this.parent(blip, id, position, ELEMENT_TYPE.GADGET, properties);
+			if (this._properties.has("fields"))
+				this._properties.set("fields", new Hash(this._properties.get("fields")));
+			if (this._properties.has("userprefs"))
+				this._properties.set("userprefs", new Hash(this._properties.get("userprefs")));
 		},
 
 		/**
@@ -371,16 +412,22 @@ pygowave.model = (function() {
 		 * @function {public Object} fields
 		 */
 		fields: function () {
-			return this._fields.getClean();
+			if (this._properties.has("fields"))
+				return this._properties.get("fields").getClean();
+			else
+				return {};
 		},
 
 		/**
-		 * Return all UserPrefs as object.
+		 * Return all UserPrefs as hash.
 		 *
-		 * @function {public Object} userPrefs
+		 * @function {public Hash} userPrefs
 		 */
 		userPrefs: function () {
-			return this._userprefs.getClean();
+			if (this._properties.has("userprefs"))
+				return this._properties.get("userprefs");
+			else
+				return {};
 		},
 
 		/**
@@ -389,7 +436,10 @@ pygowave.model = (function() {
 		 * @function {public String} url
 		 */
 		url: function () {
-			return this._url;
+			if (this._properties.has("url"))
+				return this._properties.get("url");
+			else
+				return "";
 		},
 
 		/**
@@ -400,12 +450,15 @@ pygowave.model = (function() {
 		 * gadget state.
 		 */
 		applyDelta: function (delta) {
-			this._fields.update(delta);
-			for (var __iter0_ = new _Iterator(this._fields); __iter0_.hasNext();) {
+			if (!this._properties.has("fields"))
+				this._properties.set("fields", new Hash());
+			var fields = this._properties.get("fields");
+			fields.update(delta);
+			for (var __iter0_ = new _Iterator(this._properties); __iter0_.hasNext();) {
 				var value = __iter0_.next();
 				var key = __iter0_.key();
 				if (value == null)
-					delete this._fields[key];
+					delete fields[key];
 			}
 			delete __iter0_;
 			this.fireEvent("stateChange");
@@ -418,9 +471,13 @@ pygowave.model = (function() {
 		 * @param {String} key
 		 * @param {Object} value
 		 */
-		setUserPref: function (key, value) {
-			this._userprefs[key] = value;
-			this.fireEvent("setUserPref", [key, value]);
+		setUserPref: function (key, value, noevent) {
+			if (!$defined(noevent)) noevent = false;
+			if (!this._properties.has("userprefs"))
+				this._properties.set("userprefs", new Hash());
+			this._properties.get("userprefs").set(key, value);
+			if (!noevent)
+				this.fireEvent("setUserPref", [key, value]);
 		}
 	});
 
@@ -456,6 +513,20 @@ pygowave.model = (function() {
 		 */
 		
 		/**
+		 * Fired on element insertion.
+		 *
+		 * @event onInsertElement
+		 * @param {int} index Offset where the element is inserted
+		 */
+		
+		/**
+		 * Fired on element deletion.
+		 *
+		 * @event onDeleteElement
+		 * @param {int} index Offset where the element is deleted
+		 */
+		
+		/**
 		 * Fired if the Blip has gone out of sync with the server.
 		 *
 		 * @event onOutOfSync
@@ -476,17 +547,25 @@ pygowave.model = (function() {
 		 * @... {int} version Version of the Blip
 		 * @... {Boolean} submitted True if this Blip is submitted
 		 * @param {options String} content Content of the Blip
+		 * @param {optional Element[]} elements Element objects which initially
+		 * reside in this Blip
 		 * @param {optional Blip} parent Parent Blip if this is a nested Blip
 		 */
-		initialize: function (wavelet, id, options, content, parent) {
+		initialize: function (wavelet, id, options, content, elements, parent) {
 			if (!$defined(content)) content = "";
+			if (!$defined(elements)) elements = [];
 			if (!$defined(parent)) parent = null;
 			this.setOptions(options);
 			this._wavelet = wavelet;
 			this._id = id;
 			this._parent = parent;
 			this._content = content;
-			this._elements = [];
+			this._elements = elements;
+			for (var __iter0_ = new _Iterator(this._elements); __iter0_.hasNext();) {
+				var element = __iter0_.next();
+				element.setBlip(this);
+			}
+			delete __iter0_;
 			this._annotations = [];
 			this._outofsync = false;
 		},
@@ -515,6 +594,32 @@ pygowave.model = (function() {
 		 */
 		isRoot: function () {
 			return this.options.is_root;
+		},
+
+		/**
+		 * Returns the Element object at the given position or null.
+		 *
+		 * @function {public Element} elementAt
+		 * @param {int} index Index of the element to retrieve
+		 */
+		elementAt: function (index) {
+			for (var __iter0_ = new XRange(len(this._elements)); __iter0_.hasNext();) {
+				var i = __iter0_.next();
+				var elt = this._elements[i];
+				if (elt.position() == index)
+					return elt;
+			}
+			delete __iter0_;
+			return null;
+		},
+
+		/**
+		 * Returns all Elements of this Blip.
+		 *
+		 * @function {public Element[]} allElements
+		 */
+		allElements: function () {
+			return this._elements;
 		},
 
 		/**
@@ -580,6 +685,95 @@ pygowave.model = (function() {
 			this._wavelet._setStatus("dirty");
 			if (!noevent)
 				this.fireEvent("deleteText", [index, length]);
+		},
+
+		/**
+		 * Insert an element at the specified index. This implicitly adds a
+		 * protected newline character at the index.<br/>
+		 * Note: This sets the wavelet status to 'dirty'.
+		 *
+		 * @function {public} insertElement
+		 * @param {int} index Position of the new element
+		 * @param {String} type Element type
+		 * @param {Object} properties Element properties
+		 * @param {optional Boolean} noevent Set to true if no event should be generated
+		 */
+		insertElement: function (index, type, properties, noevent) {
+			if (!$defined(noevent)) noevent = false;
+			this.insertText(index, "\n", true);
+			if (type == 2)
+				var elt = new GadgetElement(this, null, index, properties);
+			else
+				elt = new Element(this, null, index, type, properties);
+			this._elements.append(elt);
+			this._wavelet._setStatus("dirty");
+			if (!noevent)
+				this.fireEvent("insertElement", index);
+		},
+
+		/**
+		 * Delete an element at the specified index. This implicitly deletes the
+		 * protected newline character at the index.<br/>
+		 * Note: This sets the wavelet status to 'dirty'.
+		 *
+		 * @function {public} deleteElement
+		 * @param {int} index Position of the element to delete
+		 * @param {optional Boolean} noevent Set to true if no event should be generated
+		 */
+		deleteElement: function (index, noevent) {
+			if (!$defined(noevent)) noevent = false;
+			for (var __iter0_ = new XRange(len(this._elements)); __iter0_.hasNext();) {
+				var i = __iter0_.next();
+				var elt = this._elements[i];
+				if (elt.position() == index) {
+					this._elements.pop(i);
+					break;
+				}
+			}
+			delete __iter0_;
+			this.deleteText(index, 1, true);
+			if (!noevent)
+				this.fireEvent("deleteElement", index);
+		},
+
+		/**
+		 * Apply an element delta. Currently only for gadget elements.<br/>
+		 * Note: This action always emits stateChange.
+		 *
+		 * @function {public} applyElementDelta
+		 * @param {int} index Position of the element
+		 * @param {Object} delta Delta to apply to the element
+		 */
+		applyElementDelta: function (index, delta) {
+			for (var __iter0_ = new _Iterator(this._elements); __iter0_.hasNext();) {
+				var elt = __iter0_.next();
+				if (elt.position() == index) {
+					elt.applyDelta(delta);
+					break;
+				}
+			}
+			delete __iter0_;
+		},
+
+		/**
+		 * Set an UserPref of an element. Currently only for gadget elements.
+		 *
+		 * @function {public} setElementUserpref
+		 * param {int} index Position of the element
+		 * @param {Object} key Name of the UserPref
+		 * @param {Object} value Value of the UserPref
+		 * @param {optional Boolean} noevent Set to true if no event should be generated
+		 */
+		setElementUserpref: function (index, key, value, noevent) {
+			if (!$defined(noevent)) noevent = false;
+			for (var __iter0_ = new _Iterator(this._elements); __iter0_.hasNext();) {
+				var elt = __iter0_.next();
+				if (elt.position() == index) {
+					elt.setUserPref(key, value, noevent);
+					break;
+				}
+			}
+			delete __iter0_;
 		},
 
 		/**
@@ -707,6 +901,14 @@ pygowave.model = (function() {
 		},
 
 		/**
+		 * Returns the parent WaveModel object.
+		 * @function {public WaveModel} waveModel
+		 */
+		waveModel: function () {
+			return this._wave;
+		},
+
+		/**
 		 * Add a participant to this Wavelet.<br/>
 		 * Note: Fires {@link pygowave.model.Wavelet.onParticipantsChanged onParticipantsChanged}
 		 *
@@ -784,11 +986,14 @@ pygowave.model = (function() {
 		 * @function {public Blip} appendBlip
 		 * @param {String} id ID of the new Blip
 		 * @param {Object} options Information about the Blip
-		 * @param {options String} content Content of the Blip
+		 * @param {optional String} content Content of the Blip
+		 * @param {optional Element[]} elements Element objects which initially
+		 * reside in this Blip
 		 */
-		appendBlip: function (id, options, content) {
+		appendBlip: function (id, options, content, elements) {
 			if (!$defined(content)) content = "";
-			return this.insertBlip(len(this._blips), id, options, content);
+			if (!$defined(elements)) elements = [];
+			return this.insertBlip(len(this._blips), id, options, content, elements);
 		},
 
 		/**
@@ -800,11 +1005,14 @@ pygowave.model = (function() {
 		 * @param {int} index Index where to insert the Blip
 		 * @param {String} id ID of the new Blip
 		 * @param {Object} options Information about the Blip
-		 * @param {options String} content Content of the Blip
+		 * @param {optional String} content Content of the Blip
+		 * @param {optional Element[]} elements Element objects which initially
+		 * reside in this Blip
 		 */
-		insertBlip: function (index, id, options, content) {
+		insertBlip: function (index, id, options, content, elements) {
 			if (!$defined(content)) content = "";
-			var blip = new Blip(this, id, options, content);
+			if (!$defined(elements)) elements = [];
+			var blip = new Blip(this, id, options, content, elements);
 			this._blips.insert(index, blip);
 			this.fireEvent("blipInserted", [index, id]);
 			return blip;
@@ -927,6 +1135,15 @@ pygowave.model = (function() {
 		},
 
 		/**
+		 * Returns the ID of the viewer.
+		 *
+		 * @function {public String} viewerId
+		 */
+		viewerId: function () {
+			return this._viewerId;
+		},
+
+		/**
 		 * Load the wave's contents from a JSON-serialized snapshot and a map of
 		 * participant objects.
 		 *
@@ -960,7 +1177,16 @@ pygowave.model = (function() {
 					version: blip.version,
 					submitted: blip.submitted
 				};
-				var blipObj = rootWaveletObj.appendBlip(blip_id, blip_options, blip.content);
+				var blip_elements = [];
+				for (var __iter1_ = new _Iterator(blip.elements); __iter1_.hasNext();) {
+					var serialelement = __iter1_.next();
+					if (serialelement.type == ELEMENT_TYPE.GADGET)
+						blip_elements.append(new GadgetElement(null, serialelement.id, serialelement.index, serialelement.properties));
+					else
+						blip_elements.append(new Element(null, serialelement.id, serialelement.index, serialelement.type, serialelement.properties));
+				}
+				delete __iter1_;
+				var blipObj = rootWaveletObj.appendBlip(blip_id, blip_options, blip.content, blip_elements);
 			}
 			delete __iter0_;
 		},
@@ -1014,6 +1240,7 @@ pygowave.model = (function() {
 
 	return {
 		WaveModel: WaveModel,
-		Participant: Participant
+		Participant: Participant,
+		ELEMENT_TYPE: ELEMENT_TYPE
 	};
 })();
