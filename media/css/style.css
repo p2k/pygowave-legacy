@@ -241,7 +241,7 @@ p
 	font-weight: bold;
 }
 
-#tooltip
+.tooltip
 {
 	background-color: #EEEEEE;
 	border: 1px solid #111111;
@@ -249,10 +249,6 @@ p
 	padding: 5px;
 	position: absolute;
 	z-index: 3000;
-}
-
-#tooltip .body
-{
 	font-size: 1.2em;
 }
 

@@ -62,25 +62,25 @@ pygowave.operations = (function() {
 		 *
 		 * @constructor {public} initialize
 		 * @param {String} op_type Type of operation
-		 * @param {String} wave_id The id of the wave that this operation is to
+		 * @param {String} waveId The id of the wave that this operation is to
 		 * be applied.
-		 * @param {String} wavelet_id The id of the wavelet that this operation is
+		 * @param {String} waveletId The id of the wavelet that this operation is
 		 * to be applied.
-		 * @param {optional String} blip_id The optional id of the blip that this
+		 * @param {optional String} blipId The optional id of the blip that this
 		 * operation is to be applied.
 		 * @param {optional int} index Optional integer index for content-based
 		 * operations.
 		 * @param {optional Object} prop A weakly typed property object is based
 		 * on the context of this operation.
 		 */
-		initialize: function (op_type, wave_id, wavelet_id, blip_id, index, prop) {
-			if (!$defined(blip_id)) blip_id = "";
+		initialize: function (op_type, waveId, waveletId, blipId, index, prop) {
+			if (!$defined(blipId)) blipId = "";
 			if (!$defined(index)) index = -1;
 			if (!$defined(prop)) prop = null;
 			this.type = op_type;
-			this.wave_id = wave_id;
-			this.wavelet_id = wavelet_id;
-			this.blip_id = blip_id;
+			this.waveId = waveId;
+			this.waveletId = waveletId;
+			this.blipId = blipId;
 			this.index = index;
 			this.property = prop;
 		},
@@ -91,7 +91,7 @@ pygowave.operations = (function() {
 		 * @function {public Boolean} clone
 		 */
 		clone: function () {
-			return new Operation(this.type, this.wave_id, this.wavelet_id, this.blip_id, this.index, this.property);
+			return new Operation(this.type, this.waveId, this.waveletId, this.blipId, this.index, this.property);
 		},
 
 		/**
@@ -115,7 +115,7 @@ pygowave.operations = (function() {
 		 * @param {Operation} other_op
 		 */
 		isCompatibleTo: function (other_op) {
-			if (this.wave_id != other_op.wave_id || this.wavelet_id != other_op.wavelet_id || this.blip_id != this.blip_id)
+			if (this.waveId != other_op.waveId || this.waveletId != other_op.waveletId || this.blipId != this.blipId)
 				return false;
 			return true;
 		},
@@ -179,23 +179,23 @@ pygowave.operations = (function() {
 		},
 
 		/**
-		 * Serialize this operation into a dictionary.
+		 * Serialize this operation into a dictionary. Official robots API format.
 		 *
 		 * @function {public String} serialize
 		 */
 		serialize: function () {
 			return {
 				type: this.type,
-				wave_id: this.wave_id,
-				wavelet_id: this.wavelet_id,
-				blip_id: this.blip_id,
+				waveId: this.waveId,
+				waveletId: this.waveletId,
+				blipId: this.blipId,
 				index: this.index,
 				property: this.property
 			};
 		},
 
 		__repr__: function () {
-			return "%s(\"%s\",%d,%s)".sprintf(this.type.lower(), this.blip_id, this.index, repr(this.property));
+			return "%s(\"%s\",%d,%s)".sprintf(this.type.lower(), this.blipId, this.index, repr(this.property));
 		}
 	});
 	/**
@@ -204,7 +204,7 @@ pygowave.operations = (function() {
 	 * @function {public static Operation} unserialize
 	 */
 	Operation.unserialize = function (obj) {
-		return new Operation(obj.type, obj.wave_id, obj.wavelet_id, obj.blip_id, obj.index, obj.property);
+		return new Operation(obj.type, obj.waveId, obj.waveletId, obj.blipId, obj.index, obj.property);
 	};
 
 	/**
@@ -254,12 +254,12 @@ pygowave.operations = (function() {
 		 * Initializes the op manager with a wave and wavelet ID.
 		 *
 		 * @constructor {public} initialize
-		 * @param {String} wave_id The ID of the wave
-		 * @param {String} wavelet_id The ID of the wavelet
+		 * @param {String} waveId The ID of the wave
+		 * @param {String} waveletId The ID of the wavelet
 		 */
-		initialize: function (wave_id, wavelet_id) {
-			this.wave_id = wave_id;
-			this.wavelet_id = wavelet_id;
+		initialize: function (waveId, waveletId) {
+			this.waveId = waveId;
+			this.waveletId = waveletId;
 			this.operations = [];
 		},
 
@@ -584,37 +584,37 @@ pygowave.operations = (function() {
 		 * Requests to insert content into a document at a specific location.
 		 *
 		 * @function {public} documentInsert
-		 * @param {String} blip_id The blip id that this operation is applied to
+		 * @param {String} blipId The blip id that this operation is applied to
 		 * @param {int} index The position insert the content at in ths document
 		 * @param {String} content The content to insert
 		 */
-		documentInsert: function (blip_id, index, content) {
-			this.__insert(new Operation(DOCUMENT_INSERT, this.wave_id, this.wavelet_id, blip_id, index, content));
+		documentInsert: function (blipId, index, content) {
+			this.__insert(new Operation(DOCUMENT_INSERT, this.waveId, this.waveletId, blipId, index, content));
 		},
 
 		/**
 		 * Requests to delete content in a given range.
 		 *
 		 * @function {public} documentDelete
-		 * @param {String} blip_id The blip id that this operation is applied to
+		 * @param {String} blipId The blip id that this operation is applied to
 		 * @param {int} start Start of the range
 		 * @param {int} end End of the range
 		 */
-		documentDelete: function (blip_id, start, end) {
-			this.__insert(new Operation(DOCUMENT_DELETE, this.wave_id, this.wavelet_id, blip_id, start, end - start));
+		documentDelete: function (blipId, start, end) {
+			this.__insert(new Operation(DOCUMENT_DELETE, this.waveId, this.waveletId, blipId, start, end - start));
 		},
 
 		/**
 		 * Requests to insert an element at the given position.
 		 *
 		 * @function {public} documentElementInsert
-		 * @param {String} blip_id The blip id that this operation is applied to
+		 * @param {String} blipId The blip id that this operation is applied to
 		 * @param {int} index Position of the new element
 		 * @param {String} type Element type
 		 * @param {Object} properties Element properties
 		 */
-		documentElementInsert: function (blip_id, index, type, properties) {
-			this.__insert(new Operation(DOCUMENT_ELEMENT_INSERT, this.wave_id, this.wavelet_id, blip_id, index, {
+		documentElementInsert: function (blipId, index, type, properties) {
+			this.__insert(new Operation(DOCUMENT_ELEMENT_INSERT, this.waveId, this.waveletId, blipId, index, {
 				type: type,
 				properties: properties
 			}));
@@ -624,36 +624,36 @@ pygowave.operations = (function() {
 		 * Requests to delete an element from the given position.
 		 *
 		 * @function {public} documentElementDelete
-		 * @param {String} blip_id The blip id that this operation is applied to
+		 * @param {String} blipId The blip id that this operation is applied to
 		 * @param {int} index Position of the element to delete
 		 */
-		documentElementDelete: function (blip_id, index) {
-			this.__insert(new Operation(DOCUMENT_ELEMENT_DELETE, this.wave_id, this.wavelet_id, blip_id, index, null));
+		documentElementDelete: function (blipId, index) {
+			this.__insert(new Operation(DOCUMENT_ELEMENT_DELETE, this.waveId, this.waveletId, blipId, index, null));
 		},
 
 		/**
 		 * Requests to apply a delta to the element at the given position.
 		 *
 		 * @function {public} documentElementDelta
-		 * @param {String} blip_id The blip id that this operation is applied to
+		 * @param {String} blipId The blip id that this operation is applied to
 		 * @param {int} index Position of the element
 		 * @param {Object} delta Delta to apply to the element
 		 */
-		documentElementDelta: function (blip_id, index, delta) {
-			this.__insert(new Operation(DOCUMENT_ELEMENT_DELTA, this.wave_id, this.wavelet_id, blip_id, index, delta));
+		documentElementDelta: function (blipId, index, delta) {
+			this.__insert(new Operation(DOCUMENT_ELEMENT_DELTA, this.waveId, this.waveletId, blipId, index, delta));
 		},
 
 		/**
 		 * Requests to set a UserPref of the element at the given position.
 		 *
 		 * @function {public} documentElementSetpref
-		 * @param {String} blip_id The blip id that this operation is applied to
+		 * @param {String} blipId The blip id that this operation is applied to
 		 * @param {int} index Position of the element
 		 * @param {Object} key Name of the UserPref
 		 * @param {Object} value Value of the UserPref
 		 */
-		documentElementSetpref: function (blip_id, index, key, value) {
-			this.__insert(new Operation(DOCUMENT_ELEMENT_SETPREF, this.wave_id, this.wavelet_id, blip_id, index, {
+		documentElementSetpref: function (blipId, index, key, value) {
+			this.__insert(new Operation(DOCUMENT_ELEMENT_SETPREF, this.waveId, this.waveletId, blipId, index, {
 				key: key,
 				value: value
 			}));

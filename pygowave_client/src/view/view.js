@@ -438,7 +438,14 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		 * @param {String} message The errormessage to show
 		 */
 		showControllerError: function (message) {
-			this.showMessage(message, gettext("Shit happens..."), gettext("Oh well"));
+			var buttons = {};
+			buttons[gettext("Dismiss")] = function () {MochaUI.closeWindow(this);};
+			buttons[gettext("Reload")] = function () {window.location.href = window.location.href;};
+			this._showDialog(
+				gettext("Shit happens..."),
+				message,
+				buttons
+			);
 		},
 		
 		/**
@@ -573,19 +580,42 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		 */
 		insertGadgetAtCursor: function (waveletId, url) {
 			var waveletWidget = this.waveletWidgets.get(waveletId);
-			if (!$defined(waveletWidget))
+			if (!$defined(waveletWidget)) {
+				this.showMessage(
+					gettext("The WaveletWidget for Wavelet '%s' was not found.").sprintf(waveletId),
+					gettext("Sorry, but..."),
+					gettext("I see")
+				);
 				return false;
+			}
 			var editor = waveletWidget.activeBlipEditorWidget();
-			if (!$defined(editor))
+			if (!$defined(editor)) {
+				this.showMessage(
+					gettext("You must be inside of a Blip to add a Gadget."),
+					gettext("Sorry, but..."),
+					gettext("I see")
+				);
 				return false;
+			}
 			var textrange = editor.lastTextRange();
-			if (!$defined(textrange))
+			if (!$defined(textrange)) {
+				this.showMessage(
+					gettext("You must place your cursor inside the text to mark the Gadget's insertion point."),
+					gettext("Sorry, but..."),
+					gettext("I see")
+				);
 				return false;
+			}
+			
+			var index = textrange[0];
+			
+			if (!editor.checkOrAddNewline(index))
+				index++;
 			
 			this.fireEvent('elementInsert', [
 				waveletId,
 				editor.blip().id(),
-				textrange[0],
+				index,
 				pygowave.model.ELEMENT_TYPE.GADGET,
 				{"url": url}
 			]);

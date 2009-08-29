@@ -189,6 +189,12 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		Extends: Widget,
 		
 		/**
+		 * Fired when the user clicks on the delete button.
+		 * @event onDeleteClicked
+		 * @param {int} index Index of the element
+		 */
+		
+		/**
 		 * Called on instantiation.
 		 * @constructor {public} initialize
 		 * @param {WaveView} view A reference back to the main view
@@ -217,12 +223,22 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			this._gadgetElement.addEvent('stateChange', this._onStateChange);
 			this._gadgetElement.addEvent('setUserPref', this._onSetUserPref);
 			
-			var contentElement = new Element('iframe', {
-				'class': 'gadget_element',
-				'src': "%surl=%s&gadget_id=%d".sprintf(view.options.gadgetLoaderUrl, encodeURIComponent(gadgetElement.url()), gadgetElement.id())
-			});
-			contentElement.addEvent('load', this._onGadgetLoaded.bind(this));
+			var contentElement = new Element('div', {'class': 'gadget_element'});
 			contentElement.contentEditable = "false";
+			
+			this._deleteBox = new Element('div', {
+				'class': 'delete_box',
+				'title': gettext("Delete Gadget")
+			}).inject(contentElement);
+			this._deleteBox.addEvent('click', function () {
+				this.fireEvent('deleteClicked', this._gadgetElement.position());
+			}.bind(this));
+			
+			this._gadgetFrame = new Element('iframe', {
+				'src': "%surl=%s&gadget_id=%d".sprintf(view.options.gadgetLoaderUrl, encodeURIComponent(gadgetElement.url()), gadgetElement.id())
+			}).inject(contentElement);
+			this._gadgetFrame.addEvent('load', this._onGadgetLoaded.bind(this));
+			
 			this.parent(parentElement, contentElement, where);
 		},
 		
@@ -230,6 +246,13 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			this.parent();
 			this._wavelet.removeEvent('participantsChanged', this._onParticipantsChanged);
 			window.gadget_rpc.unregisterModuleHandler(this._gadgetElement.id());
+		},
+		
+		element: function () {
+			return this._gadgetElement;
+		},
+		position: function () {
+			return this._gadgetElement.position();
 		},
 		
 		_onGadgetLoaded: function () {
@@ -240,6 +263,7 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			this._callbacksOnLoad.empty();
 			this._onParticipantsChanged();
 			this._onStateChange();
+			this.adjustHeight();
 		},
 		_onParticipantsChanged: function () {
 			this.invokeCallbacks(
@@ -292,9 +316,13 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		},
 		adjustHeight: function (opt_height) {
 			if ($defined(opt_height))
-				this.contentElement.setStyle('height', opt_height);
-			else
-				this.contentElement.setStyle('height', this.contentElement.getScrollSize().y);
+				this._gadgetFrame.setStyle('height', opt_height);
+			else {
+				try { // On unexpected errors in the gadget loader, this may fail
+					var doc = this._gadgetFrame.contentDocument;
+					this._gadgetFrame.setStyle('height', doc.documentElement.scrollHeight);
+				}catch(e){}
+			}
 		},
 		set_pref: function (key, value) {
 			this._view.fireEvent('elementSetUserpref', [this._wavelet.id(), this._blipId, this._gadgetElement.position(), key, value]);

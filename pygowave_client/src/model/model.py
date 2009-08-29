@@ -435,7 +435,7 @@ class GadgetElement(Element):
 		fields.update(delta)
 		
 		# Delete keys with null values
-		for key, value in self._properties.iteritems():
+		for key, value in fields.iteritems():
 			if value == None:
 				del fields[key]
 		
@@ -582,6 +582,23 @@ class Blip(object):
 				return elt
 		
 		return None
+
+	def elementsWithin(self, start, end):
+		"""
+		Returns the Elements between the start and end index.
+		
+		@function {public Element[]} elementsWithin
+		@param {int} start Start index
+		@param {int} end End index
+		"""
+		
+		lst = []
+		for i in xrange(len(self._elements)):
+			elt = self._elements[i]
+			if elt.position() >= start and elt.position() < end:
+				lst.append(elt)
+		
+		return lst
 
 	def allElements(self):
 		"""
@@ -744,7 +761,8 @@ class Blip(object):
 		"""
 		if self._outofsync:
 			return False
-		if sha_constructor(self._content.encode("utf-8")).hexdigest() != sum:
+		mysum = sha_constructor(self._content.encode("utf-8")).hexdigest()
+		if mysum != sum:
 			self.fireEvent("outOfSync")
 			self._outofsync = True
 			return False
@@ -963,7 +981,7 @@ class Wavelet(object):
 			if blip.id() == id:
 				return blip
 		
-		return None;
+		return None
 
 	def _setRootBlip(self, blip):
 		"""
@@ -1007,6 +1025,30 @@ class Wavelet(object):
 			self._setStatus("clean")
 		else:
 			self._setStatus("invalid")
+	
+	def applyOperations(self, ops):
+		"""
+		Apply the operations on the wavelet.
+		
+		@function {public} applyOperations
+		@param {pygowave.operations.Operation[]} ops List of operations to apply
+		"""
+		
+		for op in ops:
+			if op.blipId != "":
+				blip = self.blipById(op.blipId)
+				if op.type == pygowave.operations.DOCUMENT_DELETE:
+					blip.deleteText(op.index, op.property)
+				elif op.type == pygowave.operations.DOCUMENT_INSERT:
+					blip.insertText(op.index, op.property)
+				elif op.type == pygowave.operations.DOCUMENT_ELEMENT_DELETE:
+					blip.deleteElement(op.index)
+				elif op.type == pygowave.operations.DOCUMENT_ELEMENT_INSERT:
+					blip.insertElement(op.index, op.property["type"], op.property["properties"])
+				elif op.type == pygowave.operations.DOCUMENT_ELEMENT_DELTA:
+					blip.applyElementDelta(op.index, op.property)
+				elif op.type == pygowave.operations.DOCUMENT_ELEMENT_SETPREF:
+					blip.setElementUserpref(op.index, op.property["key"], op.property["value"])
 
 @Implements(Events)
 @Class

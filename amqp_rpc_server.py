@@ -286,7 +286,7 @@ class PyGoWaveMessageProcessor(object):
 				self.emit(pconn, "OPERATION_MESSAGE_BUNDLE_ACK", {"version": wavelet.version, "blipsums": blipsums})
 				self.broadcast(wavelet, "OPERATION_MESSAGE_BUNDLE", {"version": wavelet.version, "operations": newdelta.serialize(), "blipsums": blipsums}, [pconn])
 				
-				logger.info("[%s/%d@%s] Processed delta #%d -> v%d" % (participant.name, pconn.id, wavelet.wave.id, version, wavelet.version))
+				logger.debug("[%s/%d@%s] Processed delta #%d -> v%d" % (participant.name, pconn.id, wavelet.wave.id, version, wavelet.version))
 				
 			else:
 				logger.error("[%s/%d@%s] Unknown message: %s" % (participant.name, pconn.id, wavelet.wave.id, message))

@@ -48,7 +48,9 @@ len = function (obj) {
  * If the argument is a string, the return value is the same object.
  */
 str = function (obj) {
-	if ($defined(obj.__str__))
+	if (!$defined(obj))
+		return "null";
+	else if ($defined(obj.__str__))
 		return obj.__str__();
 	else if ($type(obj) == "number")
 		return String(obj);

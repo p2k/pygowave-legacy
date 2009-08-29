@@ -365,7 +365,9 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		 * @param {int} end
 		 */
 		_onCurrentTextRangeChanged: function (start, end) {
-			if (start == end)
+			if (!$defined(start) || !$defined(end))
+				this._textRange.set('text', "");
+			else if (start == end)
 				this._textRange.set('text', gettext("Position: %d").sprintf(start));
 			else
 				this._textRange.set('text', gettext("Selected: %d-%d").sprintf(start, end));

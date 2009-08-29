@@ -25,12 +25,41 @@ limitations under the License.
 from pycow.decorators import Class, Implements
 from pycow.utils import Events
 
+# Currently supported and official operations
 DOCUMENT_INSERT = 'DOCUMENT_INSERT'
 DOCUMENT_DELETE = 'DOCUMENT_DELETE'
 DOCUMENT_ELEMENT_INSERT = 'DOCUMENT_ELEMENT_INSERT'
 DOCUMENT_ELEMENT_DELETE = 'DOCUMENT_ELEMENT_DELETE'
+
+# Currently supported, but non-official operations
 DOCUMENT_ELEMENT_DELTA = 'DOCUMENT_ELEMENT_DELTA'
 DOCUMENT_ELEMENT_SETPREF = 'DOCUMENT_ELEMENT_SETPREF'
+
+# Currently supported operations, which are not handled within OT
+#WAVELET_ADD_PARTICIPANT = 'WAVELET_ADD_PARTICIPANT'
+#WAVELET_REMOVE_SELF = 'WAVELET_REMOVE_SELF'
+
+# Currently not supported operations
+#WAVELET_APPEND_BLIP = 'WAVELET_APPEND_BLIP'
+#WAVELET_CREATE = 'WAVELET_CREATE'
+#WAVELET_DATADOC_SET = 'WAVELET_DATADOC_SET'
+#WAVELET_SET_TITLE = 'WAVELET_SET_TITLE'
+#BLIP_CREATE_CHILD = 'BLIP_CREATE_CHILD'
+#BLIP_DELETE = 'BLIP_DELETE'
+#DOCUMENT_ANNOTATION_DELETE = 'DOCUMENT_ANNOTATION_DELETE'
+#DOCUMENT_ANNOTATION_SET = 'DOCUMENT_ANNOTATION_SET'
+#DOCUMENT_ANNOTATION_SET_NORANGE = 'DOCUMENT_ANNOTATION_SET_NORANGE'
+#DOCUMENT_APPEND = 'DOCUMENT_APPEND'
+#DOCUMENT_APPEND_STYLED_TEXT = 'DOCUMENT_APPEND_STYLED_TEXT'
+#DOCUMENT_REPLACE = 'DOCUMENT_REPLACE'
+#DOCUMENT_ELEMENT_APPEND = 'DOCUMENT_ELEMENT_APPEND'
+#DOCUMENT_ELEMENT_INSERT_AFTER = 'DOCUMENT_ELEMENT_INSERT_AFTER'
+#DOCUMENT_ELEMENT_INSERT_BEFORE = 'DOCUMENT_ELEMENT_INSERT_BEFORE'
+#DOCUMENT_ELEMENT_REPLACE = 'DOCUMENT_ELEMENT_REPLACE'
+#DOCUMENT_INLINE_BLIP_APPEND = 'DOCUMENT_INLINE_BLIP_APPEND'
+#DOCUMENT_INLINE_BLIP_DELETE = 'DOCUMENT_INLINE_BLIP_DELETE'
+#DOCUMENT_INLINE_BLIP_INSERT = 'DOCUMENT_INLINE_BLIP_INSERT'
+#DOCUMENT_INLINE_BLIP_INSERT_AFTER_ELEMENT = 'DOCUMENT_INLINE_BLIP_INSERT_AFTER_ELEMENT'
 
 __all__ = [
 	"OpManager",
@@ -59,17 +88,17 @@ class Operation(object):
 	@class {private} pygowave.operations.Operation
 	"""
 	
-	def __init__(self, op_type, wave_id, wavelet_id, blip_id='', index=-1, prop=None):
+	def __init__(self, op_type, waveId, waveletId, blipId='', index=-1, prop=None):
 		"""
 		Initializes this operation with contextual data.
 		
 		@constructor {public} initialize
 		@param {String} op_type Type of operation
-		@param {String} wave_id The id of the wave that this operation is to
+		@param {String} waveId The id of the wave that this operation is to
 			be applied.
-		@param {String} wavelet_id The id of the wavelet that this operation is
+		@param {String} waveletId The id of the wavelet that this operation is
 		    to be applied.
-		@param {optional String} blip_id The optional id of the blip that this
+		@param {optional String} blipId The optional id of the blip that this
 			operation is to be applied.
 		@param {optional int} index Optional integer index for content-based
 			operations.
@@ -77,9 +106,9 @@ class Operation(object):
 			on the context of this operation.
 		"""
 		self.type = op_type
-		self.wave_id = wave_id
-		self.wavelet_id = wavelet_id
-		self.blip_id = blip_id
+		self.waveId = waveId
+		self.waveletId = waveletId
+		self.blipId = blipId
 		self.index = index
 		self.property = prop
 	
@@ -89,7 +118,7 @@ class Operation(object):
 		
 		@function {public Boolean} clone
 		"""
-		return Operation(self.type, self.wave_id, self.wavelet_id, self.blip_id,
+		return Operation(self.type, self.waveId, self.waveletId, self.blipId,
 						 self.index, self.property)
 	
 	def isNull(self):
@@ -115,9 +144,9 @@ class Operation(object):
 		
 		# Currently all supported operations are compatible to each other (if on the same blip)
 		# DOCUMENT_INSERT DOCUMENT_DELETE DOCUMENT_ELEMENT_INSERT DOCUMENT_ELEMENT_DELETE DOCUMENT_ELEMENT_DELTA DOCUMENT_ELEMENT_SETPREF
-		if self.wave_id != other_op.wave_id \
-				or self.wavelet_id != other_op.wavelet_id \
-				or self.blip_id != self.blip_id:
+		if self.waveId != other_op.waveId \
+				or self.waveletId != other_op.waveletId \
+				or self.blipId != self.blipId:
 			return False
 		return True
 
@@ -176,21 +205,21 @@ class Operation(object):
 
 	def serialize(self):
 		"""
-		Serialize this operation into a dictionary.
+		Serialize this operation into a dictionary. Official robots API format.
 		
 		@function {public String} serialize
 		"""
 		return {
 			"type": self.type,
-			"wave_id": self.wave_id,
-			"wavelet_id": self.wavelet_id,
-			"blip_id": self.blip_id,
+			"waveId": self.waveId,
+			"waveletId": self.waveletId,
+			"blipId": self.blipId,
 			"index": self.index,
 			"property": self.property,
 		}
 
 	def __repr__(self):
-		return "%s(\"%s\",%d,%s)" % (self.type.lower(), self.blip_id,
+		return "%s(\"%s\",%d,%s)" % (self.type.lower(), self.blipId,
 									 self.index, repr(self.property))
 
 	@staticmethod
@@ -200,8 +229,8 @@ class Operation(object):
 		
 		@function {public static Operation} unserialize
 		"""
-		return Operation(obj["type"], obj["wave_id"], obj["wavelet_id"],
-						 obj["blip_id"], obj["index"], obj["property"])
+		return Operation(obj["type"], obj["waveId"], obj["waveletId"],
+						 obj["blipId"], obj["index"], obj["property"])
 
 @Implements(Events)
 @Class
@@ -254,16 +283,16 @@ class OpManager(object):
 	"""
 	# ---------------------------
 	
-	def __init__(self, wave_id, wavelet_id):
+	def __init__(self, waveId, waveletId):
 		"""
 		Initializes the op manager with a wave and wavelet ID.
 		
 		@constructor {public} initialize
-		@param {String} wave_id The ID of the wave
-		@param {String} wavelet_id The ID of the wavelet
+		@param {String} waveId The ID of the wave
+		@param {String} waveletId The ID of the wavelet
 		"""
-		self.wave_id = wave_id
-		self.wavelet_id = wavelet_id
+		self.waveId = waveId
+		self.waveletId = waveletId
 		self.operations = []
 
 	def isEmpty(self):
@@ -552,51 +581,51 @@ class OpManager(object):
 
 	# --------------------------------------------------------------------------
 
-	def documentInsert(self, blip_id, index, content):
+	def documentInsert(self, blipId, index, content):
 		"""
 		Requests to insert content into a document at a specific location.
 		
 		@function {public} documentInsert
-		@param {String} blip_id The blip id that this operation is applied to
+		@param {String} blipId The blip id that this operation is applied to
 		@param {int} index The position insert the content at in ths document
 		@param {String} content The content to insert
 		"""
 		self.__insert(Operation(
 			DOCUMENT_INSERT,
-			self.wave_id, self.wavelet_id, blip_id,
+			self.waveId, self.waveletId, blipId,
 			index,
 			content
 		))
 	
-	def documentDelete(self, blip_id, start, end):
+	def documentDelete(self, blipId, start, end):
 		"""
 		Requests to delete content in a given range.
 		
 		@function {public} documentDelete
-		@param {String} blip_id The blip id that this operation is applied to
+		@param {String} blipId The blip id that this operation is applied to
 		@param {int} start Start of the range
 		@param {int} end End of the range
 		"""
 		self.__insert(Operation(
 			DOCUMENT_DELETE,
-			self.wave_id, self.wavelet_id, blip_id,
+			self.waveId, self.waveletId, blipId,
 			start,
 			end-start # = length
 		))
 	
-	def documentElementInsert(self, blip_id, index, type, properties):
+	def documentElementInsert(self, blipId, index, type, properties):
 		"""
 		Requests to insert an element at the given position.
 		
 		@function {public} documentElementInsert
-		@param {String} blip_id The blip id that this operation is applied to
+		@param {String} blipId The blip id that this operation is applied to
 		@param {int} index Position of the new element
 		@param {String} type Element type
 		@param {Object} properties Element properties
 		"""
 		self.__insert(Operation(
 			DOCUMENT_ELEMENT_INSERT,
-			self.wave_id, self.wavelet_id, blip_id,
+			self.waveId, self.waveletId, blipId,
 			index,
 			{
 				"type": type,
@@ -604,50 +633,50 @@ class OpManager(object):
 			}
 		))
 
-	def documentElementDelete(self, blip_id, index):
+	def documentElementDelete(self, blipId, index):
 		"""
 		Requests to delete an element from the given position.
 		
 		@function {public} documentElementDelete
-		@param {String} blip_id The blip id that this operation is applied to
+		@param {String} blipId The blip id that this operation is applied to
 		@param {int} index Position of the element to delete
 		"""
 		self.__insert(Operation(
 			DOCUMENT_ELEMENT_DELETE,
-			self.wave_id, self.wavelet_id, blip_id,
+			self.waveId, self.waveletId, blipId,
 			index,
 			None
 		))
 	
-	def documentElementDelta(self, blip_id, index, delta):
+	def documentElementDelta(self, blipId, index, delta):
 		"""
 		Requests to apply a delta to the element at the given position.
 		
 		@function {public} documentElementDelta
-		@param {String} blip_id The blip id that this operation is applied to
+		@param {String} blipId The blip id that this operation is applied to
 		@param {int} index Position of the element
 		@param {Object} delta Delta to apply to the element
 		"""
 		self.__insert(Operation(
 			DOCUMENT_ELEMENT_DELTA,
-			self.wave_id, self.wavelet_id, blip_id,
+			self.waveId, self.waveletId, blipId,
 			index,
 			delta
 		))
 
-	def documentElementSetpref(self, blip_id, index, key, value):
+	def documentElementSetpref(self, blipId, index, key, value):
 		"""
 		Requests to set a UserPref of the element at the given position.
 		
 		@function {public} documentElementSetpref
-		@param {String} blip_id The blip id that this operation is applied to
+		@param {String} blipId The blip id that this operation is applied to
 		@param {int} index Position of the element
 		@param {Object} key Name of the UserPref
 		@param {Object} value Value of the UserPref
 		"""
 		self.__insert(Operation(
 			DOCUMENT_ELEMENT_SETPREF,
-			self.wave_id, self.wavelet_id, blip_id,
+			self.waveId, self.waveletId, blipId,
 			index,
 			{
 				"key": key,

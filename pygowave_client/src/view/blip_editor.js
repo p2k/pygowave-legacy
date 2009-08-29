@@ -22,7 +22,7 @@ window.pygowave = $defined(window.pygowave) ? window.pygowave : new Hash();
 pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 
 /**
- * PyGoWave's Blip Editor.
+ * PyGoWave's Blip Editor a.k.a. "The Hardest Part(tm)".
  * 
  * @module pygowave.view.blip_editor
  */
@@ -75,14 +75,15 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			this._onInsertText = this._onInsertText.bind(this);
 			this._onDeleteText = this._onDeleteText.bind(this);
 			this._onInsertElement = this._onInsertElement.bind(this);
+			this._onDeleteElement = this._onDeleteElement.bind(this);
 			this._onKeyDown = this._onKeyDown.bind(this);
 			this._onKeyPress = this._onKeyPress.bind(this);
 			this._onKeyUp = this._onKeyUp.bind(this);
 			this._onContextMenu = this._onContextMenu.bind(this);
 			this._onMouseUp = this._onMouseUp.bind(this);
 			this._onMouseDown = this._onMouseDown.bind(this);
-			this._onWindowResize = this._onWindowResize.bind(this);
 			this._onOutOfSync = this._onOutOfSync.bind(this);
+			this.deleteElementWidgetAt = this.deleteElementWidgetAt.bind(this);
 			
 			this.parent(parentElement, contentElement, where);
 		},
@@ -114,20 +115,22 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 				insertText: this._onInsertText,
 				deleteText: this._onDeleteText,
 				outOfSync: this._onOutOfSync,
-				insertElement: this._onInsertElement
+				insertElement: this._onInsertElement,
+				deleteElement: this._onDeleteElement
 			});
 			
 			this.contentElement.addEvents({
 				keydown: this._onKeyDown,
 				keypress: this._onKeyPress,
 				keyup: this._onKeyUp,
-				contextmenu: this._onContextMenu,
+				contextmenu: this._onContextMenu
+			});
+			$(window).addEvents({
 				mouseup: this._onMouseUp,
 				mousedown: this._onMouseDown
-			});
+			})
 			
 			this._processing = false;
-			window.addEvent('resize', this._onWindowResize);
 			if (ok)
 				this._onSyncCheckTimer = this._onSyncCheck.periodical(2000, this);
 			
@@ -149,16 +152,19 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 				insertText: this._onInsertText,
 				deleteText: this._onDeleteText,
 				outOfSync: this._onOutOfSync,
-				insertElement: this._onInsertElement
+				insertElement: this._onInsertElement,
+				deleteElement: this._onDeleteElement
 			});
 			this.contentElement.removeEvents({
 				keydown: this._onKeyDown,
 				keypress: this._onKeyPress,
 				keyup: this._onKeyUp,
-				contextmenu: this._onContextMenu,
-				mouseup: this._onMouseUp
+				contextmenu: this._onContextMenu
 			});
-			window.removeEvent('resize', this._onWindowResize);
+			$(window).removeEvents({
+				mouseup: this._onMouseUp,
+				mousedown: this._onMouseDown
+			})
 			$clear(this._onSyncCheckTimer);
 		},
 		
@@ -179,8 +185,11 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		 */
 		reloadContent: function () {
 			// Clean up first
-			for (var it = new _Iterator(this._elements); it.hasNext(); )
-				it.next().destroy();
+			for (var it = new _Iterator(this._elements); it.hasNext(); ) {
+				var ew = it.next();
+				ew.removeEvent('deleteClicked', this.deleteElementWidgetAt);
+				ew.destroy();
+			}
 			this._elements.empty();
 			for (var it = new _Iterator(this.contentElement.getChildren()); it.hasNext(); )
 				it.next().destroy();
@@ -195,7 +204,7 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			}
 			
 			// Build up
-			var content = this._blip.content().replace(/ /g, "\u00a0");
+			var content = this._blip.content().replace(/  /g, "\u00a0\u00a0");
 			var lines = content.split("\n"), line, pg, pos = 0;
 			for (var i = 0; i < lines.length; i++) {
 				line = lines[i];
@@ -205,12 +214,13 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 				if (!Browser.Engine.trident) // IE allows empty paragraphs
 					new Element("br").inject(pg); // Others use an implicit br
 				pg.inject(this.contentElement);
-				pos += line.length;
+				pos += line.length + 1;
 				if (elementPosMap.has(pos)) {
-					this._elements.push(new GadgetElementWidget(this._view, elementPosMap.get(pos), this.contentElement));
-					i++;
+					var ew = new GadgetElementWidget(this._view, elementPosMap.get(pos), this.contentElement);
+					ew.addEvent('deleteClicked', this.deleteElementWidgetAt);
+					this._elements.push(ew);
+					i++; // Gadgets are on empty newlines
 				}
-				pos++;
 			}
 			
 			this._lastContent = this.contentToString();
@@ -232,12 +242,10 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		_displayErrorOverlay: function (type) {
 			this._removeErrorOverlay();
 				
-			this._errDiv = new Element("div", {'class': 'error_overlay'}).inject(this.parentElement);
+			this._errDiv = new Element("div", {'class': 'error_overlay'}).inject(this.contentElement, 'bottom');
 			var msgdiv = new Element("div", {'class': 'msg_div'}).inject(this._errDiv);
 			var bg_div = new Element("div", {'class': 'bg_div'}).inject(this._errDiv);
 			bg_div.setStyle("opacity", 0.5);
-			var coords = this.contentElement.getCoordinates(false);
-			var container_coords = this.parentElement.getCoordinates(false);
 			
 			switch (type) {
 				case "resync":
@@ -263,16 +271,14 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 					break;
 			}
 			
-			this._errDiv.setStyles({
-				position: "absolute",
-				top: coords.top,
-				left: coords.left,
-				width: coords.width,
-				height: Math.min(coords.height, container_coords.height),
-				opacity: 0
-			});
+			this._errDiv.setStyle('opacity', 0);
+			
 			new Fx.Tween(this._errDiv, {duration: 250}).start("opacity", 0, 1);
-			new Fx.Tween(this.contentElement, {duration: 250}).start("opacity", 1, 0.5);
+			new Fx.Scroll(this.parentElement, {
+				duration: 250,
+				wait: false
+			}).toElement(this._errDiv);
+			
 			this.contentElement.contentEditable = "false";
 		},
 		/**
@@ -300,21 +306,22 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			var cleaned = "", first = true;
 			for (var it = new _Iterator(this.contentElement.getChildren()); it.hasNext(); ) {
 				var elt = it.next();
-				if (elt.get('tag') != "p" && elt.get('tag') != "iframe")
+				if (elt.get('tag') != "p" && (elt.get('tag') != "div" || !elt.hasClass("gadget_element")))
 					continue;
 				
 				if (first)
 					first = false;
 				else
 					cleaned += "\n";
-					
-				cleaned += elt.get('text').replace(/\u00a0/gi, " ");
+				
+				if (elt.get('tag') == "p")
+					cleaned += elt.get('text').replace(/\u00a0/gi, " ");
 			}
 			return cleaned;
 		},
 		/**
 		 * Returns the current selected text range as [start, end]. This
-		 * ignores all element nodes except iframe (which is treated as 1 character).
+		 * ignores all element nodes except gadget elements (which is treated as 1 character).
 		 * @function {public Array} currentTextRange
 		 * @param {optional pygowave.view.Selection} sel Selection object
 		 *        (will be fetched if not provided).
@@ -323,8 +330,10 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			if (!$defined(sel))
 				sel = Selection.currentSelection(this.contentElement);
 			
-			if (!sel.isValid())
+			if (!sel.isValid()) {
+				this.fireEvent("currentTextRangeChanged", [null, null]);
 				return null;
+			}
 			
 			sel.moveDown();
 			var start = this._walkUp(sel.startNode(), sel.startOffset());
@@ -337,10 +346,98 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		 * Returns the last text range which was succesfully retrieved
 		 * as [start, end].
 		 *
-		 * @function  {public Array} lastTextRange
+		 * @function {public Array} lastTextRange
 		 */
 		lastTextRange: function () {
 			return this._lastRange;
+		},
+		/**
+		 * Check if at a line start and insert a newline if not.
+		 * Helper method for gadget insertion. Returns false if a newline had
+		 * to be inserted, true if everything is ok.
+		 *
+		 * @function {public Boolean} checkOrAddNewline
+		 * @param {int} index Index at which to check for a newline
+		 */
+		checkOrAddNewline: function (index) {
+			var text = this.contentToString();
+			if (index > 0 && text.substr(index-1, 1) != "\n") {
+				this._onInsertText(index, "\n");
+				this._processing = true;
+				this._view.fireEvent(
+					'textInserted',
+					[
+						this._blip.wavelet().id(),
+						this._blip.id(),
+						index,
+						"\n"
+					]
+				);
+				this._processing = false;
+				return false;
+			}
+			return true;
+		},
+		/**
+		 * Returns the GadgetElementWidget with the specified GadgetElement
+		 * or null.
+		 * 
+		 * @function {public GadgetElementWidget} elementWidgetFor
+		 * @param {pygowave.model.GadgetElement} elt
+		 */
+		elementWidgetFor: function (elt) {
+			for (var it = new _Iterator(this._elements); it.hasNext(); ) {
+				var ew = it.next();
+				if (ew.element() == elt)
+					return ew;
+			}
+			return null;
+		},
+		/**
+		 * Returns the GadgetElementWidget at the specified index or null.
+		 *
+		 * @function {public GadgetElementWidget} elementWidgetAt
+		 * @param {int} index
+		 */
+		elementWidgetAt: function (index) {
+			for (var it = new _Iterator(this._elements); it.hasNext(); ) {
+				var ew = it.next();
+				if (ew.position() == index)
+					return ew;
+			}
+			return null;
+		},
+		/**
+		 * Deletes the GadgetElementWidget at the specified index and fires
+		 * an event for the controller.
+		 *
+		 * @function {public} deleteElementWidgetAt
+		 * @param {int} index Index at which to delete the element
+		 * @param {optional Boolean} no_event Do not fire an event if set to true
+		 */
+		deleteElementWidgetAt: function (index, no_event) {
+			if (!$defined(no_event)) no_event = false;
+			
+			for (var i = 0; i < this._elements.length; i++) {
+				var ew = this._elements[i];
+				if (ew.position() == index) {
+					this._elements.pop(i);
+					ew.removeEvent('deleteClicked', this.deleteElementWidgetAt);
+					ew.destroy();
+					break;
+				}
+			}
+			
+			if (!no_event) {
+				this._view.fireEvent(
+					'elementDelete',
+					[
+						this._blip.wavelet().id(),
+						this._blip.id(),
+						index
+					]
+				);
+			}
 		},
 		
 		_onKeyDown: function (e) {
@@ -363,64 +460,30 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			var newContent = this.contentToString();
 			var newRange = this.currentTextRange();
 			
-			// This code should be accurate for now. However, the context menu is not handeled properly.
-			if (e.key == "backspace" || e.key == "delete") {
-				if (this._lastRange[0] != this._lastRange[1])
+			// Notes: Does some checks before acting; the context menu is not handeled properly.
+			if (newContent.length != this._lastContent.length || newContent != this._lastContent) {
+				if (e.key == "backspace" || e.key == "delete") {
+					if (this._lastRange[0] != this._lastRange[1])
+						this._checkDelete(this._lastRange[0], this._lastRange[1]);
+					else if (e.key == "backspace")
+						this._checkDelete(this._lastRange[0]-1, this._lastRange[0]);
+					else if (e.key == "delete" && this._lastRange[0] != this._lastContent.length)
+						this._checkDelete(this._lastRange[0], this._lastRange[0]+1);
+				}
+				else if (newRange[0] > this._lastRange[0] && e.code != 35 // Exclude arrow keys
+						&& e.code != 37 && e.code != 38 && e.code != 39 && e.code != 40) {
+					if (this._lastRange[0] != this._lastRange[1])
+						this._checkDelete(this._lastRange[0], this._lastRange[1]);
 					this._view.fireEvent(
-						'textDeleted',
+						'textInserted',
 						[
 							this._blip.wavelet().id(),
 							this._blip.id(),
 							this._lastRange[0],
-							this._lastRange[1]
+							newContent.slice(this._lastRange[0], newRange[0])
 						]
 					);
-				else if (e.key == "backspace") {
-					if (this._lastRange[0] != 0)
-						this._view.fireEvent(
-							'textDeleted',
-							[
-								this._blip.wavelet().id(),
-								this._blip.id(),
-								this._lastRange[0]-1,
-								this._lastRange[0]
-							]
-						);
 				}
-				else if (e.key == "delete") {
-					if (this._lastRange[0] != this._lastContent.length)
-						this._view.fireEvent(
-							'textDeleted',
-							[
-								this._blip.wavelet().id(),
-								this._blip.id(),
-								this._lastRange[0],
-								this._lastRange[0]+1
-							]
-						);
-				}
-			}
-			else if (newRange[0] > this._lastRange[0] && e.code != 35
-					&& e.code != 37 && e.code != 38 && e.code != 39 && e.code != 40) {
-				if (this._lastRange[0] != this._lastRange[1])
-					this._view.fireEvent(
-						'textDeleted',
-						[
-							this._blip.wavelet().id(),
-							this._blip.id(),
-							this._lastRange[0],
-							this._lastRange[1]
-						]
-					);
-				this._view.fireEvent(
-					'textInserted',
-					[
-						this._blip.wavelet().id(),
-						this._blip.id(),
-						this._lastRange[0],
-						newContent.slice(this._lastRange[0], newRange[0])
-					]
-				);
 			}
 			
 			this._lastContent = newContent;
@@ -436,6 +499,46 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		_onContextMenu: function (e) {
 			return false; // Context menu is blocked
 		},
+		/**
+		 * Helper function to fire textDeleted and elementDeleted events as
+		 * appropriate.
+		 *
+		 * @function {public} _checkDelete
+		 * @param {int} start
+		 * @param {int} end
+		 */
+		_checkDelete: function (start, end) {
+			var waveletId = this._blip.wavelet().id();
+			for (var it = new _Iterator(this._blip.elementsWithin(start, end)); it.hasNext(); ) {
+				var elt = it.next();
+				if (elt.position() > start) {
+					end -= elt.position() - start;
+					this._view.fireEvent(
+						'textDeleted',
+						[
+							waveletId,
+							this._blip.id(),
+							start,
+							elt.position()
+						]
+					);
+				}
+				this.deleteElementWidgetAt(start);
+				end--;
+			}
+			
+			if (start != end) {
+				this._view.fireEvent(
+					'textDeleted',
+					[
+						waveletId,
+						this._blip.id(),
+						start,
+						end
+					]
+				);
+			}
+		},
 		
 		/**
 		 * Callback from model on text insertion
@@ -448,7 +551,8 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			//TODO: this function assumes no formatting elements
 			this._processing = true;
 			
-			text = text.replace(/ /g, "\u00a0"); // Convert spaces to protected spaces
+			text = text.replace(/  /g, "\u00a0\u00a0").replace(/^ | $/g, "\u00a0"); // Convert spaces to protected spaces
+			var length = text.length;
 			var ret = this._walkDown(this.contentElement, index);
 			var elt = ret[0], offset = ret[1], newelt, newtn;
 			if ($type(elt) == "element"	&& elt.get('tag') == "p") { // Empty paragraphs
@@ -493,7 +597,7 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 						// Move siblings to new node
 						if (!Browser.Engine.trident) {
 							new Element("br").inject(newelt);
-							while ($defined(elt.nextSibling) && elt.nextSibling != parent.lastChild)
+							while ($defined(elt.nextSibling) && ($type(elt.nextSibling) != "element" || elt.nextSibling.get('tag') != "br" || elt.nextSibling != parent.lastChild))
 								newelt.insertBefore(elt.nextSibling, newelt.firstChild);
 						}
 						else {
@@ -513,6 +617,10 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 					offset = 0;
 				}
 			}
+			
+			if (index < this._lastRange[0])
+				this._lastRange = this.currentTextRange();
+			
 			this._processing = false;
 		},
 		/**
@@ -525,22 +633,23 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		_onDeleteText: function (index, length) {
 			// Safe for formatting elements
 			this._processing = true;
+			var rlength = length; // Remaining length
 			
 			var ret = this._walkDown(this.contentElement, index);
 			var elt = ret[0], next = null;
 			var offset = ret[1], dellength = 0;
 			if ($type(elt) == "element" && elt.get('tag') == "br") // Got the implicit br (TODO should be impossible to reach; check again)
 				elt = elt.parentElement;
-			while (length > 0 && $defined(elt)) {
+			while (rlength > 0 && $defined(elt)) {
 				next = this._nextTextOrPara(elt);
 				if ($type(elt) == "textnode") {
 					dellength = elt.data.length-offset;
-					if (dellength > length)
-						dellength = length;
+					if (dellength > rlength)
+						dellength = rlength;
 					if (dellength > 0)
 						elt.deleteData(offset, dellength);
-					length -= dellength;
-					if (length > 0 && $type(next) == "element" && next.get('tag') == "p") {
+					rlength -= dellength;
+					if (rlength > 0 && $type(next) == "element" && next.get('tag') == "p") {
 						// Merge, then next is empty and will be deleted
 						if (!Browser.Engine.trident) {
 							while ($defined(next.firstChild) && next.firstChild != next.lastChild)
@@ -554,11 +663,15 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 				}
 				else if ($type(elt) == "element" && elt.get('tag') == "p") { // Empty p
 					elt.dispose();
-					length--;
+					rlength--;
 				}
 				elt = next;
 				offset = 0;
 			}
+			
+			if (index < this._lastRange[0])
+				this._lastRange = this.currentTextRange();
+			
 			this._processing = false;
 		},
 		/**
@@ -571,23 +684,35 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			
 			var elt = this._blip.elementAt(index);
 			
-			// Note: There is always an implicit newline at the index, so fake
-			// a newline insertion here and replace the resulting empty paragraph
-			this._onInsertText(index, "\n");
-			var para = this._walkDown(this.contentElement, index+1)[0];
-			
-			var parent = para.previousSibling, where = 'after';
-			para.destroy();
-			
-			if (!$defined(parent)) {
-				parent = this.contentElement;
-				where = 'top';
-			}
+			// Note: We should always be on the beginning of a line, so just
+			// prepend the element
+			var para = this._walkDown(this.contentElement, index)[0];
+			while ($type(para) != 'element' || para.get('tag') != "p")
+				para = para.parentNode;
 			
 			//TODO other elements
-			var ew = new GadgetElementWidget(this._view, elt, parent, where);
+			var ew = new GadgetElementWidget(this._view, elt, para, 'before');
+			ew.addEvent('deleteClicked', this.deleteElementWidgetAt);
 			
 			this._elements.push(ew);
+			
+			if (index < this._lastRange[0])
+				this._lastRange = this.currentTextRange();
+			
+			this._processing = false;
+		},
+		/**
+		 * Callback from model if an element was deleted.
+		 *
+		 * @param {int} index Offset where the element is deleted
+		 */
+		_onDeleteElement: function (index) {
+			this._processing = true;
+			
+			this.deleteElementWidgetAt(index, true);
+			
+			if (index < this._lastRange[0])
+				this._lastRange = this.currentTextRange();
 			
 			this._processing = false;
 		},
@@ -617,8 +742,8 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		},
 		/**
 		 * Walk up the DOM tree while summing up all text lengths. Elements are
-		 * ignored, except p which is the line container and iframe which count
-		 * as one character. Returns the absolute offset.
+		 * ignored, except p which is the line container and gadget elements
+		 * which count as one character. Returns the absolute offset.
 		 * 
 		 * @function {private int} _walkUp
 		 * @param {Node} node The node to start
@@ -647,7 +772,7 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 				while ((node = node.previousSibling) != null) {
 					prev = node;
 					if ($type(node) == "element") {
-						if (node.get('tag') == "br" || node.get('tag') == "iframe")
+						if (node.get('tag') == "br" || (node.get('tag') == "div" && node.hasClass("gadget_element")))
 							offset++;
 						else {
 							if (node.get('tag') == "p")
@@ -689,7 +814,7 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			
 			while (offset > 0 && elt != null) {
 				next = this._nextTextOrPara(elt, true, true);
-				if ($type(elt) == "element") { // p or iframe
+				if ($type(elt) == "element") { // p or gadget_element
 					offset--;
 					if (offset == 0 && elt.get('tag') == "p" && (next == null || $type(next) == "element")) // Empty p
 						break;
@@ -717,19 +842,19 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		 * @param {Node} elt Start node
 		 * @param {optional Boolean} descend Set to true if you want to descend
 		 *        first if possible, rather than moving to the next sibling.
-		 * @param {optional Boolean} iframe_stop Set to true if you also want
-		 *        iframes to be returned.
+		 * @param {optional Boolean} ge_stop Set to true if you also want
+		 *        gadget elements to be returned.
 		 */
-		_nextTextOrPara: function (elt, descend, iframe_stop) {
+		_nextTextOrPara: function (elt, descend, ge_stop) {
 			if (!$defined(descend))
 				descend = false;
-			if (!$defined(iframe_stop))
-				iframe_stop = false;
+			if (!$defined(ge_stop))
+				ge_stop = false;
 			
 			var next;
 			if (descend
 					&& $type(elt) == "element"
-					&& elt.get('tag') != "iframe"
+					&& (elt.get('tag') != "div" || !elt.hasClass("gadget_element"))
 					&& $defined(elt.firstChild))
 				next = elt.firstChild;
 			else
@@ -747,9 +872,9 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 					return next; // Done
 				else { // descend or move forward
 					elt = next;
-					if (iframe_stop && elt.get('tag') == "iframe")
+					if (ge_stop && elt.get('tag') == "div" && elt.hasClass("gadget_element"))
 						return elt;
-					if (elt.get('tag') != "iframe" && $defined(elt.firstChild))
+					if ((elt.get('tag') != "div" || !elt.hasClass("gadget_element")) && $defined(elt.firstChild))
 						next = elt.firstChild;
 					else
 						next = elt.nextSibling;
@@ -757,23 +882,6 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			}
 			
 			return next;
-		},
-		/**
-		 * Callback on window resize.
-		 *
-		 * @function {private} _onWindowResize
-		 */
-		_onWindowResize: function () {
-			if ($defined(this._errDiv)) {
-				var coords = this.contentElement.getCoordinates(false);
-				var container_coords = this.parentElement.getCoordinates(false);
-				this._errDiv.setStyles({
-					top: coords.top,
-					left: coords.left,
-					width: coords.width,
-					height: Math.min(coords.height, container_coords.height)
-				});
-			}
 		},
 		/**
 		 * This function is called periodically to check Blip rendering
@@ -787,7 +895,7 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			var content = this.contentToString();
 			if (content != this._blip.content()) {
 				if (!$defined(this._errDiv)) {
-					window.console.info("diff: "+this._diff(content, this._blip.content()));
+					//dbgprint("diff: "+this._diff(content, this._blip.content()));
 					this._displayErrorOverlay("resync");
 				}
 			}

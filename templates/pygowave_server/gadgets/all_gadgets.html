@@ -3,7 +3,7 @@
 {% get_current_language_bidi as LANGUAGE_BIDI %}
 {% load pgw_nav %}
 
-{% block title %}{% trans "My Gadgets" %}{% endblock %}
+{% block title %}{% trans "All Gadgets" %}{% endblock %}
 {% block nav %}{% pgw_navbar "gadgets" "all_gadgets" %}{% endblock %}
 
 {% block content %}
@@ -23,7 +23,7 @@
 		{% endfor %}
 		</table>
 		<script type="text/javascript">
-			$(".gadget_title").tooltip({track: true, delay: 0, fade: 250, showBody: " - ", showURL: false});
+			new Tips($$(".gadget_title"), {className: 'tooltip'});
 		</script>
 	{% else %}
 	{% trans "No one has submitted any Gadget. Sigh." %}

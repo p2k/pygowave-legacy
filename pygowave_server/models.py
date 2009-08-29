@@ -23,6 +23,7 @@ from django.contrib.auth.models import User
 from django.utils.translation import ugettext_lazy as _
 from django.conf import settings
 from django.db import transaction
+from django.core.exceptions import ObjectDoesNotExist
 from django.utils.hashcompat import sha_constructor as sha1
 
 from django.utils import simplejson
@@ -198,6 +199,18 @@ class Wavelet(models.Model):
 	participants = models.ManyToManyField(Participant, related_name="wavelets")
 	participant_conns = models.ManyToManyField(ParticipantConn, related_name="wavelets", verbose_name=_(u'connections'))
 	
+	def blipById(self, id):
+		"""
+		Returns the Blip object with the given id, if the Blip resides on this
+		Wavelet. Returns None otherwise.
+		
+		"""
+		
+		try:
+			return self.blips.get(pk=id)
+		except ObjectDoesNotExist:
+			return None
+	
 	def save(self, force_insert=False, force_update=False):
 		if not self.id:
 			if self.is_root:
@@ -248,14 +261,14 @@ class Wavelet(models.Model):
 		"""
 		
 		for op in ops:
-			if op.blip_id != "":
-				blip = self.blips.get(pk=op.blip_id)
+			if op.blipId != "":
+				blip = self.blipById(op.blipId)
 				if op.type == DOCUMENT_DELETE:
 					blip.deleteText(op.index, op.property)
 				elif op.type == DOCUMENT_INSERT:
 					blip.insertText(op.index, op.property)
 				elif op.type == DOCUMENT_ELEMENT_DELETE:
-					blip.deleteElement(op.index, op.property)
+					blip.deleteElement(op.index)
 				elif op.type == DOCUMENT_ELEMENT_INSERT:
 					blip.insertElement(op.index, op.property["type"], op.property["properties"])
 				elif op.type == DOCUMENT_ELEMENT_DELTA:
@@ -328,9 +341,11 @@ class Blip(models.Model):
 		for anno in self.annotations.filter(start__gte=index):
 			anno.start += length
 			anno.end += length
+			anno.save()
 		
 		for elt in self.elements.filter(position__gte=index):
 			elt.position += length
+			elt.save()
 	
 	@transaction.commit_on_success
 	def deleteText(self, index, length):
@@ -345,9 +360,11 @@ class Blip(models.Model):
 		for anno in self.annotations.filter(start__gte=index):
 			anno.start -= length
 			anno.end -= length
+			anno.save()
 		
 		for elt in self.elements.filter(position__gte=index):
 			elt.position -= length
+			elt.save()
 	
 	@transaction.commit_on_success
 	def insertElement(self, index, type, properties):
@@ -723,7 +740,7 @@ class Delta(models.Model):
 		"""
 		newobj = cls(
 			version=version,
-			wavelet= Wavelet.objects.get(pk=opman.wavelet_id),
+			wavelet= Wavelet.objects.get(pk=opman.waveletId),
 			operations=simplejson.dumps(opman.serialize())
 		)
 		newobj._OpManager = opman

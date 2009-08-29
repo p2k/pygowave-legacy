@@ -454,7 +454,7 @@ pygowave.model = (function() {
 				this._properties.set("fields", new Hash());
 			var fields = this._properties.get("fields");
 			fields.update(delta);
-			for (var __iter0_ = new _Iterator(this._properties); __iter0_.hasNext();) {
+			for (var __iter0_ = new _Iterator(fields); __iter0_.hasNext();) {
 				var value = __iter0_.next();
 				var key = __iter0_.key();
 				if (value == null)
@@ -611,6 +611,25 @@ pygowave.model = (function() {
 			}
 			delete __iter0_;
 			return null;
+		},
+
+		/**
+		 * Returns the Elements between the start and end index.
+		 *
+		 * @function {public Element[]} elementsWithin
+		 * @param {int} start Start index
+		 * @param {int} end End index
+		 */
+		elementsWithin: function (start, end) {
+			var lst = [];
+			for (var __iter0_ = new XRange(len(this._elements)); __iter0_.hasNext();) {
+				var i = __iter0_.next();
+				var elt = this._elements[i];
+				if (elt.position() >= start && elt.position() < end)
+					lst.append(elt);
+			}
+			delete __iter0_;
+			return lst;
 		},
 
 		/**
@@ -798,7 +817,8 @@ pygowave.model = (function() {
 		checkSync: function (sum) {
 			if (this._outofsync)
 				return false;
-			if (sha_constructor(this._content.encode("utf-8")).hexdigest() != sum) {
+			var mysum = sha_constructor(this._content.encode("utf-8")).hexdigest();
+			if (mysum != sum) {
 				this.fireEvent("outOfSync");
 				this._outofsync = true;
 				return false;
@@ -1095,6 +1115,34 @@ pygowave.model = (function() {
 				this._setStatus("clean");
 			else
 				this._setStatus("invalid");
+		},
+
+		/**
+		 * Apply the operations on the wavelet.
+		 *
+		 * @function {public} applyOperations
+		 * @param {pygowave.operations.Operation[]} ops List of operations to apply
+		 */
+		applyOperations: function (ops) {
+			for (var __iter0_ = new _Iterator(ops); __iter0_.hasNext();) {
+				var op = __iter0_.next();
+				if (op.blipId != "") {
+					var blip = this.blipById(op.blipId);
+					if (op.type == pygowave.operations.DOCUMENT_DELETE)
+						blip.deleteText(op.index, op.property);
+					else if (op.type == pygowave.operations.DOCUMENT_INSERT)
+						blip.insertText(op.index, op.property);
+					else if (op.type == pygowave.operations.DOCUMENT_ELEMENT_DELETE)
+						blip.deleteElement(op.index);
+					else if (op.type == pygowave.operations.DOCUMENT_ELEMENT_INSERT)
+						blip.insertElement(op.index, op.property.type, op.property.properties);
+					else if (op.type == pygowave.operations.DOCUMENT_ELEMENT_DELTA)
+						blip.applyElementDelta(op.index, op.property);
+					else if (op.type == pygowave.operations.DOCUMENT_ELEMENT_SETPREF)
+						blip.setElementUserpref(op.index, op.property.key, op.property.value);
+				}
+			}
+			delete __iter0_;
 		}
 	});
 

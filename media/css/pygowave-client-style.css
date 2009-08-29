@@ -262,11 +262,12 @@
 	width: 100%;
 	height: auto;
 	cursor: text;
-	overflow: auto;
-	font-size: 1.3em;
+	overflow: visible;
+	font-size: 1.2em;
 	outline: none;
-	padding-bottom: 2px;
+	padding-top: 2px;
 	border-bottom: 1px solid #B8C6D9;
+	position: relative;
 }
 
 .blip_editor_widget p
@@ -274,17 +275,39 @@
 	line-height: normal !important;
 	margin-left: 5px;
 	margin-bottom: 0;
-	margin-top: 2px;
+	margin-bottom: 2px;
 	padding: 0;
 }
 
 .blip_editor_widget .gadget_element
 {
-	width: 90%;
-	height: 400px;
 	margin-left: 5px;
+	margin-right: 5px;
 	margin-top: 2px;
-	border: 1px solid black;
+	margin-bottom: 2px;
+	padding: 5px;
+	border-top: 1px dotted #CCCCCC;
+	border-left: 1px dotted #CCCCCC;
+	position: relative;
+}
+
+.blip_editor_widget .gadget_element iframe
+{
+	width: 100%;
+	height: 200px;
+	border: 0;
+}
+
+.blip_editor_widget .gadget_element .delete_box
+{
+	width: 16px;
+	height: 16px;
+	background-image: url(../images/delete_gadget.png);
+	background-repeat: no-repeat;
+	position: absolute;
+	right: 0;
+	top: 2px;
+	cursor: pointer;
 }
 
 .search_widget
@@ -427,7 +450,11 @@
 .error_overlay
 {
 	width: 100%;
+	height: 100%;
 	overflow: hidden;
+	position: absolute;
+	top: 0;
+	left: 0;
 }
 
 .error_overlay .bg_div
@@ -453,6 +480,7 @@
 	padding-left: 31px;
 	padding-top: 7px;
 	padding-bottom: 7px;
+	font-size: 0.9em;
 }
 
 .error_overlay button

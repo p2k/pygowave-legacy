@@ -440,38 +440,19 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 			var delta = new pygowave.operations.OpManager(wavelet.waveId(), wavelet.id());
 			delta.unserialize(serial_ops);
 			
+			var ops = new Array();
+			
 			// Iterate over all operations
 			for (var incoming = new _Iterator(delta.operations); incoming.hasNext(); ) {
 				// Transform pending operations, iterate over results
-				for (var tr1 = new _Iterator(mpending.transform(incoming.next())); tr1.hasNext(); ) {
-					// Transform cached operations, iterate over results
-					for (var tr2 = new _Iterator(mcached.transform(tr1.next())); tr2.hasNext(); ) {
-						var op = tr2.next();
-						if (op.isNull()) continue;
-						// Apply operation
-						switch (op.type) {
-							case pygowave.operations.DOCUMENT_INSERT:
-								wavelet.blipById(op.blip_id).insertText(op.index, op.property);
-								break;
-							case pygowave.operations.DOCUMENT_DELETE:
-								wavelet.blipById(op.blip_id).deleteText(op.index, op.property);
-								break;
-							case pygowave.operations.DOCUMENT_ELEMENT_INSERT:
-								wavelet.blipById(op.blip_id).insertElement(op.index, op.property.type, op.property.properties);
-								break;
-							case pygowave.operations.DOCUMENT_ELEMENT_DELETE:
-								wavelet.blipById(op.blip_id).deleteElement(op.index);
-								break;
-							case pygowave.operations.DOCUMENT_ELEMENT_DELTA:
-								wavelet.blipById(op.blip_id).applyElementDelta(op.index, op.property);
-								break;
-							case pygowave.operations.DOCUMENT_ELEMENT_SETPREF:
-								wavelet.blipById(op.blip_id).setElementUserpref(op.index, op.property.key, op.property.value);
-								break;
-						}
-					}
+				for (var tr = new _Iterator(mpending.transform(incoming.next())); tr.hasNext(); ) {
+					// Transform cached operations, save results
+					ops.extend(mcached.transform(tr.next()));
 				}
 			}
+			
+			// Apply operations
+			wavelet.applyOperations(ops);
 		},
 		
 		/**
@@ -528,7 +509,7 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 		 */
 		_onElementDelete: function (waveletId, blipId, index) {
 			this.wavelets[waveletId].mcached.documentElementDelete(blipId, index);
-			this.wavelets[waveletId].model.blipById(blipId).deleteElement(index);
+			this.wavelets[waveletId].model.blipById(blipId).deleteElement(index, true);
 		},
 		/**
 		 * Callback from view on element delta submission.

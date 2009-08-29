@@ -20,38 +20,12 @@ from django.template import Library
 from django.conf import settings
 from django.core.urlresolvers import reverse
 
+from pygowave_client.settings import STATIC_LOAD_ORDER
+
 register = Library()
 
-STATIC_LOAD_ORDER = (
-	(
-		"utils", ("sha1",)
-	),
-	(
-		"model", ("model",)
-	),
-	(
-		"view",
-		(
-			"selection",
-			"common",
-			"toolbar",
-			"participants",
-			"gadgets",
-			"blip_editor",
-			"debug_tools",
-			"view",
-		),
-	),
-	(
-		"operations", ("operations",)
-	),
-	(
-		"controller", ("controller",)
-	),
-)
-
 @register.simple_tag
-def client_scripts():
+def script_links():
 	out = ""
 	for package, modules in STATIC_LOAD_ORDER:
 		for module in modules:

@@ -382,7 +382,7 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		if (!$defined(sel))
 			return new Selection();
 		var rng = (sel.rangeCount > 0 ? sel.getRangeAt(0) : (sel.createRange ? sel.createRange() : null));
-		if (!$defined(sel))
+		if (!$defined(rng))
 			return new Selection();
 			
 		if (Browser.Engine.trident)
