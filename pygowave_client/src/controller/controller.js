@@ -102,6 +102,7 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 			this._iview.addEvent('addParticipant', this._onAddParticipant.bind(this));
 			this._iview.addEvent('leaveWavelet', this._onLeaveWavelet.bind(this));
 			this._iview.addEvent('refreshGadgetList', this._onRefreshGadgetList.bind(this));
+			this._iview.addEvent('ready', this._onViewReady.bind(this));
 			
 			this.waves = new Hash();
 			this.waves.set(model.id(), model);
@@ -110,6 +111,8 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 			this.new_participants = new Array();
 			this.participants = new Hash();
 			this._cachedGadgetList = null;
+			this._deferredMessageBundles = new Array();
+			this._processingDeferred = false;
 			
 			// The connection object must be stored in this.conn and must have a sendJson and subscribeWavelet method (defined below).
 			this.conn = new STOMPClient(); // STOMP is used as communication protocol
@@ -202,22 +205,10 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 						this._requestParticipantInfo(wavelet_id);
 						break;
 					case "OPERATION_MESSAGE_BUNDLE_ACK":
-						wavelet_model.options.version = msg.property.version;
-						this.wavelets[wavelet_id].mpending.fetch(); // Clear
-						if (!this.wavelets[wavelet_id].mcached.isEmpty())
-							this._transferOperations(wavelet_id); // Send cached
-						else {
-							// All done, we can do a check-up
-							wavelet_model.checkSync(msg.property.blipsums);
-							this.wavelets[wavelet_id].pending = false;
-						}
+						this._queueMessageBundle(wavelet_model, "ACK", msg.property.version, msg.property.blipsums);
 						break;
 					case "OPERATION_MESSAGE_BUNDLE":
-						this._processOperations(wavelet_model, msg.property.operations);
-						wavelet_model.options.version = msg.property.version;
-						// Do a check-up if possible
-						if (!this.hasPendingOperations(wavelet_id))
-							wavelet_model.checkSync(msg.property.blipsums);
+						this._queueMessageBundle(wavelet_model, msg.property.operations, msg.property.version, msg.property.blipsums);
 						break;
 					case "PARTICIPANT_INFO":
 						this._processParticipantsInfo(msg.property);
@@ -427,32 +418,92 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 			}
 		},
 		/**
+		 * Queue a message bundle if the view is busy. Process it, if it is or
+		 * goes ready.
+		 *
+		 * @function {private} _queueMessageBundle
+		 * @param {pygowave.model.Wavelet} wavelet Reference to a Wavelet model
+		 * @param {Object[]} serial_ops Serialized operations
+		 * @param {int} version New version after this bundle
+		 * @param {Object} blipsums Checksums to compare the wavelet to
+		 */
+		_queueMessageBundle: function (wavelet, serial_ops, version, blipsums) {
+			while (this._processingDeferred); // Busy waiting
+			if (this._iview.isBusy()) {
+				this._deferredMessageBundles.push({
+					wavelet: wavelet,
+					serial_ops: serial_ops,
+					version: version,
+					blipsums: blipsums
+				});
+			}
+			else
+				this._processMessageBundle(wavelet, serial_ops, version, blipsums);
+		},
+		/**
 		 * Process a message bundle from the server. Do transformation and
 		 * apply it to the model.
 		 * 
 		 * @function {private} _processOperations
 		 * @param {pygowave.model.Wavelet} wavelet Wavelet model
 		 * @param {Object[]} serial_ops Serialized operations
+		 * @param {int} version New version after this bundle
+		 * @param {Object} blipsums Checksums to compare the wavelet to
 		 */
-		_processOperations: function (wavelet, serial_ops) {
+		_processMessageBundle: function (wavelet, serial_ops, version, blipsums) {
 			var mpending = this.wavelets[wavelet.id()].mpending;
 			var mcached = this.wavelets[wavelet.id()].mcached;
-			var delta = new pygowave.operations.OpManager(wavelet.waveId(), wavelet.id());
-			delta.unserialize(serial_ops);
 			
-			var ops = new Array();
-			
-			// Iterate over all operations
-			for (var incoming = new _Iterator(delta.operations); incoming.hasNext(); ) {
-				// Transform pending operations, iterate over results
-				for (var tr = new _Iterator(mpending.transform(incoming.next())); tr.hasNext(); ) {
-					// Transform cached operations, save results
-					ops.extend(mcached.transform(tr.next()));
+			if (serial_ops != "ACK") {
+				var delta = new pygowave.operations.OpManager(wavelet.waveId(), wavelet.id());
+				delta.unserialize(serial_ops);
+				
+				var ops = new Array();
+				
+				// Iterate over all operations
+				for (var incoming = new _Iterator(delta.operations); incoming.hasNext(); ) {
+					// Transform pending operations, iterate over results
+					for (var tr = new _Iterator(mpending.transform(incoming.next())); tr.hasNext(); ) {
+						// Transform cached operations, save results
+						ops.extend(mcached.transform(tr.next()));
+					}
+				}
+				
+				// Apply operations
+				wavelet.applyOperations(ops);
+				
+				// Set version and checkup
+				wavelet.options.version = version;
+				if (!this.hasPendingOperations(wavelet.id()))
+					wavelet.checkSync(blipsums);
+			}
+			else { // ACK message
+				wavelet.options.version = version;
+				mpending.fetch(); // Clear
+				if (!mcached.isEmpty())
+					this._transferOperations(wavelet.id()); // Send cached
+				else {
+					// All done, we can do a check-up
+					wavelet.checkSync(blipsums);
+					this.wavelets[wavelet.id()].pending = false;
 				}
 			}
-			
-			// Apply operations
-			wavelet.applyOperations(ops);
+		},
+		/**
+		 * Callback from view if it goes ready.
+		 *
+		 * @function {private} _onViewReady
+		 */
+		_onViewReady: function () {
+			if (this._deferredMessageBundles.length > 0 && !this._processingDeferred) {
+				this._processingDeferred = true;
+				for (var it = new _Iterator(this._deferredMessageBundles); it.hasNext(); ) {
+					var bundle = it.next();
+					this._processMessageBundle(bundle.wavelet, bundle.serial_ops, bundle.version, bundle.blipsums);
+				}
+				this._deferredMessageBundles.empty();
+				this._processingDeferred = false;
+			}
 		},
 		
 		/**

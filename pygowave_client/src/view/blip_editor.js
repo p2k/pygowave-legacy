@@ -63,9 +63,11 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		initialize: function (view, blip, parentElement, where) {
 			this._view = view;
 			this._blip = blip;
-			this._lastRange = [0, 0];
+			this._lastRange = null;
+			this._lastValidRange = null;
 			this._lastContent = "";
 			this._errDiv = null;
+			this._firstKeyPress = false;
 			
 			var contentElement = new Element('div', {
 				'class': 'blip_editor_widget',
@@ -130,7 +132,6 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 				mousedown: this._onMouseDown
 			})
 			
-			this._processing = false;
 			if (ok)
 				this._onSyncCheckTimer = this._onSyncCheck.periodical(2000, this);
 			
@@ -146,7 +147,7 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		 */
 		dispose: function () {
 			this.parent();
-			this._lastRange = [0, 0];
+			this._lastRange = null;
 			this._lastContent = "";
 			this._blip.removeEvents({
 				insertText: this._onInsertText,
@@ -323,12 +324,11 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		 * Returns the current selected text range as [start, end]. This
 		 * ignores all element nodes except gadget elements (which is treated as 1 character).
 		 * @function {public Array} currentTextRange
-		 * @param {optional pygowave.view.Selection} sel Selection object
-		 *        (will be fetched if not provided).
+		 * @param {optional Element} target Target from the event object to check
+		 *        against the scope
 		 */
-		currentTextRange: function (sel) {
-			if (!$defined(sel))
-				sel = Selection.currentSelection(this.contentElement);
+		currentTextRange: function (target) {
+			var sel = Selection.currentSelection(this.contentElement, target);
 			
 			if (!sel.isValid()) {
 				this.fireEvent("currentTextRangeChanged", [null, null]);
@@ -346,10 +346,10 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		 * Returns the last text range which was succesfully retrieved
 		 * as [start, end].
 		 *
-		 * @function {public Array} lastTextRange
+		 * @function {public Array} lastValidTextRange
 		 */
-		lastTextRange: function () {
-			return this._lastRange;
+		lastValidTextRange: function () {
+			return this._lastValidRange;
 		},
 		/**
 		 * Check if at a line start and insert a newline if not.
@@ -363,7 +363,7 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			var text = this.contentToString();
 			if (index > 0 && text.substr(index-1, 1) != "\n") {
 				this._onInsertText(index, "\n");
-				this._processing = true;
+				this._view.setBusy();
 				this._view.fireEvent(
 					'textInserted',
 					[
@@ -373,7 +373,7 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 						"\n"
 					]
 				);
-				this._processing = false;
+				this._view.unsetBusy();
 				return false;
 			}
 			return true;
@@ -441,24 +441,33 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		},
 		
 		_onKeyDown: function (e) {
-			this._processing = true;
+			this._firstKeyPress = true;
+			this._view.setBusy();
 		},
 		
 		_onKeyPress: function (e) {
-			this._processing = true;
+			if (Browser.Engine.presto && !this._firstKeyPress)
+				this._processKey(e);
+			this._firstKeyPress = false;
+		},
+		
+		_onKeyUp: function(e) {
+			this._processKey(e);
+			this._view.unsetBusy();
 		},
 		
 		/**
-		 * Callback from underlying DOM element on key release. Generates events
-		 * for the controller (which in turn generates operations).
+		 * Callback from underlying DOM element on key release/press. Generates
+		 * events for the controller (which in turn generates operations).
 		 *
-		 * @function {private} _onKeyUp
+		 * @function {private} _processKey
 		 * @param {Object} e Event object
 		 */
-		_onKeyUp: function(e) {
-			this._processing = true;
+		_processKey: function(e) {
+			var newRange = this.currentTextRange(e.target);
+			if (!$defined(newRange))
+				return;
 			var newContent = this.contentToString();
-			var newRange = this.currentTextRange();
 			
 			// Notes: Does some checks before acting; the context menu is not handeled properly.
 			if (newContent.length != this._lastContent.length || newContent != this._lastContent) {
@@ -488,13 +497,15 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			
 			this._lastContent = newContent;
 			this._lastRange = newRange;
-			this._processing = false;
+			this._lastValidRange = newRange;
 		},
 		_onMouseDown: function (e) {
 			// Currently not needed
 		},
 		_onMouseUp: function(e) {
-			this._lastRange = this.currentTextRange();
+			this._lastRange = this.currentTextRange(e.target);
+			if ($defined(this._lastRange))
+				this._lastValidRange = this._lastRange;
 		},
 		_onContextMenu: function (e) {
 			return false; // Context menu is blocked
@@ -549,7 +560,7 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		 */
 		_onInsertText: function (index, text) {
 			//TODO: this function assumes no formatting elements
-			this._processing = true;
+			this._view.setBusy();
 			
 			text = text.replace(/  /g, "\u00a0\u00a0").replace(/^ | $/g, "\u00a0"); // Convert spaces to protected spaces
 			var length = text.length;
@@ -618,10 +629,13 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 				}
 			}
 			
-			if (index < this._lastRange[0])
+			if ($defined(this._lastRange) && index < this._lastRange[0]) {
 				this._lastRange = this.currentTextRange();
+				if ($defined(this._lastRange))
+					this._lastValidRange = this._lastRange;
+			}
 			
-			this._processing = false;
+			this._view.unsetBusy();
 		},
 		/**
 		 * Callback from model on text deletion
@@ -632,7 +646,7 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		 */
 		_onDeleteText: function (index, length) {
 			// Safe for formatting elements
-			this._processing = true;
+			this._view.setBusy();
 			var rlength = length; // Remaining length
 			
 			var ret = this._walkDown(this.contentElement, index);
@@ -669,10 +683,13 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 				offset = 0;
 			}
 			
-			if (index < this._lastRange[0])
+			if ($defined(this._lastRange) && index < this._lastRange[0]) {
 				this._lastRange = this.currentTextRange();
+				if ($defined(this._lastRange))
+					this._lastValidRange = this._lastRange;
+			}
 			
-			this._processing = false;
+			this._view.unsetBusy();
 		},
 		/**
 		 * Callback from model if an element was inserted.
@@ -680,7 +697,7 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		 * @param {int} index Offset where the element is inserted
 		 */
 		_onInsertElement: function (index) {
-			this._processing = true;
+			this._view.setBusy();
 			
 			var elt = this._blip.elementAt(index);
 			
@@ -696,10 +713,13 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			
 			this._elements.push(ew);
 			
-			if (index < this._lastRange[0])
+			if ($defined(this._lastRange) && index < this._lastRange[0]) {
 				this._lastRange = this.currentTextRange();
+				if ($defined(this._lastRange))
+					this._lastValidRange = this._lastRange;
+			}
 			
-			this._processing = false;
+			this._view.unsetBusy();
 		},
 		/**
 		 * Callback from model if an element was deleted.
@@ -707,14 +727,17 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		 * @param {int} index Offset where the element is deleted
 		 */
 		_onDeleteElement: function (index) {
-			this._processing = true;
+			this._view.setBusy();
 			
 			this.deleteElementWidgetAt(index, true);
 			
-			if (index < this._lastRange[0])
+			if ($defined(this._lastRange) && index < this._lastRange[0]) {
 				this._lastRange = this.currentTextRange();
+				if ($defined(this._lastRange))
+					this._lastValidRange = this._lastRange;
+			}
 			
-			this._processing = false;
+			this._view.unsetBusy();
 		},
 		/**
 		 * Callback from model if blip has gone out of sync with the server
@@ -889,7 +912,7 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		 * @function {private} _onSyncCheck
 		 */
 		_onSyncCheck: function () {
-			if (this._processing)
+			if (this._view.isBusy())
 				return;
 			
 			var content = this.contentToString();

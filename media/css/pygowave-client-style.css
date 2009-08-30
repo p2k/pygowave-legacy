@@ -308,6 +308,18 @@
 	right: 0;
 	top: 2px;
 	cursor: pointer;
+	z-index: 2;
+}
+
+.blip_editor_widget .gadget_element .delete_box_opera
+{
+	width: 16px;
+	height: 16px;
+	background-image: url(../images/delete_gadget.png);
+	background-repeat: no-repeat;
+	float:right;
+	cursor: pointer;
+	z-index: 2;
 }
 
 .search_widget

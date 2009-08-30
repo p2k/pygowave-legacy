@@ -341,6 +341,11 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		 * @param {String} waveletId ID of the Wavelet
 		 * @param {Boolean} forced True if the user explicitly clicked refresh
 		 */
+		
+		/**
+		 * Fired if the view was busy and now is ready to receive modification.
+		 * @event onReady
+		 */
 		// ---------------------------
 		
 		/**
@@ -361,6 +366,7 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			this.model = model;
 			this.container = container;
 			this.waveletWidgets = new Hash();
+			this._busyCounter = 0;
 			
 			var rwv = this.model.rootWavelet();
 			if (rwv != null) {
@@ -597,7 +603,7 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 				);
 				return false;
 			}
-			var textrange = editor.lastTextRange();
+			var textrange = editor.lastValidTextRange();
 			if (!$defined(textrange)) {
 				this.showMessage(
 					gettext("You must place your cursor inside the text to mark the Gadget's insertion point."),
@@ -620,6 +626,36 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 				{"url": url}
 			]);
 			return true;
+		},
+		
+		/**
+		 * Returns weather the view is busy processing one or more user
+		 * interactions.
+		 *
+		 * @function {public Boolean} isBusy
+		 */
+		isBusy: function () {
+			return (this._busyCounter != 0);
+		},
+		/**
+		 * Set the view busy. Called by interactive widgets to block controller
+		 * events.
+		 * @function {public} setBusy
+		 */
+		setBusy: function () {
+			this._busyCounter++;
+		},
+		/**
+		 * Unset the view busy. Called by interactive widgets to free controller
+		 * events. May fire a ready event.
+		 * @function {public} unsetBusy
+		 */
+		unsetBusy: function () {
+			this._busyCounter--;
+			if (this._busyCounter < 0)
+				this._busyCounter = 0;
+			if (this._busyCounter == 0)
+				this.fireEvent('ready');
 		}
 	});
 	

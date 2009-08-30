@@ -227,7 +227,7 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			contentElement.contentEditable = "false";
 			
 			this._deleteBox = new Element('div', {
-				'class': 'delete_box',
+				'class': 'delete_box' + (Browser.Engine.presto ? '_opera' : ''),
 				'title': gettext("Delete Gadget")
 			}).inject(contentElement);
 			this._deleteBox.addEvent('click', function () {

@@ -368,10 +368,12 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 	 * @function {static public Selection} currentSelection
 	 * @param {optional Element} scope Limit the scope to this element, i.e.
 	 *        return an invalid selection if it is not inside this element.
+	 * @param {optional Element} target Target from the event object to check
+	 *        against the scope
 	 * @param {optional Document} ownerDocument Owner document for the selection.
 	 *        Defaults to the current window's document.
 	 */
-	Selection.currentSelection = function (scope, ownerDocument) {
+	Selection.currentSelection = function (scope, target, ownerDocument) {
 		if (!$defined(ownerDocument))
 			ownerDocument = window.document;
 		if (!$defined(scope))
@@ -388,8 +390,8 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		if (Browser.Engine.trident)
 			return Selection.tridentFindRange(ownerDocument, scope, rng);
 		else {
-			// Check scope
 			if (scope != ownerDocument.body) {
+				// Check selection scope
 				var elt = rng.startContainer;
 				while ($type(elt) != "element" || (elt != scope && elt.get('tag') != "html"))
 					elt = elt.parentNode;
@@ -400,6 +402,20 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 					elt = elt.parentNode;
 				if (elt != scope)
 					return new Selection();
+				
+				// Also check target
+				if ($defined(target)) {
+					var elt = target;
+					while ($type(elt) != "element" || (elt != scope && elt.get('tag') != "html"))
+						elt = elt.parentNode;
+					if (elt != scope)
+						return new Selection();
+					elt = rng.endContainer;
+					while ($type(elt) != "element" || (elt != scope && elt.get('tag') != "html"))
+						elt = elt.parentNode;
+					if (elt != scope)
+						return new Selection();
+				}
 			}
 			return new Selection(
 				rng.startContainer,
