@@ -263,7 +263,7 @@
 	height: auto;
 	cursor: text;
 	overflow: visible;
-	font-size: 1.2em;
+	font-size: 1.1em;
 	outline: none;
 	padding-top: 2px;
 	border-bottom: 1px solid #B8C6D9;
@@ -294,7 +294,7 @@
 .blip_editor_widget .gadget_element iframe
 {
 	width: 100%;
-	height: 200px;
+	height: 300px;
 	border: 0;
 }
 

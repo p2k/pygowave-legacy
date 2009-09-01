@@ -10,7 +10,7 @@
 	<script type="text/javascript">
 		// Cut to minimum to allow cross-subdomain access
 		try {
-			document.domain = document.domain.split('.').slice(1).join('.');
+			document.domain = document.domain.split('.').slice(-2).join('.');
 		}
 		catch (e){
 			document.domain = document.domain;

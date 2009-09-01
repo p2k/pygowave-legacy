@@ -543,7 +543,10 @@ class Element(models.Model):
 		if self.properties == "":
 			return {}
 		else:
-			return simplejson.loads(self.properties)
+			try:
+				return simplejson.loads(self.properties)
+			except:
+				return {}
 	
 	def set_data(self, data):
 		"""

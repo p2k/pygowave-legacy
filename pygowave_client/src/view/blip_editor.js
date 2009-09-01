@@ -551,6 +551,20 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 				);
 			}
 		},
+		/**
+		 * Check if the parent paragraph is empty and has no trailing &lt;br&gt;
+		 *
+		 * @function {private} _fixPara
+		 * @param {Node} elt
+		 */
+		_fixPara: function (elt) {
+			if (!$defined(elt) || Browser.Engine.trident)
+				return;
+			while ($type(elt) != 'element' || elt.get('tag') != "p")
+				elt = elt.parentNode;
+			if (!$defined(elt.lastChild) || $type(elt.lastChild) != "element" || elt.lastChild.get('tag') != "br")
+				new Element("br").inject(elt);
+		},
 		
 		/**
 		 * Callback from model on text insertion
@@ -657,12 +671,14 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 				elt = elt.parentElement;
 			while (rlength > 0 && $defined(elt)) {
 				next = this._nextTextOrPara(elt);
+
 				if ($type(elt) == "textnode") {
 					dellength = elt.data.length-offset;
 					if (dellength > rlength)
 						dellength = rlength;
 					if (dellength > 0)
 						elt.deleteData(offset, dellength);
+					this._fixPara(elt);
 					rlength -= dellength;
 					if (rlength > 0 && $type(next) == "element" && next.get('tag') == "p") {
 						// Merge, then next is empty and will be deleted
@@ -830,9 +846,16 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		 * @param {int} offset Absolute offset to walk down
 		 */
 		_walkDown: function (body, offset) {
-			var elt = body.firstChild;
+			var elt = body.firstChild, next;
 			
-			var next = this._nextTextOrPara(elt, true, true); // Try to descend to first text node
+			while ($type(elt) == "element" && elt.get('tag') != "p") { // gadget_element at start
+				elt = this._nextTextOrPara(elt, true, true);
+				offset--;
+			}
+			if (offset < 0 || elt == null)
+				return [new Element("p"), 0]; // Panic
+
+			next = this._nextTextOrPara(elt, true, true); // Try to descend to first text node
 			if ($type(next) == "textnode")
 				elt = next;
 			

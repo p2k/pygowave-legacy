@@ -113,6 +113,7 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 			this._cachedGadgetList = null;
 			this._deferredMessageBundles = new Array();
 			this._processingDeferred = false;
+			this._pendingTimer = null;
 			
 			// The connection object must be stored in this.conn and must have a sendJson and subscribeWavelet method (defined below).
 			this.conn = new STOMPClient(); // STOMP is used as communication protocol
@@ -407,6 +408,9 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 			
 			if (!this.isBlocked(wavelet_id)) {
 				this.wavelets[wavelet_id].pending = true;
+				if ($defined(this._pendingTimer))
+					$clear(this._pendingTimer);
+				this._pendingTimer = this._serverAckTimeout.delay(10000, this);
 				
 				this.conn.sendJson(wavelet_id, {
 					type: "OPERATION_MESSAGE_BUNDLE",
@@ -416,6 +420,9 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 					}
 				});
 			}
+		},
+		_serverAckTimeout: function () {
+			this._iview.showControllerError(gettext("The server did not acknowledge the last operation within 10 seconds. This could be a bug in the client or a server crash. Try to reload."));
 		},
 		/**
 		 * Queue a message bundle if the view is busy. Process it, if it is or
@@ -478,6 +485,8 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 					wavelet.checkSync(blipsums);
 			}
 			else { // ACK message
+				$clear(this._pendingTimer);
+				this._pendingTimer = null;
 				wavelet.options.version = version;
 				mpending.fetch(); // Clear
 				if (!mcached.isEmpty())

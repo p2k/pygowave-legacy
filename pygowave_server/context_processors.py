@@ -23,9 +23,13 @@ def server(request):
 	Puts IS_LOCAL setting, the VERSION and the Orbited configuration into context.
 	
 	"""
+	if settings.ORBITED_PORT == "auto":
+		oport = request.META["SERVER_PORT"]
+	else:
+		oport = settings.ORBITED_PORT
 	return {'IS_LOCAL': settings.IS_LOCAL,
 			'ORBITED_SERVER': settings.ORBITED_SERVER,
-			'ORBITED_PORT': settings.ORBITED_PORT,
+			'ORBITED_PORT': oport,
 			'VERSION': settings.VERSION}
 
 def storage_urls(request):
