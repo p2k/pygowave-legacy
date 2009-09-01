@@ -212,7 +212,6 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 					var ew = new GadgetElementWidget(this._view, elementPosMap.get(pos), this.contentElement);
 					ew.addEvent('deleteClicked', this.deleteElementWidgetAt);
 					this._elements.push(ew);
-					i++; // Gadgets are on empty newlines
 					pos++;
 					continue;
 				}
