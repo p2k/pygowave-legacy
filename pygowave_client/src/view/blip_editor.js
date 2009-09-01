@@ -208,6 +208,14 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			var content = this._blip.content().replace(/  /g, "\u00a0\u00a0");
 			var lines = content.split("\n"), line, pg, pos = 0;
 			for (var i = 0; i < lines.length; i++) {
+				if (elementPosMap.has(pos)) {
+					var ew = new GadgetElementWidget(this._view, elementPosMap.get(pos), this.contentElement);
+					ew.addEvent('deleteClicked', this.deleteElementWidgetAt);
+					this._elements.push(ew);
+					i++; // Gadgets are on empty newlines
+					pos++;
+					continue;
+				}
 				line = lines[i];
 				pg = new Element("p");
 				if (line != "")
@@ -216,12 +224,6 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 					new Element("br").inject(pg); // Others use an implicit br
 				pg.inject(this.contentElement);
 				pos += line.length + 1;
-				if (elementPosMap.has(pos)) {
-					var ew = new GadgetElementWidget(this._view, elementPosMap.get(pos), this.contentElement);
-					ew.addEvent('deleteClicked', this.deleteElementWidgetAt);
-					this._elements.push(ew);
-					i++; // Gadgets are on empty newlines
-				}
 			}
 			
 			this._lastContent = this.contentToString();
