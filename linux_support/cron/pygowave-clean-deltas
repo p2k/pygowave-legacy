@@ -1,0 +1,13 @@
+#!/usr/bin/env python
+
+# This script simply deletes the deltas which are older than one hour
+
+import MySQLdb
+import datetime
+
+lasthour = datetime.datetime.now() - datetime.timedelta(hours=1)
+
+db=MySQLdb.connect(user="pygowave",passwd="pygowave",db="pygowave")
+cur=db.cursor()
+cur.execute("DELETE FROM pygowave_server_delta WHERE timestamp < %s;", (lasthour,))
+

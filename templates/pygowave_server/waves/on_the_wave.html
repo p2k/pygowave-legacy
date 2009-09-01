@@ -16,16 +16,21 @@
 			document.domain = document.domain;
 		}
 	</script>
-	<script type="text/javascript" src="http://{{ ORBITED_SERVER }}:{{ ORBITED_PORT }}/static/Orbited.js"></script>
+	<script type="text/javascript">
+	document.write(unescape("%3Cscript src='" + document.location.protocol + "//{{ ORBITED_SERVER }}:{{ ORBITED_PORT }}/static/Orbited.js' type='text/javascript'%3E%3C/script%3E"));
+	</script>
 	<script type="text/javascript">
 		// --- Orbited configuration ---
 		Orbited.settings.port = {{ ORBITED_PORT }};
+		Orbited.settings.protocol = document.location.protocol.slice(0, -1);
 		Orbited.settings.hostname = "{{ ORBITED_SERVER }}";
 		Orbited.settings.log = true;
 		Orbited.getLogger().enabled = true;
 		TCPSocket = Orbited.TCPSocket;
 	</script>
-	<script type="text/javascript" src="http://{{ ORBITED_SERVER }}:{{ ORBITED_PORT }}/static/protocols/stomp/stomp.js"></script>
+	<script type="text/javascript">
+	document.write(unescape("%3Cscript src='" + document.location.protocol + "//{{ ORBITED_SERVER }}:{{ ORBITED_PORT }}/static/protocols/stomp/stomp.js' type='text/javascript'%3E%3C/script%3E"));
+	</script>
 	<script type="text/javascript" src="{{ MEDIA_URL }}js/pycow.js"></script>
 	<script type="text/javascript" src="{% url django.views.i18n.javascript_catalog %}"></script>
 {% script_links %}

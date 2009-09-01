@@ -59,7 +59,9 @@ LANGUAGE_CODE = 'en-us'
 LANGUAGES = (
 	('de', 'German - Deutsch'),
 	('en', 'English - English'),
+	('nl', 'Dutch - Nederlands'),
 	('ar', u'Arabic - al-ʿarabīyah'),
+	('ru', u'Russian - русский'),
 	('ja', u'Japanese - 日本語'),
 )
 

@@ -2,68 +2,51 @@
 # Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
 # This file is distributed under the same license as the PACKAGE package.
 # FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
-#
-#, fuzzy
+# 
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2009-08-27 12:02+0200\n"
-"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"POT-Creation-Date: 2009-09-01 02:57+0200\n"
+"PO-Revision-Date: 2009-09-01 03:20\n"
+"Last-Translator: <patrick.p2k.schneider@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"X-Language: de_DE\n"
+"X-Translated-Using: django-rosetta 0.4.0\n"
 
-#: controller/controller.js:156
-#, fuzzy
-
+#: controller/controller.js:159
 #, perl-format
 msgid "The connection was lost.<br/><br/>Error code: %d"
 msgstr "Die Verbindung wurde getrennt.<br/><br/>Fehlercode: %d"
 
-#: controller/controller.js:167
-#, fuzzy
-
+#: controller/controller.js:170
 #, perl-format
 msgid "A connection error occured.<br/><br/>Error code: %d"
 msgstr "Ein Verbindungsfehler ist aufgetreten.<br/><br/>Fehlercode: %d"
 
-#: view/blip_editor.js:241
-msgid ""
-"Sorry, but this Blip Editor has gone out of sync with the internal "
-"representation. Please click resync."
-msgstr ""
-"Es tut uns leid, aber dieser Blip-Editor ist nicht mehr synchron mit der "
-"internen Darstellung. Bitte klicke auf \"Resync\"."
+#: view/blip_editor.js:252
+msgid "Sorry, but this Blip Editor has gone out of sync with the internal representation. Please click resync."
+msgstr "Es tut uns leid, aber dieser Blip-Editor ist nicht mehr synchron mit der internen Darstellung. Bitte klicke auf \\\"Resync\\\"."
 
-#: view/blip_editor.js:242
+#: view/blip_editor.js:253
 msgid "Resync"
 msgstr "Resync"
 
-#: view/blip_editor.js:247
-msgid ""
-"The text content could not be rendered correctly. This may be a bug or you "
-"are using an unsupported browser."
-msgstr ""
-"Der Text konnte nicht korrekt gerendert werden. Dies kann ein Programmfehler "
-"sein oder du verwendest einen nicht unterstützten Browser."
+#: view/blip_editor.js:258
+msgid "The text content could not be rendered correctly. This may be a bug or you are using an unsupported browser."
+msgstr "Der Text konnte nicht korrekt gerendert werden. Dies kann ein Programmfehler sein oder du verwendest einen nicht unterstützten Browser."
 
-#: view/blip_editor.js:248
+#: view/blip_editor.js:259 view/view.js:444
 msgid "Dismiss"
 msgstr "Ausblenden"
 
-#: view/blip_editor.js:254
-msgid ""
-"Unfortunately, this Blip has gone out of sync with the server. You have to "
-"reload the page to be able to use it again."
-msgstr ""
-"Unglücklicherweise ist dieser Blip nicht mehr synchron zum Server. Du musst "
-"die Seite neu laden, um ihn wieder verwenden zu können."
+#: view/blip_editor.js:265
+msgid "Unfortunately, this Blip has gone out of sync with the server. You have to reload the page to be able to use it again."
+msgstr "Unglücklicherweise ist dieser Blip nicht mehr synchron zum Server. Du musst die Seite neu laden, um ihn wieder verwenden zu können."
 
-#: view/blip_editor.js:255
+#: view/blip_editor.js:266 view/view.js:445
 msgid "Reload"
 msgstr "Neu laden"
 
@@ -91,19 +74,15 @@ msgstr "Status: Dokument ist synchron zum Server"
 msgid "Status: Document not in sync with server"
 msgstr "Status: Dokument ist nicht synchron zum Server"
 
-#: view/debug_tools.js:366
-#, fuzzy
-
+#: view/debug_tools.js:368
 #, perl-format
 msgid "Position: %d"
 msgstr "Position: %d"
 
-#: view/debug_tools.js:368
-#, fuzzy
-
+#: view/debug_tools.js:370
 #, perl-format
 msgid "Selected: %d-%d"
-msgstr "Auswahl: %d-%d"
+msgstr "Selected: %d-%d"
 
 #: view/gadgets.js:53
 msgid "Choose a Gadget from the list below:"
@@ -113,7 +92,7 @@ msgstr "Wähle ein Gadget aus der Liste:"
 msgid "Cancel"
 msgstr "Abbrechen"
 
-#: view/gadgets.js:64 view/participants.js:224 view/view.js:474
+#: view/gadgets.js:64 view/participants.js:224 view/view.js:483
 msgid "OK"
 msgstr "OK"
 
@@ -142,15 +121,15 @@ msgid "Description"
 msgstr "Beschreibung"
 
 #: view/gadgets.js:164
-#, fuzzy
-
 #, perl-format
 msgid "Uploaded by %s"
 msgstr "Hochgeladen von %s"
 
-#: view/gadgets.js:278
-#, fuzzy
+#: view/gadgets.js:231
+msgid "Delete Gadget"
+msgstr "Gadget löschen"
 
+#: view/gadgets.js:301
 #, perl-format
 msgid "Gadget #%d at index %d says:"
 msgstr "Gadget #%d bei Index %d sagt:"
@@ -161,12 +140,9 @@ msgstr "Teilnehmer hinzufügen"
 
 #: view/participants.js:280
 msgid "You must select a participant from your search results first."
-msgstr ""
-"Du musst zu erst einen Teilnehmer aus deinen Suchergebnissen auswählen."
+msgstr "Du musst zu erst einen Teilnehmer aus deinen Suchergebnissen auswählen."
 
 #: view/participants.js:393
-#, fuzzy
-
 #, perl-format
 msgid "Please enter at least %d letters."
 msgstr "Bitte mindestens %d Buchstaben eingeben."
@@ -183,55 +159,46 @@ msgstr ""
 msgid "Add a gadget to the blip"
 msgstr "Füge dem Blip ein Gadget hinzu"
 
-#: view/view.js:439
+#: view/view.js:447
 msgid "Shit happens..."
 msgstr "Dumm gelaufen..."
 
-#: view/view.js:440
-msgid "Oh well"
-msgstr "Tja..."
-
-#: view/view.js:453
+#: view/view.js:462
 msgid ""
 "Do you really want to leave the Wave?<br/>\n"
 "<br/>\n"
-"Warning: If you do so, you cannot come back to this wave unless someone adds "
-"you again."
+"Warning: If you do so, you cannot come back to this wave unless someone adds you again."
 msgstr ""
 "Willst du das Wave wirklich verlassen?<br/>\n"
 "<br/>\n"
-"Warnung: Wenn du das tust, kannst du nicht mehr zu diesem Wave zurückkehren, "
-"bis dich jemand wieder hinzufügt."
+"Warnung: Wenn du das tust, kannst du nicht mehr zu diesem Wave zurückkehren, bis dich jemand wieder hinzufügt."
 
-#: view/view.js:454
+#: view/view.js:463
 msgid "Please confirm"
 msgstr "Bitte bestätigen"
 
-#: view/view.js:496
+#: view/view.js:505
 msgid "Yes"
 msgstr "Ja"
 
-#: view/view.js:498
+#: view/view.js:507
 msgid "No"
 msgstr "Nein"
 
-#: view/view.js:582
+msgid "Oh well"
+msgstr "Ja gut"
+
 msgid "The WaveletWidget for Wavelet '%s' was not found."
 msgstr "Das WaveletWidget für Wavelet '%s' wurde nicht gefunden."
 
-#: view/view.js:583
 msgid "Sorry, but..."
 msgstr "Entschuldigung, aber..."
 
-#: view/view.js:584
 msgid "I see"
 msgstr "Ach so"
 
-#: view/view.js:591
 msgid "You must be inside of a Blip to add a Gadget."
 msgstr "Du musst dich innerhalb eines Blips befinden, um ein Gadget hinzuzufügen."
 
-#: view/view.js:600
 msgid "You must place your cursor inside the text to mark the Gadget's insertion point."
 msgstr "Du musst deinen Cursor innerhalb des Textes platzieren, um den Einfügepunkt des Gadgets zu markieren."
-

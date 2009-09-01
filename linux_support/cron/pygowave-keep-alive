@@ -1,0 +1,19 @@
+#!/usr/bin/env python
+
+import subprocess, re
+
+r = re.compile(' *([0-9]+) *([0-9.]+) *python amqp_rpc_server.py')
+
+pslist = subprocess.Popen(["ps", "-eo", "pid,pmem,args"], stdout=subprocess.PIPE).communicate()[0].split("\n")
+
+pslist = filter(lambda x: r.match(x) != None, pslist)
+
+if len(pslist) == 0:
+	print "The PyGoWave RPC service has crashed... Restating!"
+	subprocess.call(["/etc/rc.d/pygowave-rpc", "start"], stdout=open("/dev/null","w"), stderr=subprocess.STDOUT)
+else:
+	mem = float(r.match(pslist[0]).group(2))
+	if mem > 50.0:
+		print "The PyGoWave RPC service has overgrown... Restating!"
+		subprocess.call(["/etc/rc.d/pygowave-rpc", "restart"], stdout=open("/dev/null","w"), stderr=subprocess.STDOUT)
+

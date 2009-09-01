@@ -23,7 +23,7 @@
 		{% endfor %}
 		</table>
 		<script type="text/javascript">
-			//TODO$(".gadget_title").tooltip({track: true, delay: 0, fade: 250, showBody: " - ", showURL: false});
+			new Tips($$(".gadget_title"), {className: 'tooltip'});
 			
 			function confirmDelete(id, title) {
 				if (confirm("{% trans 'Do you really want to delete \"%s\"?' %}".replace("%s", title)))
