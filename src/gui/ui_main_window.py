@@ -1,0 +1,92 @@
+# -*- coding: utf-8 -*-
+
+# Form implementation generated from reading ui file 'src/gui/main_window.ui'
+#
+# Created: Tue Jul  7 17:52:05 2009
+#      by: PyQt4 UI code generator 4.5.1
+#
+# WARNING! All changes made in this file will be lost!
+
+from PyQt4 import QtCore, QtGui
+
+class Ui_MainWindow(object):
+    def setupUi(self, MainWindow):
+        MainWindow.setObjectName("MainWindow")
+        MainWindow.resize(1280, 960)
+        self.centralwidget = QtGui.QWidget(MainWindow)
+        self.centralwidget.setObjectName("centralwidget")
+        self.verticalLayout = QtGui.QVBoxLayout(self.centralwidget)
+        self.verticalLayout.setMargin(0)
+        self.verticalLayout.setObjectName("verticalLayout")
+        self.mdiArea = QtGui.QMdiArea(self.centralwidget)
+        self.mdiArea.setObjectName("mdiArea")
+        self.verticalLayout.addWidget(self.mdiArea)
+        MainWindow.setCentralWidget(self.centralwidget)
+        self.menubar = QtGui.QMenuBar(MainWindow)
+        self.menubar.setGeometry(QtCore.QRect(0, 0, 1280, 26))
+        self.menubar.setObjectName("menubar")
+        self.menuFile = QtGui.QMenu(self.menubar)
+        self.menuFile.setObjectName("menuFile")
+        self.menuWindow = QtGui.QMenu(self.menubar)
+        self.menuWindow.setObjectName("menuWindow")
+        MainWindow.setMenuBar(self.menubar)
+        self.statusbar = QtGui.QStatusBar(MainWindow)
+        self.statusbar.setObjectName("statusbar")
+        MainWindow.setStatusBar(self.statusbar)
+        self.actionQuit = QtGui.QAction(MainWindow)
+        self.actionQuit.setObjectName("actionQuit")
+        self.actionClose = QtGui.QAction(MainWindow)
+        self.actionClose.setObjectName("actionClose")
+        self.actionClose_all = QtGui.QAction(MainWindow)
+        self.actionClose_all.setObjectName("actionClose_all")
+        self.actionTile = QtGui.QAction(MainWindow)
+        self.actionTile.setObjectName("actionTile")
+        self.actionCascade = QtGui.QAction(MainWindow)
+        self.actionCascade.setObjectName("actionCascade")
+        self.actionArrange = QtGui.QAction(MainWindow)
+        self.actionArrange.setObjectName("actionArrange")
+        self.actionNext_window = QtGui.QAction(MainWindow)
+        self.actionNext_window.setObjectName("actionNext_window")
+        self.actionPrevious_window = QtGui.QAction(MainWindow)
+        self.actionPrevious_window.setObjectName("actionPrevious_window")
+        self.actionAdd_user = QtGui.QAction(MainWindow)
+        self.actionAdd_user.setObjectName("actionAdd_user")
+        self.menuFile.addAction(self.actionAdd_user)
+        self.menuFile.addSeparator()
+        self.menuFile.addAction(self.actionQuit)
+        self.menuWindow.addAction(self.actionClose)
+        self.menuWindow.addAction(self.actionClose_all)
+        self.menuWindow.addSeparator()
+        self.menuWindow.addAction(self.actionTile)
+        self.menuWindow.addAction(self.actionCascade)
+        self.menuWindow.addSeparator()
+        self.menuWindow.addAction(self.actionNext_window)
+        self.menuWindow.addAction(self.actionPrevious_window)
+        self.menubar.addAction(self.menuFile.menuAction())
+        self.menubar.addAction(self.menuWindow.menuAction())
+
+        self.retranslateUi(MainWindow)
+        QtCore.QObject.connect(self.actionCascade, QtCore.SIGNAL("triggered()"), self.mdiArea.cascadeSubWindows)
+        QtCore.QObject.connect(self.actionClose, QtCore.SIGNAL("triggered()"), self.mdiArea.closeActiveSubWindow)
+        QtCore.QObject.connect(self.actionClose_all, QtCore.SIGNAL("triggered()"), self.mdiArea.closeAllSubWindows)
+        QtCore.QObject.connect(self.actionTile, QtCore.SIGNAL("triggered()"), self.mdiArea.tileSubWindows)
+        QtCore.QObject.connect(self.actionNext_window, QtCore.SIGNAL("triggered()"), self.mdiArea.activateNextSubWindow)
+        QtCore.QObject.connect(self.actionPrevious_window, QtCore.SIGNAL("triggered()"), self.mdiArea.activatePreviousSubWindow)
+        QtCore.QObject.connect(self.actionQuit, QtCore.SIGNAL("triggered()"), MainWindow.close)
+        QtCore.QMetaObject.connectSlotsByName(MainWindow)
+
+    def retranslateUi(self, MainWindow):
+        MainWindow.setWindowTitle(QtGui.QApplication.translate("MainWindow", "OTlab", None, QtGui.QApplication.UnicodeUTF8))
+        self.menuFile.setTitle(QtGui.QApplication.translate("MainWindow", "&File", None, QtGui.QApplication.UnicodeUTF8))
+        self.menuWindow.setTitle(QtGui.QApplication.translate("MainWindow", "&Window", None, QtGui.QApplication.UnicodeUTF8))
+        self.actionQuit.setText(QtGui.QApplication.translate("MainWindow", "&Quit", None, QtGui.QApplication.UnicodeUTF8))
+        self.actionClose.setText(QtGui.QApplication.translate("MainWindow", "&Close", None, QtGui.QApplication.UnicodeUTF8))
+        self.actionClose_all.setText(QtGui.QApplication.translate("MainWindow", "Close &all", None, QtGui.QApplication.UnicodeUTF8))
+        self.actionTile.setText(QtGui.QApplication.translate("MainWindow", "&Tile", None, QtGui.QApplication.UnicodeUTF8))
+        self.actionCascade.setText(QtGui.QApplication.translate("MainWindow", "Ca&scade", None, QtGui.QApplication.UnicodeUTF8))
+        self.actionArrange.setText(QtGui.QApplication.translate("MainWindow", "A&rrange icons", None, QtGui.QApplication.UnicodeUTF8))
+        self.actionNext_window.setText(QtGui.QApplication.translate("MainWindow", "&Next window", None, QtGui.QApplication.UnicodeUTF8))
+        self.actionPrevious_window.setText(QtGui.QApplication.translate("MainWindow", "&Previous window", None, QtGui.QApplication.UnicodeUTF8))
+        self.actionAdd_user.setText(QtGui.QApplication.translate("MainWindow", "&Add user", None, QtGui.QApplication.UnicodeUTF8))
+        self.actionAdd_user.setShortcut(QtGui.QApplication.translate("MainWindow", "Ctrl+A", None, QtGui.QApplication.UnicodeUTF8))
+
