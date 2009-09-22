@@ -220,8 +220,10 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			
 			window.gadget_rpc.registerModuleHandler(gadgetElement.id(), this);
 			this._wavelet.addEvent('participantsChanged', this._onParticipantsChanged);
-			this._gadgetElement.addEvent('stateChange', this._onStateChange);
-			this._gadgetElement.addEvent('setUserPref', this._onSetUserPref);
+			this._gadgetElement.addEvents({
+				'stateChange': this._onStateChange,
+				'setUserPref': this._onSetUserPref
+			});
 			
 			var contentElement = new Element('div', {'class': 'gadget_element'});
 			contentElement.contentEditable = "false";
@@ -241,20 +243,50 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			
 			this.parent(parentElement, contentElement, where);
 		},
-		
+		/**
+		 * Overridden from {@link pygowave.view.Widget.dispose Widget.dispose}.<br/>
+		 * Removes the widget from the DOM, sets the parentElement to null and
+		 * disconnects from the Wavelet and GadgetElement.
+		 * 
+		 * @function {public Widget} dispose
+		 * @return Returns a reference to this widget.
+		 */
 		dispose: function () {
 			this.parent();
 			this._wavelet.removeEvent('participantsChanged', this._onParticipantsChanged);
+			this._gadgetElement.removeEvents({
+				'stateChange': this._onStateChange,
+				'setUserPref': this._onSetUserPref
+			});
 			window.gadget_rpc.unregisterModuleHandler(this._gadgetElement.id());
+			this._callbacksOnLoad.empty();
+			this._callbacksRegistered.empty();
+			return this;
 		},
-		
+		/**
+		 * Returns the GadgetElement which is rendered by this widget.
+		 * 
+		 * @function {public pygowave.model.GadgetElement} element
+		 */
 		element: function () {
 			return this._gadgetElement;
 		},
+		/**
+		 * Returns the logical position within the Blip text of the rendered
+		 * GadgetElement.
+		 * 
+		 * @function {public int} position
+		 */
 		position: function () {
 			return this._gadgetElement.position();
 		},
 		
+		/**
+		 * Callback from iframe on load. Invokes onLoad callbacks of the
+		 * rendered Gadget.
+		 *
+		 * @function {private} _onGadgetLoaded
+		 */
 		_onGadgetLoaded: function () {
 			for (var it = new _Iterator(this._callbacksOnLoad); it.hasNext(); ) {
 				var callback = it.next();
@@ -265,6 +297,12 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			this._onStateChange();
 			this.adjustHeight();
 		},
+		/**
+		 * Callback from wavelet model on participants change. Forwards to the
+		 * rendered Gadget.
+		 *
+		 * @function {private} _onParticipantsChanged
+		 */
 		_onParticipantsChanged: function () {
 			this.invokeCallbacks(
 				"wave_participants",
@@ -275,12 +313,31 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 				}
 			);
 		},
+		/**
+		 * Callback from model on state change. Forwards to the rendered Gadget.
+		 *
+		 * @function {private} _onStateChange
+		 */
 		_onStateChange: function () {
 			this.invokeCallbacks("wave_gadget_state", this._gadgetElement.fields());
 		},
+		/**
+		 * Callback from model on userpref setting. Forwards to the rendered Gadget.
+		 *
+		 * @function {private} _onSetUserPref
+		 * @param {String} key
+		 * @param {String} value
+		 */
 		_onSetUserPref: function (key, value) {
 			this.invokeCallbacks("set_pref", ["unknown", key, value]);
 		},
+		/**
+		 * Invoke registered callbacks of the rendered Gadget.
+		 *
+		 * @function {public} invokeCallbacks
+		 * @param {String} serviceName Name of the service to invoke
+		 * @param {Object} var_args List of arguments to pass
+		 */
 		invokeCallbacks: function (serviceName, var_args) {
 			if (!this._callbacksRegistered.has(serviceName))
 				return;
@@ -291,6 +348,16 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			}
 		},
 		
+		/**
+		 * Callback from GadgetRPCHandler. Reacts to "wave_gadget_state" and
+		 * "wave_log" calls.
+		 *
+		 * @function {private} call
+		 * @param {int} targetId ID of the target gadget or null for the parent
+		 * @param {String} serviceName Name of the service to call
+		 * @param {optional Function} callback Callback function if applicable
+		 * @param {optional Object} var_args Arguments of the call
+		 */
 		call: function (targetId, serviceName, callback, var_args) {
 			if (targetId == null) {
 				switch (serviceName) {
@@ -306,14 +373,38 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 				}
 			}
 		},
+		/**
+		 * Callback from GadgetRPCHandler. Registers an arbitrary service
+		 * handler, but only "wave_participants", "wave_gadget_state" and
+		 * "set_pref" will actually be called.
+		 * 
+		 * @function {private} register
+		 * @param {String} serviceName Name of the service to register
+		 * @param {Function} handler Function to be called for the service
+		 */
 		register: function (serviceName, handler) {
 			if (!this._callbacksRegistered.has(serviceName))
 				this._callbacksRegistered.set(serviceName, new Array());
 			this._callbacksRegistered.get(serviceName).push(handler);
 		},
+		/**
+		 * Callback from GadgetRPCHandler. Registers a callback to be invoked
+		 * on Gadget load.
+		 *
+		 * @function {private} registerOnLoadHandler
+		 * @param {Function} callback Function to be called on gadget load
+		 */
 		registerOnLoadHandler: function (callback) {
 			this._callbacksOnLoad.push(callback);
 		},
+		/**
+		 * Callback from GadgetRPCHandler. Adjusts the height of the container
+		 * iframe.
+		 *
+		 * @function {private} adjustHeight
+		 * @param {optional int} opt_height Height to be set. If missing tries
+		 *        to calculate the optimal value from the document height.
+		 */
 		adjustHeight: function (opt_height) {
 			if ($defined(opt_height))
 				this._gadgetFrame.setStyle('height', opt_height);
@@ -324,6 +415,14 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 				}catch(e){}
 			}
 		},
+		/**
+		 * Callback from GadgetRPCHandler. Sets a UserPref value.
+		 *
+		 * @function {private} set_pref
+		 * @param {int} moduleId ID of the module that invoked this callback
+		 * @param {String} key
+		 * @param {String} value
+		 */
 		set_pref: function (key, value) {
 			this._view.fireEvent('elementSetUserpref', [this._wavelet.id(), this._blipId, this._gadgetElement.position(), key, value]);
 		}
@@ -347,35 +446,93 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			this._modules = new Hash();
 		},
 		
+		/**
+		 * Registers a new module handler with the given ID. The handler must
+		 * support all callback functions (call, register, registerOnLoadHandler,
+		 * adjustHeight, set_pref) which will be invoked from the underlying
+		 * Gadget.
+		 *
+		 * @function {public} registerModuleHandler
+		 * @function {int} moduleId ID of the module to handle
+		 * @function {Object} handler Module handler object which receives calls
+		 */
 		registerModuleHandler: function (moduleId, handler) {
 			this._modules.set(moduleId, handler);
 		},
-		
+		/**
+		 * Unregisters an existing module handler with the given ID.
+		 *
+		 * @function {public} unregisterModuleHandler
+		 * @param {int} moduleId ID of the module
+		 */
 		unregisterModuleHandler: function (moduleId) {
 			this._modules.erase(moduleId);
 		},
 		
-		
+		/**
+		 * Callback from modules (i.e. Gadgets) to trigger a specific function.
+		 * Forwards to the associated module handler.
+		 *
+		 * @function {private} call
+		 * @param {int} moduleId ID of the module that invoked this callback
+		 * @param {int} targetId ID of the target gadget or null for the parent
+		 * @param {String} serviceName Name of the service to call
+		 * @param {optional Function} callback Callback function if applicable
+		 * @param {optional Object} var_args Arguments of the call
+		 */
 		call: function (moduleId, targetId, serviceName, callback, var_args) {
 			if (this._modules.has(moduleId))
 				this._modules[moduleId].call(targetId, serviceName, callback, var_args);
 		},
-		
+		/**
+		 * Callback from modules (i.e. Gadgets) to register a service callback.
+		 * Forwards to the associated module handler.
+		 *
+		 * @function {private} register
+		 * @param {int} moduleId ID of the module that invoked this callback
+		 * @param {String} serviceName Name of the service to register
+		 * @param {Function} handler Function to be called for the service
+		 */
 		register: function (moduleId, serviceName, handler) {
 			if (this._modules.has(moduleId))
 				this._modules[moduleId].register(serviceName, handler);
 		},
-		
+		/**
+		 * Callback from modules (i.e. Gadgets) to register a callback which
+		 * is invoked if the module was loaded.
+		 * Forwards to the associated module handler.
+		 *
+		 * @function {private} registerOnLoadHandler
+		 * @param {int} moduleId ID of the module that invoked this callback
+		 * @param {Function} callback Function to be called on module load
+		 */
 		registerOnLoadHandler: function (moduleId, callback) {
 			if (this._modules.has(moduleId))
 				this._modules[moduleId].registerOnLoadHandler(callback);
 		},
-		
+		/**
+		 * Callback from modules (i.e. Gadgets) to issue an hight adjustment
+		 * of the container frame.
+		 * Forwards to the associated module handler.
+		 *
+		 * @function {private} adjustHeight
+		 * @param {int} moduleId ID of the module that invoked this callback
+		 * @param {optional int} opt_height Height to be set. If missing tries
+		 *        to calculate the optimal value from the document height.
+		 */
 		adjustHeight: function (moduleId, opt_height) {
 			if (this._modules.has(moduleId))
 				this._modules[moduleId].adjustHeight(opt_height);
 		},
-		
+		/**
+		 * Callback from modules (i.e. Gadgets) to set a UserPref value.
+		 * Forwards to the associated module handler.
+		 *
+		 * @function {private} set_pref
+		 * @param {int} moduleId ID of the module that invoked this callback
+		 * @param {String} key
+		 * @param {String} value
+		 */
 		set_pref: function (moduleId, key, value) {
 			if (this._modules.has(moduleId))
 				this._modules[moduleId].set_pref(key, value);

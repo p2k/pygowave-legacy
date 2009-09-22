@@ -115,7 +115,7 @@ pygowave.operations = (function() {
 		 * @param {Operation} other_op
 		 */
 		isCompatibleTo: function (other_op) {
-			if (this.waveId != other_op.waveId || this.waveletId != other_op.waveletId || this.blipId != this.blipId)
+			if (this.waveId != other_op.waveId || this.waveletId != other_op.waveletId || this.blipId != other_op.blipId)
 				return false;
 			return true;
 		},
@@ -174,8 +174,39 @@ pygowave.operations = (function() {
 		 * @param {int} value
 		 */
 		resize: function (value) {
-			if (this.type == DOCUMENT_DELETE)
-				this.property = value;
+			if (this.type == DOCUMENT_DELETE) {
+				if (value > 0)
+					this.property = value;
+				else
+					this.property = 0;
+			}
+		},
+
+		/**
+		 * DOCUMENT_INSERT: Inserts the string into the property.
+		 *
+		 * Other operations: No effect.
+		 *
+		 * @function {public} insertString
+		 * @param {int} pos Position to insert the string
+		 * @param {String} s String to insert
+		 */
+		insertString: function (pos, s) {
+			if (this.type == DOCUMENT_INSERT)
+				this.property = this.property.slice(0, pos) + s + this.property.slice(pos);
+		},
+
+		/**
+		 * DOCUMENT_INSERT: Deletes a substring from the property.
+		 *
+		 * Other operations: No effect.
+		 * @function {public} deleteString
+		 * @param {int} pos Position to delete the substring
+		 * @param {int} length Amout of characters to remove
+		 */
+		deleteString: function (pos, length) {
+			if (this.type == DOCUMENT_INSERT)
+				this.property = this.property.slice(0, pos) + this.property.slice(pos + length);
 		},
 
 		/**
@@ -519,57 +550,59 @@ pygowave.operations = (function() {
 			if (i >= 0) {
 				op = this.operations[i];
 				if (newop.type == DOCUMENT_INSERT && op.type == DOCUMENT_INSERT) {
-					if (newop.index == op.index) {
-						op.property = newop.property + op.property;
-						this.fireEvent("operationChanged", i);
-						return;
-					}
-					var end = op.index + len(op.property);
-					if (newop.index == end) {
-						op.property += newop.property;
-						this.fireEvent("operationChanged", i);
-						return;
-					}
-					if (op.index < newop.index && newop.index < end) {
-						op.property = op.property.slice(0, newop.index - op.index) + newop.property + op.property.slice(newop.index - op.index);
+					if (newop.index >= op.index && newop.index <= (op.index + op.length())) {
+						op.insertString(newop.index - op.index, newop.property);
 						this.fireEvent("operationChanged", i);
 						return;
 					}
 				}
-				if (newop.type == DOCUMENT_DELETE && op.type == DOCUMENT_INSERT) {
-					if (newop.index == op.index) {
-						var l = len(op.property);
-						op.property = op.property.slice(newop.property);
-						if (op.property == "") {
+				else if (newop.type == DOCUMENT_DELETE && op.type == DOCUMENT_INSERT) {
+					if (newop.index >= op.index && newop.index < (op.index + op.length())) {
+						var remain = op.length() - (newop.index - op.index);
+						if (remain > newop.length()) {
+							op.deleteString(newop.index - op.index, newop.length());
+							newop.resize(0);
+						}
+						else {
+							op.deleteString(newop.index - op.index, remain);
+							newop.resize(newop.length() - remain);
+						}
+						if (op.isNull()) {
 							this.fireEvent("beforeOperationsRemoved", [i, i]);
 							this.operations.pop(i);
 							this.fireEvent("afterOperationsRemoved", [i, i]);
+							i--;
 						}
 						else
 							this.fireEvent("operationChanged", i);
-						newop.property -= l;
-						if (newop.property <= 0)
+						if (newop.isNull())
 							return;
 					}
-					end = op.index + len(op.property);
-					if (op.index < newop.index && newop.index < end) {
-						l = len(op.property) - (newop.index - op.index + newop.property);
-						op.property = op.property.slice(0, newop.index - op.index) + op.property.slice(newop.index - op.index + newop.property);
-						this.fireEvent("operationChanged", i);
-						newop.property = -l;
-						if (newop.property <= 0)
-							return;
+					else if (newop.index < op.index && newop.index + newop.length() > op.index) {
+						if (newop.index + newop.length() >= (op.index + op.length())) {
+							newop.resize(newop.length() - op.length());
+							this.fireEvent("beforeOperationsRemoved", [i, i]);
+							this.operations.pop(i);
+							this.fireEvent("afterOperationsRemoved", [i, i]);
+							i--;
+						}
+						else {
+							var dlength = newop.index + newop.length() - op.index;
+							newop.resize(newop.length() - dlength);
+							op.deleteString(0, dlength);
+							this.fireEvent("operationChanged", i);
+						}
 					}
 				}
-				if (newop.type == DOCUMENT_DELETE && op.type == DOCUMENT_DELETE) {
+				else if (newop.type == DOCUMENT_DELETE && op.type == DOCUMENT_DELETE) {
 					if (newop.index == op.index) {
-						op.property += newop.property;
+						op.resize(op.length() + newop.length());
 						this.fireEvent("operationChanged", i);
 						return;
 					}
-					if (newop.index == (op.index - newop.property)) {
-						op.index -= newop.property;
-						op.property += newop.property;
+					if (newop.index == (op.index - newop.length())) {
+						op.index -= newop.length();
+						op.resize(op.length() + newop.length());
 						this.fireEvent("operationChanged", i);
 						return;
 					}

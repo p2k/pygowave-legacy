@@ -146,7 +146,7 @@ class Operation(object):
 		# DOCUMENT_INSERT DOCUMENT_DELETE DOCUMENT_ELEMENT_INSERT DOCUMENT_ELEMENT_DELETE DOCUMENT_ELEMENT_DELTA DOCUMENT_ELEMENT_SETPREF
 		if self.waveId != other_op.waveId \
 				or self.waveletId != other_op.waveletId \
-				or self.blipId != self.blipId:
+				or self.blipId != other_op.blipId:
 			return False
 		return True
 
@@ -201,7 +201,35 @@ class Operation(object):
 		@param {int} value
 		"""
 		if self.type == DOCUMENT_DELETE:
-			self.property = value
+			if value > 0:
+				self.property = value
+			else:
+				self.property = 0
+
+	def insertString(self, pos, s):
+		"""
+		DOCUMENT_INSERT: Inserts the string into the property.
+		
+		Other operations: No effect.
+		
+		@function {public} insertString
+		@param {int} pos Position to insert the string
+		@param {String} s String to insert
+		"""
+		if self.type == DOCUMENT_INSERT:
+			self.property = self.property[:pos] + s + self.property[pos:]
+
+	def deleteString(self, pos, length):
+		"""
+		DOCUMENT_INSERT: Deletes a substring from the property.
+		
+		Other operations: No effect.
+		@function {public} deleteString
+		@param {int} pos Position to delete the substring
+		@param {int} length Amout of characters to remove
+		"""
+		if self.type == DOCUMENT_INSERT:
+			self.property = self.property[:pos] + self.property[pos+length:]
 
 	def serialize(self):
 		"""
@@ -359,9 +387,9 @@ class OpManager(object):
 						if op.index >= end:
 							op.index -= myop.length()
 						elif op.index + op.length() <= end: # and op.index < end
+							myop.resize(myop.length() - op.length())
 							op_lst.pop(j)
 							j -= 1
-							myop.resize(myop.length() - op.length())
 							if myop.isNull():
 								self.fireEvent("beforeOperationsRemoved", [i, i])
 								self.operations.pop(i)
@@ -529,48 +557,48 @@ class OpManager(object):
 		if i >= 0:
 			op = self.operations[i]
 			if newop.type == DOCUMENT_INSERT and op.type == DOCUMENT_INSERT:
-				if newop.index == op.index: # Prepending
-					op.property = newop.property + op.property
+				if newop.index >= op.index and newop.index <= op.index+op.length():
+					op.insertString(newop.index-op.index, newop.property)
 					self.fireEvent("operationChanged", i)
 					return
-				end = op.index + len(op.property)
-				if newop.index == end: # Appending
-					op.property += newop.property
-					self.fireEvent("operationChanged", i)
-					return
-				if op.index < newop.index and newop.index < end: # Inserting
-					op.property = op.property[:newop.index-op.index] + newop.property + op.property[newop.index-op.index:]
-					self.fireEvent("operationChanged", i)
-					return
-			if newop.type == DOCUMENT_DELETE and op.type == DOCUMENT_INSERT:
-				if newop.index == op.index: # Delete from start
-					l = len(op.property)
-					op.property = op.property[newop.property:]
-					if op.property == "":
+			elif newop.type == DOCUMENT_DELETE and op.type == DOCUMENT_INSERT:
+				if newop.index >= op.index and newop.index < op.index+op.length():
+					remain = op.length() - (newop.index - op.index)
+					if remain > newop.length():
+						op.deleteString(newop.index - op.index, newop.length())
+						newop.resize(0)
+					else:
+						op.deleteString(newop.index - op.index, remain)
+						newop.resize(newop.length() - remain)
+					if op.isNull():
 						self.fireEvent("beforeOperationsRemoved", [i, i])
 						self.operations.pop(i)
 						self.fireEvent("afterOperationsRemoved", [i, i])
+						i -= 1
 					else:
 						self.fireEvent("operationChanged", i)
-					newop.property -= l
-					if newop.property <= 0: # Deleted less than last op's length
+					if newop.isNull():
 						return
-				end = op.index + len(op.property)
-				if op.index < newop.index and newop.index < end: # Delete from within
-					l = len(op.property) - (newop.index - op.index + newop.property)
-					op.property = op.property[:newop.index - op.index] + op.property[newop.index - op.index + newop.property:]
-					self.fireEvent("operationChanged", i)
-					newop.property = -l
-					if newop.property <= 0: # Deleted less than last op's length
-						return
-			if newop.type == DOCUMENT_DELETE and op.type == DOCUMENT_DELETE:
+				elif newop.index < op.index and newop.index+newop.length() > op.index:
+					if newop.index+newop.length() >= op.index+op.length():
+						newop.resize(newop.length() - op.length())
+						self.fireEvent("beforeOperationsRemoved", [i, i])
+						self.operations.pop(i)
+						self.fireEvent("afterOperationsRemoved", [i, i])
+						i -= 1
+					else:
+						dlength = newop.index+newop.length() - op.index
+						newop.resize(newop.length() - dlength)
+						op.deleteString(0, dlength)
+						self.fireEvent("operationChanged", i)
+			elif newop.type == DOCUMENT_DELETE and op.type == DOCUMENT_DELETE:
 				if newop.index == op.index: # Delete at start
-					op.property += newop.property
+					op.resize(op.length() + newop.length())
 					self.fireEvent("operationChanged", i)
 					return
-				if newop.index == op.index-newop.property: # Deleta at end
-					op.index -= newop.property
-					op.property += newop.property
+				if newop.index == op.index-newop.length(): # Delete at end
+					op.index -= newop.length()
+					op.resize(op.length() + newop.length())
 					self.fireEvent("operationChanged", i)
 					return
 		

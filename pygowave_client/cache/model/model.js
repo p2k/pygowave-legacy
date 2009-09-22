@@ -720,8 +720,9 @@ pygowave.model = (function() {
 		insertElement: function (index, type, properties, noevent) {
 			if (!$defined(noevent)) noevent = false;
 			this.insertText(index, "\n", true);
+			var elt = null;
 			if (type == 2)
-				var elt = new GadgetElement(this, null, index, properties);
+				elt = new GadgetElement(this, null, index, properties);
 			else
 				elt = new Element(this, null, index, type, properties);
 			this._elements.append(elt);

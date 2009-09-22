@@ -41,6 +41,7 @@ DEFAULT_FROM_EMAIL = 'noreply@localhost'
 WAVE_DOMAIN = 'localhost'
 
 LOGIN_URL = '/pygowave/accounts/login/'
+LOGIN_REDIRECT_URL = '/pygowave/home/'
 
 # Set to False to enable some non-localhost features
 IS_LOCAL = True

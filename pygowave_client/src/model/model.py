@@ -679,6 +679,7 @@ class Blip(object):
 		"""
 		
 		self.insertText(index, "\n", True)
+		elt = None
 		if type == 2:
 			elt = GadgetElement(self, None, index, properties)
 		else:
