@@ -40,8 +40,8 @@ DEFAULT_FROM_EMAIL = 'noreply@localhost'
 # The domain used in wave URLs
 WAVE_DOMAIN = 'localhost'
 
-LOGIN_URL = '/pygowave/accounts/login/'
-LOGIN_REDIRECT_URL = '/pygowave/home/'
+LOGIN_URL = '/accounts/login/'
+LOGIN_REDIRECT_URL = '/home/'
 
 # Set to False to enable some non-localhost features
 IS_LOCAL = True
@@ -81,12 +81,12 @@ MEDIA_ROOT = '/srv/http/pygowave_project/media/'
 # URL that handles the media served from MEDIA_ROOT. Make sure to use a
 # trailing slash if there is a path component (optional in other cases).
 # Examples: "http://media.lawrence.com/", "http://example.com/media/"
-MEDIA_URL = '/pygowave/media/'
+MEDIA_URL = '/media/'
 
 # URL prefix for admin media -- CSS, JavaScript and images. Make sure to use a
 # trailing slash.
 # Examples: "http://foo.com/media/", "/media/".
-ADMIN_MEDIA_PREFIX = '/admin/media/'
+ADMIN_MEDIA_PREFIX = '/admin_media/'
 
 # Make this unique, and don't share it with anybody.
 SECRET_KEY = 'n*hye&*_3ry)ds-6xwkp9f$u^$))nwt1j^332(+hj!qt@1mk!y'

@@ -197,7 +197,7 @@ class Wavelet(models.Model):
 	title = models.CharField(max_length=255, blank=True)
 	version = models.IntegerField(default=0)
 	participants = models.ManyToManyField(Participant, related_name="wavelets")
-	participant_conns = models.ManyToManyField(ParticipantConn, related_name="wavelets", verbose_name=_(u'connections'))
+	participant_conns = models.ManyToManyField(ParticipantConn, blank=True, related_name="wavelets", verbose_name=_(u'connections'))
 	
 	def blipById(self, id):
 		"""
