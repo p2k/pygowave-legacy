@@ -42,6 +42,18 @@ a img
 	border: 0;
 }
 
+a 
+{
+	color: #006EBA;
+	font-weight: bold;
+	text-decoration: none;
+}
+
+a:hover 
+{
+	text-decoration: underline;
+}
+
 p
 {
 	padding: 0 0 1em;
@@ -201,6 +213,19 @@ p
 .submenu_div
 {
 	float: left;
+}
+
+#footer
+{
+	background-color:#C3D9FF;
+	color: #006EBA;
+	font-weight: bold;
+	text-align: center;	 
+}
+
+#footer a 
+{
+	padding: 0 7px;
 }
 
 #id_profile
