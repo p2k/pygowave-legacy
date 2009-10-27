@@ -15,29 +15,3 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
-from django.conf import settings
-
-def server(request):
-	"""
-	Puts IS_LOCAL setting, the VERSION and the Orbited configuration into context.
-	
-	"""
-	if settings.ORBITED_PORT == "auto":
-		oport = request.META["SERVER_PORT"]
-	else:
-		oport = settings.ORBITED_PORT
-	return {
-		'IS_LOCAL': settings.IS_LOCAL,
-		'ORBITED_SERVER': settings.ORBITED_SERVER,
-		'ORBITED_PORT': oport,
-		'VERSION': settings.VERSION,
-		'PING_INTERVAL_SECONDS': settings.PING_INTERVAL_SECONDS
-	}
-
-def storage_urls(request):
-	"""
-	Puts AVATAR_URL and GADGET_URL into context.
-	
-	"""
-	return {'AVATAR_URL': settings.AVATAR_URL, 'GADGET_URL': settings.GADGET_URL}

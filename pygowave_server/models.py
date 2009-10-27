@@ -111,6 +111,7 @@ class ParticipantConn(models.Model):
 	
 	participant = models.ForeignKey(Participant, related_name="connections")
 	created = models.DateTimeField(auto_now_add=True)
+	last_contact = models.DateTimeField(auto_now_add=True)
 	rx_key = models.CharField(max_length=42)
 	tx_key = models.CharField(max_length=42)
 	

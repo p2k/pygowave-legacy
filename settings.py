@@ -149,19 +149,32 @@ GADGET_URL = MEDIA_URL + 'gadgets/'
 # Used if a user doesn't log out properly
 ONLINE_TIMEOUT_MINUTES = 10
 
-# Used if a user somehow doesn't use his generated access key in time
+# Ping interval for wavelet connections
+PING_INTERVAL_SECONDS = 20
+
+# Used if a user somehow doesn't use his generated access key in time or
+# a ping timeout occurs
 ACCESS_KEY_TIMEOUT_MINUTES = 2
 
 # Minimum characters to engage a search
 PARTICIPANT_SEARCH_LENGTH = 3
 
-# RabbitMQ settings here
-AMQP_SERVER = "localhost"
+# RPC settings here
+RPC_SERVER = "localhost"
+RPC_USER = "pygowave_server"
+RPC_PASSWORD = "pygowave_server"
+RPC_LOGGING = "normal" # Possible values: "normal", "quiet", "verbose"
+RPC_LOGFILE_INFO = "" # Leave empty to write to console i.e. use twistd's builtin logger
+RPC_LOGFILE_ERROR = ""
+
+# AMQP RPC specific
 AMQP_PORT = 5672
-AMQP_USER = "pygowave_server"
-AMQP_PASSWORD = "pygowave_server"
 AMQP_VHOST = "/"
 
+# STOMP RPC specific
+STOMP_PORT = 61613
+STOMP_MODE = "client" # Possible values: "client", "server"
+
 # Orbited settings here
-ORBITED_SERVER = "p2k-i9400-arch"
+ORBITED_SERVER = "localhost"
 ORBITED_PORT = 80

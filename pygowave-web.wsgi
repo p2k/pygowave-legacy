@@ -17,12 +17,13 @@
 #
 
 # Intended for use with apache httpd mod_wsgi
-#   WSGIScriptAlias / /srv/http/pygowave_project/pygowave.wsgi
+#   WSGIScriptAlias / /srv/http/pygowave_project/pygowave-web.wsgi
 
 import os
 import sys
 
-os.environ["DJANGO_SETTINGS_MODULE"] = "settings"
+if not os.environ.has_key("DJANGO_SETTINGS_MODULE"):
+	os.environ["DJANGO_SETTINGS_MODULE"] = "settings"
 sys.path.append(os.path.dirname(__file__))
 
 from django.core.handlers.wsgi import WSGIHandler

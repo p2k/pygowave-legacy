@@ -100,6 +100,7 @@
 					initialWave: "{{ wave_id|escapejs }}",
 					initialWavelet: "{{ wavelet_id|escapejs }}",
 					viewerId: "{{ participant_id|escapejs }}",
+					pingInterval: {{ PING_INTERVAL_SECONDS }},
 					
 					waveOverviewUrl: "{% url pygowave_server.views.wave_list %}"
 				}

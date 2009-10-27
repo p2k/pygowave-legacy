@@ -17,7 +17,11 @@
 #
 
 # You can run this .tac file directly with:
-#    twistd -ny pygowave.tac
+#    twistd -ny pygowave-web.tac
+
+# This twisted application script combines PyGoWave's web frontend and Orbited
+# under one process. It should be run in conjunction with the PyGoWave RPC
+# application with or without a message queue in between.
 
 import os, sys, pkg_resources
 from twisted.application import service, internet
@@ -84,6 +88,9 @@ def setupDjangoService():
 				request.content.seek(0,0) # Note: May be removed on newer versions of Twisted
 				return resource.getChildForRequest(self.wsgi_resource, request)
 			return ret
+		
+		def __repr__(self):
+			return "CombinedWSGISite"
 	
 	def WSGIScriptNamePatch(handler): # Note: May be removed on newer versions of Twisted
 		def call(environ, start_response):
@@ -98,7 +105,7 @@ def setupDjangoService():
 sys.path.append(os.path.dirname(__file__))
 os.environ["DJANGO_SETTINGS_MODULE"] = "settings"
 
-application = service.Application("PyGoWave Server")
+application = service.Application("PyGoWave Web Server")
 
 # attach the service to its parent application
 pygo_srv = setupDjangoService()

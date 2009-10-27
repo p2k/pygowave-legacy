@@ -113,6 +113,10 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			this._content.getParent().setStyle("height", "100%");
 			this.addEvent('closeComplete', this._onClose.bind(this));
 			
+			// Add latency text
+			this._latencyText = new Element('span', {text: ''}).inject(this.buttonsEl);
+			this._controller.addEvent('ping', this._onPing);
+			
 			// Connect callbacks
 			this._mcached.addEvent('beforeOperationsInserted', this.cached_onBeforeOperationsInserted);
 			this._mcached.addEvent('afterOperationsInserted', this.cached_onAfterOperationsInserted);
@@ -148,6 +152,7 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			this._mpending.removeEvent('afterOperationsInserted', this.pending_onAfterOperationsInserted);
 			this._mpending.removeEvent('afterOperationsRemoved', this.pending_onAfterOperationsRemoved);
 			this._mpending.removeEvent('operationChanged', this.pending_onOperationChanged);
+			this._controller.removeEvent('ping', this._onPing);
 		},
 		/**
 		 * Called if the "Block" button was clicked.
@@ -289,6 +294,12 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		 */
 		pending_onOperationChanged: function (index) {
 			this.generic_updateRow(this._ptable.getChildren()[index], this._mpending.operations[index]);
+		},
+		/**
+		 * Ping callback. Displays latency.
+		 */
+		_onPing: function (latency) {
+			this._latencyText.set('text', gettext("Ping: %dms").sprintf(latency));
 		}
 	});
 	

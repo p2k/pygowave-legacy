@@ -68,6 +68,7 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 			initialWave: "",
 			initialWavelet: "",
 			viewerId: "",
+			pingInterval: 10,
 			
 			waveOverviewUrl: "about:blank"
 		},
@@ -78,6 +79,11 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 		 * @event onWaveletOpened
 		 * @param {String} wave_id ID of the wave
 		 * @param {String} wavelet_id ID of the wavelet
+		 */
+		/**
+		 * Fired on a successfully returned Ping message.
+		 * @event onPing
+		 * @param {int} latency Measured latency in milliseconds
 		 */
 		// ---------------------------
 		
@@ -114,6 +120,7 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 			this._deferredMessageBundles = new Array();
 			this._processingDeferred = false;
 			this._pendingTimer = null;
+			this._pingTimer = null;
 			
 			// The connection object must be stored in this.conn and must have a sendJson and subscribeWavelet method (defined below).
 			this.conn = new STOMPClient(); // STOMP is used as communication protocol
@@ -136,6 +143,7 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 							"content-type": "application/json"
 						}
 					);
+					self._resetPingTimer()
 				},
 				subscribeWavelet: function (wavelet_id) {
 					this.subscribe(
@@ -190,6 +198,7 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 				msg = it.next();
 				switch (msg.type) {
 					case "WAVELET_OPEN":
+						this._setupPingTimer();
 						this._collateParticipants(msg.property.wavelet.participants);
 						
 						var wave_id = msg.property.wavelet.waveId;
@@ -241,6 +250,9 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 					case "GADGET_LIST":
 						this._cachedGadgetList = msg.property;
 						this._iview.updateGadgetList(msg.property);
+						break;
+					case "PONG":
+						this.fireEvent("ping", $time() - msg.property);
 						break;
 				}
 			}
@@ -302,6 +314,46 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 			return this.wavelets[wavelet_id].pending || !this.wavelets[wavelet_id].mpending.isEmpty();
 		},
 		
+		/**
+		 * Setup the Ping timer which will periodically send a Ping message
+		 * if no other messages were sent. Does nothing if the Ping timer has
+		 * already been set up.
+		 * 
+		 * Developer's note: Although "delay" is used instead of "periodical"
+		 * this effectively generates a periodical timer, because the timer
+		 * is always reset if a message (in this case the PING message) is sent.
+		 * 
+		 * @function {private} _setupPingTimer
+		 */
+		_setupPingTimer: function () {
+			if (!$defined(this._pingTimer))
+				this._pingTimer = this._sendPing.delay(this.options.pingInterval * 1000, this);
+		},
+		/**
+		 * Resets the Ping timer. Called if some other message was sent.
+		 * @function {private} _resetPingTimer
+		 */
+		_resetPingTimer: function () {
+			if ($defined(this._pingTimer)) {
+				$clear(this._pingTimer);
+				this._pingTimer = null;
+				this._setupPingTimer();
+			}
+		},
+		/**
+		 * Sends a Ping command. Called by the Ping timer.
+		 * @function {private} _sendPing
+		 */
+		_sendPing: function () {
+			// Pick first wavelet
+			wavelet_id = this.wavelets.getKeys()[0];
+			if (!$defined(wavelet_id))
+				return;
+			this.conn.sendJson(wavelet_id, {
+				type: "PING",
+				property: $time()
+			});
+		},
 		/**
 		 * Collate the internal participant "database" with the given ID list.
 		 * New participants will be added to the new_participants array, so
