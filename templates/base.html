@@ -47,7 +47,7 @@
 		{% block content %}{% endblock %}
 		</div>
 		<div id="footer">
-			&copy; {% now "Y" %}<a href="{% url pygowave_server.views.index %}">PyGoWave</a>
+			&copy; {% now "Y" %}<a href="http://pygowave.net/">PyGoWave</a>
 			<a href="http://pygowave.net/blog/">Blog</a>
 			<a href="http://github.com/p2k/pygowave">GitHub</a>
 			<a href="http://wiki.github.com/p2k/pygowave">Wiki</a>
@@ -60,7 +60,6 @@
 		$$(".tab").corners("4px top");
 		$$("#footer").corners("4px top bottom");
 		$$("#submenu").corners("4px top-right bottom");
-		
 		
 		// Language selector
 		window.addEvent('domready', function() {

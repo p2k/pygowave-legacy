@@ -199,7 +199,6 @@ p
 	padding-bottom: 4px;
 	padding-left: 8px;
 	padding-right: 8px;
-	height: 16px;
 	background-color: #C3D9FF;
 	text-align: right;
 	font-weight: bold;
@@ -217,10 +216,11 @@ p
 
 #footer
 {
-	background-color:#C3D9FF;
+	background-color: #C3D9FF;
 	color: #006EBA;
 	font-weight: bold;
-	text-align: center;	 
+	text-align: center;
+	padding: 4px;
 }
 
 #footer a 

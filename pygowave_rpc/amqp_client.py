@@ -51,6 +51,7 @@ class AmqpMessageProcessor(object):
 		)
 		
 		self.pygo_mp.purge_connections()
+		self.next_purge = datetime.datetime.now() + self.purge_every
 	
 	def wait(self, limit=None):
 		self.consumer.wait(limit)

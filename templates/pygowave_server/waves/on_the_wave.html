@@ -72,6 +72,7 @@
 		
 		document.addEvent('domready', function () {
 			
+			$("footer").dispose();
 			document.body.setStyle("overflow-y", "hidden");
 			
 			model = new pygowave.model.WaveModel("{{ wave_id|escapejs }}", "{{ participant_id|escapejs }}");
