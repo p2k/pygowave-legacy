@@ -173,7 +173,7 @@ AMQP_VHOST = "/"
 
 # STOMP RPC specific
 STOMP_PORT = 61613
-STOMP_MODE = "client" # Possible values: "client", "server"
+STOMP_MODE = "server" # Possible values: "client" (use message broker), "server" (no message broker)
 
 # Orbited settings here
 ORBITED_SERVER = "localhost"

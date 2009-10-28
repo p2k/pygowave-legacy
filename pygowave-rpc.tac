@@ -31,7 +31,6 @@ if not os.environ.has_key("DJANGO_SETTINGS_MODULE"):
 
 from twisted.application import service, internet
 
-from pygowave_rpc.stomp_client import StompClientFactory
 import pygowave_rpc.logger
 
 from django.conf import settings
@@ -40,11 +39,20 @@ pygowave_rpc.logger.setupLogging()
 
 application = service.Application("PyGoWave RPC Server")
 
-if getattr(settings, "RPC_MODE", "client") == "client":
+if getattr(settings, "STOMP_MODE", "client") == "client":
+	from pygowave_rpc.stomp_client import StompClientFactory
 	scf = StompClientFactory()
-	srv = internet.TCPClient(
+	cli = internet.TCPClient(
 		getattr(settings, "RPC_SERVER", "localhost"),
 		getattr(settings, "STOMP_PORT", 61613),
 		scf
+	)
+	cli.setServiceParent(application)
+elif getattr(settings, "STOMP_MODE", "client") == "server":
+	from pygowave_rpc.stomp_server import StompServerFactory
+	ssf = StompServerFactory()
+	srv = internet.TCPServer(
+		getattr(settings, "STOMP_PORT", 61613),
+		ssf
 	)
 	srv.setServiceParent(application)

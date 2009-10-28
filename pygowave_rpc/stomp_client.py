@@ -30,8 +30,8 @@ __all__ = ["StompClientFactory"]
 class StompMessageProcessor(stomper.Engine):
 	def __init__(self):
 		super(StompMessageProcessor, self).__init__()
-		self.username = getattr(settings, "STOMP_USER", "pygowave_server")
-		self.password = getattr(settings, "STOMP_PASSWORD", "pygowave_server")
+		self.username = getattr(settings, "RPC_USER", "pygowave_server")
+		self.password = getattr(settings, "RPC_PASSWORD", "pygowave_server")
 		self.pygo_mp = PyGoWaveClientMessageProcessor()
 	
 	def connect(self):
@@ -79,6 +79,7 @@ class StompMessageProcessor(stomper.Engine):
 class StompClientProtocol(Protocol):
 	def __init__(self):
 		self.mp = StompMessageProcessor()
+		self.stompBuffer = stomper.stompbuffer.StompBuffer()
 	
 	def connectionMade(self):
 		"""Register with the stomp server."""
@@ -92,10 +93,20 @@ class StompClientProtocol(Protocol):
 	
 	def dataReceived(self, data):
 		"""Data received, react to it and respond."""
-		msg = stomper.unpack_frame(data)
-		returned = self.mp.react(msg)
-		if returned:
-			self.transport.write(returned)
+		self.stompBuffer.appendData(data.replace('\0', '\0\n'))
+		
+		while True:
+			msg = self.stompBuffer.getOneMessage()
+			
+			if self.stompBuffer.buffer.startswith('\n'):
+				self.stompBuffer.buffer = self.stompBuffer.buffer[1:]
+			
+			if msg is None:
+				break
+			
+			returned = self.mp.react(msg)
+			if returned:
+				self.transport.write(returned)
 
 class StompClientFactory(ReconnectingClientFactory):
 	def startedConnecting(self, connector):
