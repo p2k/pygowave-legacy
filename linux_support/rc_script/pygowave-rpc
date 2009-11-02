@@ -10,10 +10,6 @@ daemon_title="PyGoWave Server RPC"
 . /etc/rc.conf
 . /etc/rc.d/functions
 
-get_pid() {
-	ps aux|awk '/[0-9] python amqp_rpc_server.py/ {print $2}'
-}
-
 if [ ! -d "/var/log/pygowave" ];then
 	mkdir /var/log/pygowave
 	chown rabbitmq /var/log/pygowave
@@ -23,17 +19,20 @@ case "$1" in
   start)
     stat_busy "Starting $daemon_title"
 
-    PID=$(get_pid)
+    PID=0
+    if [ -f /var/run/$daemon_name.pid ]; then
+        PID=`cat /var/run/$daemon_name.pid`
+    fi
+
     if [ -z "$PID" ]; then
       [ -f /var/run/$daemon_name.pid ] && rm -f /var/run/$daemon_name.pid
       # RUN
-      sudo -u rabbitmq /srv/http/pygowave_project/launch-pygowave-rpc --logfile >/dev/null 2>/dev/null &
+      twistd -y /srv/http/pygowave/$daemon_name.tac --uid=http --gid=http --rundir=/srv/http/pygowave --pidfile /var/run/$daemon_name.pid --logfile=/var/log/pygowave/$daemon_name.log >/dev/null 2>/dev/null &
       #
       if [ $? -gt 0 ]; then
         stat_fail
         exit 1
       else
-        echo $(get_pid) > /var/run/$daemon_name.pid
         add_daemon $daemon_name
         stat_done
       fi
@@ -45,7 +44,10 @@ case "$1" in
 
   stop)
     stat_busy "Stopping $daemon_title"
-    PID=$(get_pid)
+    PID=0
+    if [ -f /var/run/$daemon_name.pid ]; then
+        PID=`cat /var/run/$daemon_name.pid`
+    fi
     # KILL
     [ ! -z "$PID" ] && kill $PID &> /dev/null
     #

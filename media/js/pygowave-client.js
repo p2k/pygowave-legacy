@@ -1,1 +1,0 @@
-../../pygowave_client/pygowave-client.js

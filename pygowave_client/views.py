@@ -29,15 +29,19 @@ def compile_and_cache(srcfile, cachefile, package, namespace):
 		srcfile += ".py"
 		mtime = datetime.utcfromtimestamp(os.path.getmtime(srcfile))
 		if not os.path.exists(cachefile) or os.path.getmtime(srcfile) > os.path.getmtime(cachefile):
-			from pycow import translate_file, ParseError # Import has been placed here, so PyCow is not a dependency
-			if not os.path.exists(CACHE_FOLDER + package):
-				os.mkdir(CACHE_FOLDER + package)
 			try:
-				translate_file(srcfile, cachefile, namespace=namespace, warnings=False)
-				return ("changed", mtime)
-			except ParseError, e:
-				os.unlink(cachefile)
-				return ("error", PARSE_ERROR_MESSAGE % (srcfile, e.value))
+				from pycow import translate_file, ParseError # Import has been placed here, so PyCow is not a dependency
+			except ImportError:
+				pass # Force use of cached versions (shipped with PyGoWave)
+			else:
+				if not os.path.exists(CACHE_FOLDER + package):
+					os.mkdir(CACHE_FOLDER + package)
+				try:
+					translate_file(srcfile, cachefile, namespace=namespace, warnings=False)
+					return ("changed", mtime)
+				except ParseError, e:
+					os.unlink(cachefile)
+					return ("error", PARSE_ERROR_MESSAGE % (srcfile, e.value))
 	elif os.path.exists(srcfile + ".js"):
 		srcfile += ".js"
 		mtime = datetime.utcfromtimestamp(os.path.getmtime(srcfile))
@@ -85,7 +89,7 @@ def view_module(request, package, module):
 	response["Last-Modified"] = mtime.strftime(RFC_1123_DATETIME)
 	
 	# Support for gzip
-	if "gzip" in request.META["HTTP_ACCEPT_ENCODING"].split(","):
+	if os.name != "nt" and "gzip" in request.META["HTTP_ACCEPT_ENCODING"].split(","):
 		if not os.path.exists(cachefile + ".gz") or os.path.getmtime(cachefile) > os.path.getmtime(cachefile + ".gz"):
 			gzip.open(cachefile + ".gz", 'wb').write(open(cachefile, 'r').read())
 		cachefile = cachefile + ".gz"

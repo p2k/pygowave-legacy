@@ -45,7 +45,7 @@ def setupLogging():
 		debug_handler = logging.StreamHandler()
 		debug_handler.setFormatter(log_formatter)
 		debug_handler.addFilter(LevelOnlyFilter(logging.DEBUG))
-		logger.addHandler(info_handler)
+		logger.addHandler(debug_handler)
 	
 	if logMode() == "quiet":
 		logger.setLevel(logging.CRITICAL)

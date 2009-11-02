@@ -66,7 +66,7 @@ LANGUAGES = (
 	('ja', u'Japanese - 日本語'),
 )
 
-VERSION = 'alpha-0.3'
+VERSION = 'alpha-0.4.dev'
 
 SITE_ID = 1
 
@@ -74,9 +74,15 @@ SITE_ID = 1
 # to load the internationalization machinery.
 USE_I18N = True
 
+# Absolute path to the directory where this file resides
+import os
+PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+if os.name == "nt":
+	PROJECT_ROOT = PROJECT_ROOT.replace(os.path.sep, "/")
+
 # Absolute path to the directory that holds media.
 # Example: "/home/media/media.lawrence.com/"
-MEDIA_ROOT = '/srv/http/pygowave_project/media/'
+MEDIA_ROOT = PROJECT_ROOT+'/media/'
 
 # URL that handles the media served from MEDIA_ROOT. Make sure to use a
 # trailing slash if there is a path component (optional in other cases).
@@ -119,7 +125,7 @@ TEMPLATE_CONTEXT_PROCESSORS = (
 ROOT_URLCONF = 'urls'
 
 TEMPLATE_DIRS = (
-    '/srv/http/pygowave_project/templates',
+    PROJECT_ROOT+'/templates',
 )
 
 INSTALLED_APPS = (
