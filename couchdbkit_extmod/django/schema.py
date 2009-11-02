@@ -28,7 +28,7 @@ from couchdbkit.exceptions import BadValueError
 from couchdbkit_extmod.django.loading import get_schema, register_schema, SIMPLE_VIEW_TEMPLATE
 
 from manager import DocumentManager
-from related import ForeignRelatedObjectsDescriptor
+from related import ForeignKeyProperty, ForeignRelatedObjectsDescriptor
 
 __all__ = ['Property', 'StringProperty', 'IntegerProperty', 
             'DecimalProperty', 'BooleanProperty', 'FloatProperty', 
@@ -56,9 +56,14 @@ class DocumentMeta(schema.SchemaProperties):
         # Inject views for ForeignKeyProperty
         for prop_name, prop in new_class._properties.iteritems():
             if isinstance(prop, ForeignKeyProperty):
-                prop._my_schema = new_class
+                prop._host_schema = new_class
+                if isinstance(prop._related_schema, basestring):
+                    if prop._related_schema == "self":
+                        prop._related_schema = new_class
+                    else:
+                        prop._related_schema = get_schema(app_label, prop._related_schema)
                 if prop._related_name != None:
-                    setattr(prop._related_schema, prop._related_name, ForeignRelatedObjectsDescriptor(prop._related_name, prop._related_schema, prop_name, new_class, prop._related_manager))
+                    setattr(prop._related_schema, prop._related_name, ForeignRelatedObjectsDescriptor(prop))
         
         # Process manager (quick and dirty)
         if attrs.has_key("objects"):
@@ -93,76 +98,6 @@ SchemaProperty = schema.SchemaProperty
 ListProperty = schema.ListProperty
 DictProperty = schema.DictProperty
 StringListProperty = schema.StringListProperty
-
-class ForeignKeyProperty(schema.Property):
-    """
-    This property allows to have a reference to an external Document.
-    It returns a schema.Document object on demand.
-    The behaviour is similar to SchemaProperty, except that a reference is
-    stored instead of the real document. Additionally, a back-reference view is
-    stored in the linked class if related_name is specified.
-    """
-    
-    def __init__(self, related_schema, verbose_name=None, name=None, required=False, validators=None, default=None, related_name=None, related_manager=None):
-        super(ForeignKeyProperty, self).__init__(verbose_name=verbose_name, name=name, required=required, validators=validators)
-        
-        if not issubclass(related_schema, DocumentSchema):
-            raise TypeError('schema should be a DocumentSchema subclass')
-        
-        self._related_schema = related_schema
-        self._related_name = related_name
-        self._related_manager = related_manager
-        self._my_schema = None # Filled in by metaclass
-    
-    def _generate_views(self):
-        views = {}
-        view_name = "%s_%s" % (self._related_schema.__name__, self._related_name)
-        views[view_name] = {"map": SIMPLE_VIEW_TEMPLATE % (self._my_schema.__name__, self.name)}
-        if self._related_manager != None:
-            views.update(self._related_manager._generate_views())
-        return views
-    
-    def default_value(self):
-        return None
-    
-    def empty(self, value):
-        if value == None:
-            return True
-        return False
-    
-    def validate(self, value, required=True):
-        if value == None:
-            return None
-        value.validate(required=required)
-        value = super(ForeignKeyProperty, self).validate(value)
-        
-        if value == None:
-            return value
-    
-        if not isinstance(value, DocumentSchema):
-            raise BadValueError(
-                'Property %s must be DocumentSchema instance, not a %s' % (self.name,
-                type(value).__name__))
-    
-        return value
-    
-    def to_python(self, value):
-        return self._related_schema.get(value)
-    
-    def to_json(self, value):
-        if value == None:
-            return None
-        
-        if not isinstance(value, DocumentSchema):
-            schema = self._related_schema()
-    
-            if not isinstance(value, dict):
-                raise BadValueError("%s is not a dict" % str(value))
-            
-            value = schema(**value)
-        if not value._id:
-            value.save()
-        return value._id
 
 # some utilities
 dict_to_json = schema.dict_to_json

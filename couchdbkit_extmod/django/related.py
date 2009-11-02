@@ -23,13 +23,81 @@ RELATED_VIEW_TEMPLATE = """function (doc) {
 	if (doc.doc_type == "%s") emit([doc.%s, doc.%s], doc);
 }"""
 
+class ForeignKeyProperty(schema.Property):
+    """
+    This property allows to have a reference to an external Document.
+    It returns a schema.Document object on demand.
+    The behaviour is similar to SchemaProperty, except that a reference is
+    stored instead of the real document. Additionally, a back-reference view is
+    stored in the linked class if related_name is specified.
+    """
+    
+    def __init__(self, related_schema, verbose_name=None, name=None, required=False, validators=None, default=None, related_name=None, related_manager=None):
+        super(ForeignKeyProperty, self).__init__(verbose_name=verbose_name, name=name, required=required, validators=validators)
+        
+        if not issubclass(related_schema, DocumentSchema):
+            raise TypeError('schema should be a DocumentSchema subclass')
+        
+        self._related_schema = related_schema
+        self._related_name = related_name
+        self._related_manager = related_manager
+        self._host_schema = None # Filled in by metaclass
+    
+    def _generate_views(self):
+        views = {}
+        view_name = "%s_%s" % (self._related_schema.__name__, self._related_name)
+        views[view_name] = {"map": SIMPLE_VIEW_TEMPLATE % (self._host_schema.__name__, self.name)}
+        if self._related_manager != None:
+            views.update(self._related_manager._generate_views())
+        return views
+    
+    def default_value(self):
+        return None
+    
+    def empty(self, value):
+        if value == None:
+            return True
+        return False
+    
+    def validate(self, value, required=True):
+        if value == None:
+            return None
+        value.validate(required=required)
+        value = super(ForeignKeyProperty, self).validate(value)
+        
+        if value == None:
+            return value
+    
+        if not isinstance(value, DocumentSchema):
+            raise BadValueError(
+                'Property %s must be DocumentSchema instance, not a %s' % (self.name,
+                type(value).__name__))
+    
+        return value
+    
+    def to_python(self, value):
+        return self._related_schema.get(value)
+    
+    def to_json(self, value):
+        if value == None:
+            return None
+        
+        if not isinstance(value, DocumentSchema):
+            schema = self._related_schema()
+    
+            if not isinstance(value, dict):
+                raise BadValueError("%s is not a dict" % str(value))
+            
+            value = schema(**value)
+        if not value._id:
+            value.save()
+        return value._id
+
 class ForeignRelatedObjectsDescriptor(object):
-    def __init__(self, host_field, host_class, related_field, related_class, related_manager = None):
-        if related_manager == None:
-            self.related_manager = RelatedManager()
-        else:
-            self.related_manager = related_manager
-        self.related_manager.associate(host_field, host_class, related_field, related_class)
+    def __init__(self, prop):
+        if prop._related_manager == None:
+            prop._related_manager = RelatedManager()
+        self.related_manager.associate(prop)
     
     def __get__(self, instance, instance_type=None):
         if instance is None:
@@ -39,23 +107,17 @@ class ForeignRelatedObjectsDescriptor(object):
 
 class RelatedManager(object):
     filters = []
-
+    
     def __init__(self, filters=[]):
         self.filters = self.filters + filters
-        self.host_field = None # Filled in by descriptor
-        self.host_class = None
-        self.related_field = None
-        self.related_class = None
+        self.prop = None # Filled in by descriptor
         self.app_label = ""
         self.instance = None # Filled in on binding
         self.view = None
     
-    def associate(self, host_field, host_class, related_field, related_class):
-        self.host_field = host_field
-        self.host_class = host_class
-        self.related_field = related_field
-        self.related_class = related_class
-        document_module = sys.modules[host_class.__module__]
+    def associate(self, prop):
+        self.prop = prop
+        document_module = sys.modules[prop._host_schema.__module__]
         self.app_label = document_module.__name__.split('.')[-2]
     
     def bind_instance(self, instance):
@@ -63,46 +125,43 @@ class RelatedManager(object):
         Return a clone which is bound to an instance.
         """
         c = self.__class__()
-        
         c.filters = self.filters # No deep copy here (!)
-        c.host_field, c.host_class = self.host_field, self.host_class
-        c.related_field, c.related_class = self.related_field, self.related_class
-        c.app_label = self.app_label
+        c.associate(self.prop)
         c.instance = instance
-        view_name = "%s/%s_%s" % (self.app_label, c.host_class.__name__, c.host_field)
+        view_name = "%s/%s_%s" % (self.app_label, self.prop._host_schema.__name__, self.prop.name)
         c.view = self.related_class.view(view_name, key=instance._id)
         return c
     
     def _generate_views(self):
         views = {}
         for filter in self.filters:
-            view_name = "%s_%s_by_%s" % (self.host_class.__name__, self.host_field, filter)
-            views[view_name] = {"map": RELATED_VIEW_TEMPLATE % (self.related_class.__name__, self.related_field, filter)}
+            view_name = "%s_%s_by_%s" % (self.prop._host_schema.__name__, self.prop.name, filter)
+            views[view_name] = {"map": RELATED_VIEW_TEMPLATE % (self.prop._related_schema.__name__, self.prop._related_name, filter)}
         return views
     
     def add(self, *objs):
         for obj in objs:
-            if not isinstance(obj, self.related_class):
-                raise TypeError, "'%s' instance expected" % self.related_class.__name__
-            setattr(obj, self.related_field, self.instance)
+            if not isinstance(obj, self.prop._related_schema):
+                raise TypeError, "'%s' instance expected" % self.prop._related_schema.__name__
+            setattr(obj, self.prop._related_name, self.instance)
             obj.save()
     
     def remove(self, *objs):
         i = self.instance._id
         for obj in objs:
-            if getattr(obj, self.related_field)._id == i:
-                setattr(obj, self.related_field, None)
+            if getattr(obj, self.prop._related_name)._id == i:
+                setattr(obj, self.prop._related_name, None)
                 obj.save()
             else:
                 raise ValueError("%r is not related to %r." % (obj, self.instance))
     
     def clear(self):
         for obj in self.all():
-            setattr(obj, self.related_field, None)
+            setattr(obj, self.prop._related_name, None)
             obj.save()
     
     def create(self, **kwargs):
-        kwargs.update({self.related_field: self.instance})
+        kwargs.update({self.prop._related_name: self.instance})
         return self.related_class(**kwargs)
     
     def all(self):
@@ -147,6 +206,6 @@ class RelatedManager(object):
         
         if not lookup_field in self.filters:
             print "Warning: Temp View used for lookup '%s'" % (view_name)
-            return self.related_class.temp_view({"map": RELATED_VIEW_TEMPLATE % (self.related_class.__name__, self.related_field, lookup_field)}, **view_params)
+            return self.related_class.temp_view({"map": RELATED_VIEW_TEMPLATE % (self.related_class.__name__, self.prop._related_name, lookup_field)}, **view_params)
         else:
             return self.related_class.view(view_name, **view_params)
