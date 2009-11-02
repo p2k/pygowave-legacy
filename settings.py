@@ -28,12 +28,16 @@ ADMINS = (
 
 MANAGERS = ADMINS
 
-DATABASE_ENGINE = 'mysql'      # 'postgresql_psycopg2', 'postgresql', 'mysql', 'sqlite3' or 'oracle'.
-DATABASE_NAME = 'pygowave'     # Or path to database file if using sqlite3.
-DATABASE_USER = 'pygowave'     # Not used with sqlite3.
-DATABASE_PASSWORD = 'pygowave' # Not used with sqlite3.
-DATABASE_HOST = 'localhost'    # Set to empty string for localhost. Not used with sqlite3.
-DATABASE_PORT = ''             # Set to empty string for default. Not used with sqlite3.
+DATABASE_ENGINE = 'sqlite3'        # 'postgresql_psycopg2', 'postgresql', 'mysql', 'sqlite3' or 'oracle'.
+DATABASE_NAME = 'pygowave.sqlite3' # Or path to database file if using sqlite3.
+DATABASE_USER = ''                 # Not used with sqlite3.
+DATABASE_PASSWORD = ''             # Not used with sqlite3.
+DATABASE_HOST = ''                 # Set to empty string for localhost. Not used with sqlite3.
+DATABASE_PORT = ''                 # Set to empty string for default. Not used with sqlite3.
+
+COUCHDB_DATABASES = (
+	("pygowave_server", "http://localhost:5984/pygowave"),
+)
 
 DEFAULT_FROM_EMAIL = 'noreply@localhost'
 
@@ -129,6 +133,7 @@ TEMPLATE_DIRS = (
 )
 
 INSTALLED_APPS = (
+	'couchdbkit_extmod.django',
 	'django.contrib.auth',
 	'django.contrib.contenttypes',
 	'django.contrib.sessions',

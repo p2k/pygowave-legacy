@@ -18,6 +18,9 @@
 
 from datetime import datetime, timedelta
 
+from couchdbkit_extmod.django import schema, manager
+from couchdbkit_extmod.django import related
+
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils.translation import ugettext_lazy as _
@@ -44,17 +47,19 @@ ROOT_WAVELET_ID_SUFFIX = '!conv+root'
 # BIG NOTE: All models represent local Waves at the moment - they will later
 #           be extended to have a domain field which specifies external Waves.
 
-class ParticipantManager(models.Manager):
+class ParticipantManager(manager.DocumentManager):
 	"""
 	This class provides a method to determine the number of online users.
 	
 	"""
 	
+	filters = ["last_contact"]
+	
 	def online_count(self):
 		timeout = datetime.now() - timedelta(minutes=settings.ONLINE_TIMEOUT_MINUTES)
 		return self.filter(last_contact__gte=timeout).count()
 
-class Participant(models.Model):
+class Participant(schema.Document):
 	"""
 	Represents participant information. It contains id, display name, avatar's
 	URL, and an external URL to view the participant's profile page. The
@@ -66,14 +71,14 @@ class Participant(models.Model):
 	
 	objects = ParticipantManager()
 	
-	id = models.CharField(max_length=255, primary_key=True)
-	user = models.ForeignKey(User, blank=True, null=True, unique=True, related_name="participants")
-	is_bot = models.BooleanField()
-	last_contact = models.DateTimeField()
+	id = schema.StringProperty(required=True)
+	user_id = schema.IntegerProperty()
+	is_bot = schema.BooleanProperty()
+	last_contact = schema.DateTimeProperty()
 	
-	name = models.CharField(max_length=255, blank=True)
-	avatar = models.URLField(verify_exists=False, blank=True)
-	profile = models.URLField(verify_exists=False, blank=True)
+	name = schema.StringProperty()
+	avatar = schema.StringProperty()
+	profile = schema.StringProperty()
 	
 	def create_new_connection(self):
 		"""
@@ -97,11 +102,11 @@ class Participant(models.Model):
 			"profileUrl": self.profile,
 			"isBot": self.is_bot
 		}
-	
+
 	def __unicode__(self):
 		return u"Participant '%s'" % (self.id)
 
-class ParticipantConn(models.Model):
+class ParticipantConn(schema.Document):
 	"""
 	Represents a particular connection from the wave server to the wave client.
 	Holds wave access keys. These access keys are only valid for one connection.
@@ -109,18 +114,18 @@ class ParticipantConn(models.Model):
 	
 	"""
 	
-	participant = models.ForeignKey(Participant, related_name="connections")
-	created = models.DateTimeField(auto_now_add=True)
-	last_contact = models.DateTimeField(auto_now_add=True)
-	rx_key = models.CharField(max_length=42)
-	tx_key = models.CharField(max_length=42)
+	objects = manager.DocumentManager(["rx_key", "tx_key"])
 	
-	def save(self, force_insert=False, force_update=False):
-		if not self.id:
+	participant = schema.ForeignKeyProperty(Participant, required=True, related_name="connections")
+	created = schema.DateTimeProperty(auto_now_add=True)
+	last_contact = schema.DateTimeProperty(auto_now_add=True)
+	rx_key = schema.StringProperty()
+	tx_key = schema.StringProperty()
+	
+	def save(self):
+		if not self._id:
 			self.rx_key, self.tx_key = self.find_random_keys()
-			super(ParticipantConn, self).save(True)
-		else:
-			super(ParticipantConn, self).save(force_insert, force_update)
+		super(ParticipantConn, self).save()
 	
 	@classmethod
 	def find_random_keys(cls):
@@ -139,9 +144,8 @@ class ParticipantConn(models.Model):
 		verbose_name = _('participant connection')
 		verbose_name_plural = _('participant connections')
 
-class WaveManager(models.Manager):
+class WaveManager(manager.DocumentManager):
 	
-	@transaction.commit_on_success
 	def create_and_init_new_wave(self, creator, title):
 		wave = self.create()
 		
@@ -155,7 +159,7 @@ class WaveManager(models.Manager):
 		wavelet.save()
 		return wave
 
-class Wave(models.Model):
+class Wave(schema.Document):
 	"""
 	Models wave instances. These are the core of Google Wave.
 	A single wave is composed of its id and any wavelets that belong to it.
@@ -164,22 +168,20 @@ class Wave(models.Model):
 	
 	objects = WaveManager()
 	
-	id = models.CharField(max_length=42, primary_key=True) # Don't panic :P
+	id = schema.StringProperty(required=True)
 	
 	def root_wavelet(self):
 		return self.wavelets.get(is_root=True)
 	
-	def save(self, force_insert=False, force_update=False):
-		if not self.id:
+	def save(self):
+		if not self._id:
 			self.id = find_random_id(Wave.objects, 10)
-			super(Wave, self).save(True)
-		else:
-			super(Wave, self).save(force_insert, force_update)
+		super(Wave, self).save()
 	
 	def __unicode__(self):
 		return u"Wave %s" % (self.id)
 
-class Wavelet(models.Model):
+class Wavelet(schema.Document):
 	"""
 	A wavlet within a wave. Wavelets have an id, exactly one creator and one
 	root blip, a creation date/time and a last modified date/time, a title,
@@ -188,17 +190,17 @@ class Wavelet(models.Model):
 	
 	"""
 	
-	id = models.CharField(max_length=42, primary_key=True)
-	wave = models.ForeignKey(Wave, related_name="wavelets")
-	creator = models.ForeignKey(Participant, related_name="created_wavelets")
-	is_root = models.BooleanField()
-	root_blip = models.OneToOneField("Blip", related_name="rootblip_wavelet", null=True)
-	created = models.DateTimeField(auto_now_add=True)
-	last_modified = models.DateTimeField(auto_now=True)
-	title = models.CharField(max_length=255, blank=True)
-	version = models.IntegerField(default=0)
-	participants = models.ManyToManyField(Participant, related_name="wavelets")
-	participant_conns = models.ManyToManyField(ParticipantConn, blank=True, related_name="wavelets", verbose_name=_(u'connections'))
+	id = schema.StringProperty(required=True)
+	wave = schema.ForeignKeyProperty(Wave, related_name="wavelets")
+	creator = schema.ForeignKeyProperty(Participant, related_name="created_wavelets")
+	is_root = schema.BooleanProperty()
+	#root_blip = schema.ForeignKeyProperty("Blip")
+	created = schema.DateTimeProperty(auto_now_add=True)
+	last_modified = schema.DateTimeProperty(auto_now=True)
+	title = schema.StringProperty()
+	version = schema.IntegerProperty()
+	#participants = models.ManyToManyField(Participant, related_name="wavelets")
+	#participant_conns = models.ManyToManyField(ParticipantConn, blank=True, related_name="wavelets", verbose_name=_(u'connections'))
 	
 	def blipById(self, id):
 		"""
@@ -212,15 +214,13 @@ class Wavelet(models.Model):
 		except ObjectDoesNotExist:
 			return None
 	
-	def save(self, force_insert=False, force_update=False):
-		if not self.id:
+	def save(self):
+		if not self._id:
 			if self.is_root:
 				self.id = self.wave.id + ROOT_WAVELET_ID_SUFFIX
 			else:
 				self.id = find_random_id(Wavelet.objects, 10, prefix=self.wave.id+"!")
-			super(Wavelet, self).save(True)
-		else:
-			super(Wavelet, self).save(force_insert, force_update)
+		super(Wavelet, self).save()
 	
 	def __unicode__(self):
 		return u"Wavelet '%s' (%s)" % (self.title, self.id)
@@ -301,7 +301,7 @@ class DataDocument(models.Model):
 	"""
 	
 	name = models.CharField(primary_key=True, max_length=42)
-	wavelet = models.ForeignKey(Wavelet, related_name="documents")
+	#wavelet = models.ForeignKey(Wavelet, related_name="documents")
 	data = models.TextField()
 
 class Blip(models.Model):
@@ -317,14 +317,14 @@ class Blip(models.Model):
 	"""
 	
 	id = models.CharField(max_length=42, primary_key=True)
-	wavelet = models.ForeignKey(Wavelet, related_name="blips")
+	#wavelet = models.ForeignKey(Wavelet, related_name="blips")
 	parent = models.ForeignKey("self", related_name="children", null=True, blank=True)
-	creator = models.ForeignKey(Participant, related_name="created_blips")
+	#creator = models.ForeignKey(Participant, related_name="created_blips")
 	version = models.IntegerField(default=0)
 	last_modified = models.DateTimeField(auto_now=True)
 	submitted = models.BooleanField()
 	
-	contributors = models.ManyToManyField(Participant, related_name="contributed_blips", blank=True)
+	#contributors = models.ManyToManyField(Participant, related_name="contributed_blips", blank=True)
 	
 	text = models.TextField(blank=True)
 	
@@ -732,7 +732,7 @@ class Delta(models.Model):
 	
 	timestamp = models.DateTimeField(auto_now_add=True)
 	version = models.IntegerField()
-	wavelet = models.ForeignKey(Wavelet, related_name="deltas")
+	#wavelet = models.ForeignKey(Wavelet, related_name="deltas")
 	
 	operations = models.TextField() # JSON again
 	
