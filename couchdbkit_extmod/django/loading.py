@@ -59,8 +59,12 @@ class DjangoAppDocLoader(FileSystemDocsLoader):
         from couchdbkit_extmod.django.schema import Document, ForeignKeyProperty
         from types import ClassType
         docs = []
-        ddoc = self.get_designdoc(self.designpath, self.name, 
+        design_folder = os.path.join(self.designpath, self.name)
+        if os.path.exists(design_folder):
+            ddoc = self.get_designdoc(self.designpath, self.name, 
                       design_name=self.design_name, verbose=verbose)
+        else:
+            ddoc = None
         generated_views = {}
         for name in dir(self.djapp):
             cls = getattr(self.djapp, name)
@@ -71,12 +75,15 @@ class DjangoAppDocLoader(FileSystemDocsLoader):
                 if hasattr(cls, "objects") and hasattr(cls.objects, "filters") and len(cls.objects.filters) > 0:
                     generated_views.update(cls.objects._generate_views())
         if ddoc:
+            print ddoc
             if len(generated_views) > 0:
                 if not ddoc.has_key("views"):
                     ddoc["views"] = generated_views
                 else:
                     ddoc["views"].update(generated_views)
             docs.append(ddoc)
+        elif len(generated_views) > 0:
+            docs.append({"_id": "%s/%s" % (self.name, self.design_name), "_attachments": {}, "views": generated_views})
         return docs
 
 class CouchdbkitHandler(object):

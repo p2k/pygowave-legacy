@@ -18,6 +18,9 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 import sys
+from couchdbkit import schema
+from couchdbkit_extmod.django.loading import get_schema, SIMPLE_VIEW_TEMPLATE
+from django.db.models.fields.related import RECURSIVE_RELATIONSHIP_CONSTANT
 
 RELATED_VIEW_TEMPLATE = """function (doc) {
 	if (doc.doc_type == "%s") emit([doc.%s, doc.%s], doc);
@@ -35,8 +38,10 @@ class ForeignKeyProperty(schema.Property):
     def __init__(self, related_schema, verbose_name=None, name=None, required=False, validators=None, default=None, related_name=None, related_manager=None):
         super(ForeignKeyProperty, self).__init__(verbose_name=verbose_name, name=name, required=required, validators=validators)
         
-        if not issubclass(related_schema, DocumentSchema):
-            raise TypeError('schema should be a DocumentSchema subclass')
+        try:
+            getattr(related_schema, "_properties")
+        except AttributeError:
+            assert isinstance(related_schema, basestring), "%s(%r) is invalid. First parameter to ForeignKey must be either a model, a model name, or the string %r" % (self.__class__.__name__, related_schema, RECURSIVE_RELATIONSHIP_CONSTANT)
         
         self._related_schema = related_schema
         self._related_name = related_name
@@ -68,7 +73,9 @@ class ForeignKeyProperty(schema.Property):
         if value == None:
             return value
     
-        if not isinstance(value, DocumentSchema):
+        try:
+            getattr(value, "_properties")
+        except AttributeError:
             raise BadValueError(
                 'Property %s must be DocumentSchema instance, not a %s' % (self.name,
                 type(value).__name__))
@@ -82,13 +89,14 @@ class ForeignKeyProperty(schema.Property):
         if value == None:
             return None
         
-        if not isinstance(value, DocumentSchema):
+        try:
+            getattr(value, "_properties")
+        except AttributeError:
             schema = self._related_schema()
-    
             if not isinstance(value, dict):
                 raise BadValueError("%s is not a dict" % str(value))
-            
             value = schema(**value)
+        
         if not value._id:
             value.save()
         return value._id
@@ -97,13 +105,14 @@ class ForeignRelatedObjectsDescriptor(object):
     def __init__(self, prop):
         if prop._related_manager == None:
             prop._related_manager = RelatedManager()
-        self.related_manager.associate(prop)
+        prop._related_manager.associate(prop)
+        self.prop = prop
     
     def __get__(self, instance, instance_type=None):
         if instance is None:
             return self
         
-        return self.related_manager.bind_instance(instance)
+        return self.prop._related_manager.bind_instance(instance)
 
 class RelatedManager(object):
     filters = []
@@ -128,15 +137,15 @@ class RelatedManager(object):
         c.filters = self.filters # No deep copy here (!)
         c.associate(self.prop)
         c.instance = instance
-        view_name = "%s/%s_%s" % (self.app_label, self.prop._host_schema.__name__, self.prop.name)
-        c.view = self.related_class.view(view_name, key=instance._id)
+        view_name = "%s/%s_%s" % (self.app_label, self.prop._related_schema.__name__, self.prop._related_name)
+        c.view = self.prop._host_schema.view(view_name, key=instance._id)
         return c
     
     def _generate_views(self):
         views = {}
         for filter in self.filters:
-            view_name = "%s_%s_by_%s" % (self.prop._host_schema.__name__, self.prop.name, filter)
-            views[view_name] = {"map": RELATED_VIEW_TEMPLATE % (self.prop._related_schema.__name__, self.prop._related_name, filter)}
+            view_name = "%s_%s_by_%s" % (self.prop._related_schema.__name__, self.prop._related_name, filter)
+            views[view_name] = {"map": RELATED_VIEW_TEMPLATE % (self.prop._host_schema.__name__, self.prop.name, filter)}
         return views
     
     def add(self, *objs):
@@ -162,13 +171,16 @@ class RelatedManager(object):
     
     def create(self, **kwargs):
         kwargs.update({self.prop._related_name: self.instance})
-        return self.related_class(**kwargs)
+        return self.prop._related_schema(**kwargs)
     
     def all(self):
         return list(self.view)
     
     def count(self):
         return self.view.count()
+    
+    def get(self, **kwargs):
+        return self.filter(**kwargs).one()
     
     def filter(self, **kwargs):
         lookup_field = ""
@@ -202,10 +214,14 @@ class RelatedManager(object):
             
             fcount += 1
         
-        view_name = "%s/%s_%s_by_%s" % (self.app_label, self.host_class.__name__, self.host_field, lookup_field)
+        if fcount == 0:
+            return self.view
+        
+        view_name = "%s/%s_%s_by_%s" % (self.app_label, self.prop._related_schema.__name__, self.prop._related_name, lookup_field)
         
         if not lookup_field in self.filters:
             print "Warning: Temp View used for lookup '%s'" % (view_name)
-            return self.related_class.temp_view({"map": RELATED_VIEW_TEMPLATE % (self.related_class.__name__, self.prop._related_name, lookup_field)}, **view_params)
+            design = {"map": RELATED_VIEW_TEMPLATE % (self.prop._host_schema.__name__, self.prop.name, lookup_field)}
+            return self.prop._host_schema.temp_view(design, **view_params)
         else:
-            return self.related_class.view(view_name, **view_params)
+            return self.prop._host_schema.view(view_name, **view_params)

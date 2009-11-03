@@ -39,6 +39,8 @@ __all__ = ['Property', 'StringProperty', 'IntegerProperty',
             'SchemaProperty', 'ListProperty', 'DictProperty',
             'StringListProperty', 'ForeignKeyProperty']
 
+pending_relations = {}
+
 class DocumentMeta(schema.SchemaProperties):
     def __new__(cls, name, bases, attrs):
         super_new = super(DocumentMeta, cls).__new__
@@ -53,6 +55,12 @@ class DocumentMeta(schema.SchemaProperties):
         
         new_class = get_schema(app_label, name)
         
+        # Process pending relations
+        for prop in pending_relations.pop((app_label, name), []):
+            prop._related_schema = new_class
+            if prop._related_name != None:
+                setattr(new_class, prop._related_name, ForeignRelatedObjectsDescriptor(prop))
+        
         # Inject views for ForeignKeyProperty
         for prop_name, prop in new_class._properties.iteritems():
             if isinstance(prop, ForeignKeyProperty):
@@ -61,8 +69,12 @@ class DocumentMeta(schema.SchemaProperties):
                     if prop._related_schema == "self":
                         prop._related_schema = new_class
                     else:
-                        prop._related_schema = get_schema(app_label, prop._related_schema)
-                if prop._related_name != None:
+                        rel = get_schema(app_label, prop._related_schema)
+                        if rel == None:
+                            pending_relations.setdefault((app_label, prop._related_schema), []).append(prop)
+                        else:
+                            prop._related_schema = rel
+                if prop._related_name != None and prop._related_schema != None:
                     setattr(prop._related_schema, prop._related_name, ForeignRelatedObjectsDescriptor(prop))
         
         # Process manager (quick and dirty)

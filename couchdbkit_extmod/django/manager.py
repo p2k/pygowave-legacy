@@ -45,8 +45,11 @@ class DocumentManager(object):
     def create(self, **kwargs):
         return self.doc(**kwargs)
     
-    def get(self, id):
-        return self.doc.get(id)
+    def get(self, _id=None, **kwargs):
+        if _id != None:
+            return self.doc.get(_id)
+        else:
+            return self.filter(**kwargs).one()
     
     def view(self, view_name, wrapper=None, dynamic_properties=True, **params):
         return self.doc.view(view_name, wrapper=wrapper, dynamic_properties=dynamic_properties, **params)

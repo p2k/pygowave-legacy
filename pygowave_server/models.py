@@ -18,8 +18,7 @@
 
 from datetime import datetime, timedelta
 
-from couchdbkit_extmod.django import schema, manager
-from couchdbkit_extmod.django import related
+from couchdbkit_extmod.django import schema, manager, related
 
 from django.db import models
 from django.contrib.auth.models import User
@@ -190,11 +189,13 @@ class Wavelet(schema.Document):
 	
 	"""
 	
+	objects = manager.DocumentManager(["id"])
+	
 	id = schema.StringProperty(required=True)
 	wave = schema.ForeignKeyProperty(Wave, related_name="wavelets")
 	creator = schema.ForeignKeyProperty(Participant, related_name="created_wavelets")
 	is_root = schema.BooleanProperty()
-	#root_blip = schema.ForeignKeyProperty("Blip")
+	root_blip = schema.ForeignKeyProperty("Blip")
 	created = schema.DateTimeProperty(auto_now_add=True)
 	last_modified = schema.DateTimeProperty(auto_now=True)
 	title = schema.StringProperty()
@@ -210,7 +211,7 @@ class Wavelet(schema.Document):
 		"""
 		
 		try:
-			return self.blips.get(pk=id)
+			return self.blips.get(id=id)
 		except ObjectDoesNotExist:
 			return None
 	
@@ -294,17 +295,17 @@ class Wavelet(schema.Document):
 			blipsums[blip.id] = blip.checksum()
 		return blipsums
 	
-class DataDocument(models.Model):
+class DataDocument(schema.Document):
 	"""
 	A DataDocument contains arbitrary data for storage of metadata in wavelets.
 	
 	"""
 	
-	name = models.CharField(primary_key=True, max_length=42)
-	#wavelet = models.ForeignKey(Wavelet, related_name="documents")
-	data = models.TextField()
+	name = schema.StringProperty(required=True)
+	wavelet = schema.ForeignKeyProperty(Wavelet, related_name="documents")
+	data = schema.StringProperty()
 
-class Blip(models.Model):
+class Blip(schema.Document):
 	"""
 	A Blip is a unit of conversation in a Wave. It is a node in a tree of
 	other nodes and may have a parent and children. It contains metadata to
@@ -316,19 +317,20 @@ class Blip(models.Model):
 	
 	"""
 	
-	id = models.CharField(max_length=42, primary_key=True)
-	#wavelet = models.ForeignKey(Wavelet, related_name="blips")
-	parent = models.ForeignKey("self", related_name="children", null=True, blank=True)
-	#creator = models.ForeignKey(Participant, related_name="created_blips")
-	version = models.IntegerField(default=0)
-	last_modified = models.DateTimeField(auto_now=True)
-	submitted = models.BooleanField()
+	objects = manager.DocumentManager(["id"])
+	
+	id = schema.StringProperty(required=True)
+	wavelet = schema.ForeignKeyProperty(Wavelet, related_name="blips", related_manager=related.RelatedManager(["id"]))
+	parent = schema.ForeignKeyProperty("self", related_name="children")
+	creator = schema.ForeignKeyProperty(Participant, related_name="created_blips")
+	version = schema.IntegerProperty()
+	last_modified = schema.DateTimeProperty(auto_now=True)
+	submitted = schema.BooleanProperty()
 	
 	#contributors = models.ManyToManyField(Participant, related_name="contributed_blips", blank=True)
 	
-	text = models.TextField(blank=True)
+	text = schema.StringProperty()
 	
-	@transaction.commit_on_success
 	def insertText(self, index, text):
 		"""
 		Insert a text at the specified index. This moves annotations and
@@ -348,7 +350,6 @@ class Blip(models.Model):
 			elt.position += length
 			elt.save()
 	
-	@transaction.commit_on_success
 	def deleteText(self, index, length):
 		"""
 		Delete text at the specified index. This moves annotations and
@@ -367,7 +368,6 @@ class Blip(models.Model):
 			elt.position -= length
 			elt.save()
 	
-	@transaction.commit_on_success
 	def insertElement(self, index, type, properties):
 		"""
 		Insert an element at the specified index. This implicitly adds a
@@ -383,7 +383,6 @@ class Blip(models.Model):
 		elt.set_data(properties)
 		elt.save()
 	
-	@transaction.commit_on_success
 	def deleteElement(self, index):
 		"""
 		Delete an element at the specified index. This implicitly deletes the
@@ -397,7 +396,6 @@ class Blip(models.Model):
 		elt.delete()
 		self.deleteText(index, 1)
 	
-	@transaction.commit_on_success
 	def applyElementDelta(self, index, delta):
 		"""
 		Apply an element delta. Currently only for gadget elements.
@@ -409,7 +407,6 @@ class Blip(models.Model):
 			raise TypeError("Element #%d is not a Gadget Element" % (id))
 		elt.to_gadget().apply_delta(delta)
 	
-	@transaction.commit_on_success
 	def setElementUserpref(self, index, key, value):
 		"""
 		Set an UserPref of an element. Currently only for gadget elements.
@@ -463,7 +460,7 @@ class Blip(models.Model):
 	def __unicode__(self):
 		return u"Blip %s on %s" % (self.id, unicode(self.wavelet))
 
-class Annotation(models.Model):
+class Annotation(schema.Document):
 	"""
 	An annotation is metadata that augments a range of text in a Blip's text.
 	Example uses of annotations include styling text, supplying spelling
@@ -482,11 +479,11 @@ class Annotation(models.Model):
 	
 	"""
 	
-	blip = models.ForeignKey(Blip, related_name="annotations")
-	name = models.CharField(max_length=255)
-	start = models.IntegerField()
-	end = models.IntegerField()
-	value = models.CharField(max_length=4096)
+	blip = schema.ForeignKeyProperty(Blip, related_name="annotations")
+	name = schema.StringProperty()
+	start = schema.IntegerProperty()
+	end = schema.IntegerProperty()
+	value = schema.StringProperty()
 	
 	def serialize(self):
 		"""
@@ -503,7 +500,7 @@ class Annotation(models.Model):
 			"value": self.value
 		}
 
-class Element(models.Model):
+class Element(schema.Document):
 	"""
 	Element-objects are all the non-text elements in a Blip.
 	An element has no physical presence in the text of a Blip, but it maintains
@@ -531,37 +528,17 @@ class Element(models.Model):
 		(10, "IMAGE"),
 	)
 	
-	blip = models.ForeignKey(Blip, related_name="elements")
-	position = models.IntegerField()
-	type = models.IntegerField(choices=ELEMENT_TYPES)
-	properties = models.TextField() # JSON is used here
-	
-	def get_data(self):
-		"""
-		Return data as python map (JSON decoded).
-		
-		"""
-		if self.properties == "":
-			return {}
-		else:
-			try:
-				return simplejson.loads(self.properties)
-			except:
-				return {}
-	
-	def set_data(self, data):
-		"""
-		Set data by a python map (encoding to JSON).
-		
-		"""
-		self.properties = simplejson.dumps(data)
+	blip = schema.ForeignKeyProperty(Blip, related_name="elements")
+	position = schema.IntegerProperty()
+	type = schema.IntegerProperty(choices=ELEMENT_TYPES)
+	properties = schema.DictProperty()
 	
 	def to_gadget(self):
 		"""
 		Returns a GadgetElement for this Element if possible.
 		
 		"""
-		return GadgetElement.objects.get(pk=self.id)
+		return GadgetElement.objects.get(self._id)
 	
 	def serialize(self):
 		"""
@@ -573,7 +550,7 @@ class Element(models.Model):
 			"id": self.id,
 			"index": self.position,
 			"type": self.type,
-			"properties": self.get_data(),
+			"properties": self.properties,
 		}
 	
 	def type_name(self):
@@ -602,7 +579,10 @@ class InlineBlip(Element):
 	
 	"""
 	
-	i_blip = models.ForeignKey(Blip)
+	i_blip = schema.ForeignKeyProperty(Blip)
+
+def element_property(name, default=""):
+	return property(lambda self: self.properties.get(name, default), lambda self, value: self.properties.set(name, value))
 
 class GadgetElement(Element):
 	"""
@@ -611,19 +591,7 @@ class GadgetElement(Element):
 	
 	"""
 	
-	@property
-	def url(self):
-		d = self.get_data()
-		if d.has_key("url"):
-			return d["url"]
-		else:
-			return ""
-	
-	@url.setter
-	def url(self, value):
-		d = self.get_data()
-		d["url"] = value
-		self.set_data(d)
+	url = element_property("url")
 	
 	def apply_delta(self, delta, save=True):
 		"""
@@ -631,10 +599,7 @@ class GadgetElement(Element):
 		Also saves the object.
 		
 		"""
-		d = self.get_data()
-		if not d.has_key("fields"):
-			d["fields"] = {}
-		fields = d["fields"]
+		fields = self.properties.setdefault("fields", {})
 		
 		fields.update(delta)
 		
@@ -642,8 +607,6 @@ class GadgetElement(Element):
 		for key in delta.iterkeys():
 			if delta[key] == None:
 				del fields[key]
-		
-		self.set_data(d)
 		
 		if save:
 			self.save()
@@ -654,14 +617,9 @@ class GadgetElement(Element):
 		Also saves the object.
 		
 		"""
-		d = self.get_data()
-		if not d.has_key("userprefs"):
-			d["userprefs"] = {}
-		prefs = d["userprefs"]
+		prefs = self.properties.setdefault("userprefs", {})
 		
 		prefs[key] = value
-		
-		self.set_data(d)
 		
 		if save:
 			self.save()
@@ -671,30 +629,27 @@ class GadgetElement(Element):
 		Set userprefs (name:value) by a python map (encoding to JSON).
 		
 		"""
-		d = self.get_data()
-		d["userprefs"] = data
-		self.set_data(d)
+		self.properties["userprefs"] = data
 	
 	def get_userprefs(self):
 		"""
 		Return userprefs (name:value) as python map (JSON decoded).
 		
 		"""
-		d = self.get_data()
-		if not d.has_key("userprefs"):
+		if not self.properties.has_key("userprefs"):
 			return {}
-		return d["userprefs"]
+		return self.properties["userprefs"]
 
-	def save(self, force_insert=False, force_update=False):
+	def save(self):
 		self.type = 2
-		super(GadgetElement, self).save(force_insert, force_update)
+		super(GadgetElement, self).save()
 		
 	def __unicode__(self):
 		if self.url.rindex("/") != -1:
 			desc = "...%s" % (self.url[self.url.rindex("/"):])
 		else:
 			desc = "?"
-		return u"GadgetElement #%s (%s)" % (self.id, desc)
+		return u"GadgetElement #%s (%s)" % (self._id, desc)
 
 class FormElement(Element):
 	"""
@@ -702,10 +657,10 @@ class FormElement(Element):
 	
 	"""
 	
-	label = models.CharField(max_length=255)
-	name = models.CharField(max_length=255)
-	value = models.CharField(max_length=255)
-	default_value = models.CharField(max_length=255)
+	label = element_property("label")
+	name = element_property("name")
+	value = element_property("value")
+	default_value = element_property("default_value")
 
 class Image(Element):
 	"""
@@ -713,13 +668,13 @@ class Image(Element):
 	
 	"""
 	
-	attachment_id = models.CharField(max_length=255)
-	caption = models.CharField(max_length=255)
-	url = models.URLField(verify_exists=False)
-	height = models.IntegerField()
-	width = models.IntegerField()
+	attachment_id = element_property("attachment_id")
+	caption = element_property("caption")
+	url = element_property("url")
+	height = element_property("height", 0)
+	width = element_property("width", 0)
 
-class Delta(models.Model):
+class Delta(schema.Document):
 	"""
 	A Delta object is a collection of (reversible) operations that can be
 	applied to a Wavlet. This includes operations on Blips, i.e. its text or
@@ -730,11 +685,11 @@ class Delta(models.Model):
 	
 	"""
 	
-	timestamp = models.DateTimeField(auto_now_add=True)
-	version = models.IntegerField()
-	#wavelet = models.ForeignKey(Wavelet, related_name="deltas")
+	timestamp = schema.DateTimeProperty(auto_now_add=True)
+	version = schema.IntegerProperty()
+	wavelet = schema.ForeignKeyProperty(Wavelet, related_name="deltas")
 	
-	operations = models.TextField() # JSON again
+	operations = schema.ListProperty()
 	
 	@classmethod
 	def createByOpManager(cls, opman, version):
@@ -744,8 +699,8 @@ class Delta(models.Model):
 		"""
 		newobj = cls(
 			version=version,
-			wavelet= Wavelet.objects.get(pk=opman.waveletId),
-			operations=simplejson.dumps(opman.serialize())
+			wavelet=Wavelet.objects.get(id=opman.waveletId),
+			operations=opman.serialize()
 		)
 		newobj._OpManager = opman
 		
@@ -759,7 +714,7 @@ class Delta(models.Model):
 		opman = getattr(self, "_OpManager", None)
 		if opman == None:
 			opman = OpManager(self.wavelet.wave.id, self.wavelet.id)
-			opman.unserialize(simplejson.loads(self.operations))
+			opman.unserialize(self.operations)
 			self._OpManager = opman
 		
 		return opman
@@ -767,7 +722,7 @@ class Delta(models.Model):
 	def __unicode__(self):
 		return u"Delta #%d v%d@%s" % (self.id, self.version, self.wavelet.id)
 
-class Gadget(models.Model):
+class Gadget(schema.Document):
 	"""
 	A gadget that has been uploaded or is referenced on this server.
 	Users can register their gadgets on this server to conveniently add them
@@ -780,12 +735,15 @@ class Gadget(models.Model):
 	
 	"""
 	
-	by_user = models.ForeignKey(User, related_name="my_gadgets")
-	title = models.CharField(max_length=255, unique=True, verbose_name=_(u'Title'))
-	description = models.CharField(max_length=255, blank=True, verbose_name=_(u'Description'))
-	url = models.URLField(blank=True, verbose_name=_(u'URL'))
-	hosted_filename = models.CharField(max_length=255, blank=True, verbose_name=_(u'Hosted filename'))
-	devel = models.BooleanField(default=False, verbose_name=_(u'Development version'))
+	def by_user(self):
+		return User.objects.get(id=self.by_user_id)
+	
+	by_user_id = schema.IntegerProperty()
+	title = schema.StringProperty(verbose_name=_(u'Title'))
+	description = schema.StringProperty(verbose_name=_(u'Description'))
+	url = schema.StringProperty(verbose_name=_(u'URL'))
+	hosted_filename = schema.StringProperty(verbose_name=_(u'Hosted filename'))
+	devel = schema.BooleanProperty(verbose_name=_(u'Development version'))
 	
 	def is_hosted(self):
 		return len(self.hosted_filename) > 0
@@ -798,5 +756,4 @@ class Gadget(models.Model):
 		return GadgetElement(url=self.url)
 	
 	def __unicode__(self):
-		return u"Gadget '%s' by '%s'" % (self.title, self.by_user.username)
-	
+		return u"Gadget '%s' by '%s'" % (self.title, self.by_user().username)
