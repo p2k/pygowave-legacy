@@ -52,7 +52,7 @@ class ParticipantManager(manager.DocumentManager):
 	
 	"""
 	
-	filters = ["last_contact"]
+	filters = ["name", "last_contact"]
 	
 	def online_count(self):
 		timeout = datetime.now() - timedelta(minutes=settings.ONLINE_TIMEOUT_MINUTES)
@@ -115,6 +115,8 @@ class ParticipantConn(schema.Document):
 	
 	objects = manager.DocumentManager(["rx_key", "tx_key"])
 	
+	id = property(lambda self: self._id) # Tiny workaround to stay compatible
+	
 	participant = schema.ForeignKeyProperty(Participant, required=True, related_name="connections")
 	created = schema.DateTimeProperty(auto_now_add=True)
 	last_contact = schema.DateTimeProperty(auto_now_add=True)
@@ -144,6 +146,8 @@ class ParticipantConn(schema.Document):
 		verbose_name_plural = _('participant connections')
 
 class WaveManager(manager.DocumentManager):
+	
+	filters = ["id"]
 	
 	def create_and_init_new_wave(self, creator, title):
 		wave = self.create()
@@ -200,8 +204,8 @@ class Wavelet(schema.Document):
 	last_modified = schema.DateTimeProperty(auto_now=True)
 	title = schema.StringProperty()
 	version = schema.IntegerProperty()
-	#participants = models.ManyToManyField(Participant, related_name="wavelets")
-	#participant_conns = models.ManyToManyField(ParticipantConn, blank=True, related_name="wavelets", verbose_name=_(u'connections'))
+	participants = schema.ManyToManyProperty(Participant, related_name="wavelets")
+	participant_conns = schema.ManyToManyProperty(ParticipantConn, related_name="wavelets", verbose_name=_(u'connections'))
 	
 	def blipById(self, id):
 		"""
@@ -320,14 +324,14 @@ class Blip(schema.Document):
 	objects = manager.DocumentManager(["id"])
 	
 	id = schema.StringProperty(required=True)
-	wavelet = schema.ForeignKeyProperty(Wavelet, related_name="blips", related_manager=related.RelatedManager(["id"]))
+	wavelet = schema.ForeignKeyProperty(Wavelet, related_name="blips", related_filters=["id"])
 	parent = schema.ForeignKeyProperty("self", related_name="children")
 	creator = schema.ForeignKeyProperty(Participant, related_name="created_blips")
 	version = schema.IntegerProperty()
 	last_modified = schema.DateTimeProperty(auto_now=True)
 	submitted = schema.BooleanProperty()
 	
-	#contributors = models.ManyToManyField(Participant, related_name="contributed_blips", blank=True)
+	contributors = schema.ManyToManyProperty(Participant, related_name="contributed_blips")
 	
 	text = schema.StringProperty()
 	
@@ -404,7 +408,7 @@ class Blip(schema.Document):
 		
 		elt = self.elements.get(position=index)
 		if elt.type != 2:
-			raise TypeError("Element #%d is not a Gadget Element" % (id))
+			raise TypeError("Element #%d is not a Gadget Element" % (elt.id))
 		elt.to_gadget().apply_delta(delta)
 	
 	def setElementUserpref(self, index, key, value):
@@ -415,7 +419,7 @@ class Blip(schema.Document):
 		
 		elt = self.elements.get(position=index)
 		if elt.type != 2:
-			raise TypeError("Element #%d is not a Gadget Element" % (id))
+			raise TypeError("Element #%d is not a Gadget Element" % (elt.id))
 		elt.to_gadget().set_userpref(key, value)
 	
 	def save(self, force_insert=False, force_update=False):
@@ -479,6 +483,8 @@ class Annotation(schema.Document):
 	
 	"""
 	
+	objects = manager.DocumentManager(["start"])
+	
 	blip = schema.ForeignKeyProperty(Blip, related_name="annotations")
 	name = schema.StringProperty()
 	start = schema.IntegerProperty()
@@ -528,10 +534,28 @@ class Element(schema.Document):
 		(10, "IMAGE"),
 	)
 	
+	objects = manager.DocumentManager(["position"])
+	
+	id = property(lambda self: self._id) # Tiny workaround to stay compatible
+	
 	blip = schema.ForeignKeyProperty(Blip, related_name="elements")
 	position = schema.IntegerProperty()
 	type = schema.IntegerProperty(choices=ELEMENT_TYPES)
 	properties = schema.DictProperty()
+	
+	def get_data(self):
+		"""
+		Return data as python map (JSON decoded).
+		
+		"""
+		return self.properties
+	
+	def set_data(self, data):
+		"""
+		Set data by a python map (encoding to JSON).
+		
+		"""
+		self.properties = data
 	
 	def to_gadget(self):
 		"""
@@ -636,9 +660,7 @@ class GadgetElement(Element):
 		Return userprefs (name:value) as python map (JSON decoded).
 		
 		"""
-		if not self.properties.has_key("userprefs"):
-			return {}
-		return self.properties["userprefs"]
+		return self.properties.get("userprefs", {})
 
 	def save(self):
 		self.type = 2
@@ -684,6 +706,8 @@ class Delta(schema.Document):
 	OT funcitions used in the server.
 	
 	"""
+	
+	id = property(lambda self: self._id) # Tiny workaround to stay compatible
 	
 	timestamp = schema.DateTimeProperty(auto_now_add=True)
 	version = schema.IntegerProperty()

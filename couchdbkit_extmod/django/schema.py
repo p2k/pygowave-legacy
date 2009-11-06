@@ -25,10 +25,10 @@ import sys
 
 from couchdbkit import schema
 from couchdbkit.exceptions import BadValueError
-from couchdbkit_extmod.django.loading import get_schema, register_schema, SIMPLE_VIEW_TEMPLATE
+from couchdbkit_extmod.django.loading import get_schema, register_schema
 
 from manager import DocumentManager
-from related import ForeignKeyProperty, ForeignRelatedObjectsDescriptor
+from related import RelatedProperty, ForeignKeyProperty, ManyToManyProperty, ForeignRelatedObjectsDescriptor
 
 __all__ = ['Property', 'StringProperty', 'IntegerProperty', 
             'DecimalProperty', 'BooleanProperty', 'FloatProperty', 
@@ -37,7 +37,7 @@ __all__ = ['Property', 'StringProperty', 'IntegerProperty',
             'value_to_python', 'dict_to_python', 'list_to_python', 
             'convert_property', 'DocumentSchema', 'Document', 
             'SchemaProperty', 'ListProperty', 'DictProperty',
-            'StringListProperty', 'ForeignKeyProperty']
+            'StringListProperty', 'ForeignKeyProperty', 'ManyToManyProperty']
 
 pending_relations = {}
 
@@ -59,11 +59,11 @@ class DocumentMeta(schema.SchemaProperties):
         for prop in pending_relations.pop((app_label, name), []):
             prop._related_schema = new_class
             if prop._related_name != None:
-                setattr(new_class, prop._related_name, ForeignRelatedObjectsDescriptor(prop))
+                prop.contribute_to_class(new_class, prop._related_name)
         
-        # Inject views for ForeignKeyProperty
+        # Inject views for RelatedProperty
         for prop_name, prop in new_class._properties.iteritems():
-            if isinstance(prop, ForeignKeyProperty):
+            if isinstance(prop, RelatedProperty):
                 prop._host_schema = new_class
                 if isinstance(prop._related_schema, basestring):
                     if prop._related_schema == "self":
@@ -75,7 +75,7 @@ class DocumentMeta(schema.SchemaProperties):
                         else:
                             prop._related_schema = rel
                 if prop._related_name != None and prop._related_schema != None:
-                    setattr(prop._related_schema, prop._related_name, ForeignRelatedObjectsDescriptor(prop))
+                    prop.contribute_to_class(prop._related_schema, prop._related_name)
         
         # Process manager (quick and dirty)
         if attrs.has_key("objects"):

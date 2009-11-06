@@ -39,9 +39,25 @@ from restkit.httpc import HttpClient, BasicAuth
 
 COUCHDB_DATABASES = getattr(settings, "COUCHDB_DATABASES", [])
 
-SIMPLE_VIEW_TEMPLATE = """function (doc) {
-	if (doc.doc_type == "%s") emit(doc.%s, doc);
-}"""
+def generate_view(doc_type, fields):
+    if isinstance(fields, basestring):
+        fields = "doc." + fields
+    elif len(fields) == 1:
+        fields = "doc." + fields[0]
+    else:
+        fields = "[" + ", ".join(map(lambda s: "doc."+s, fields)) + "]"
+    return {"map": "function (doc) {\n\tif (doc.doc_type == \"%s\") emit(%s, doc);\n}" % (doc_type, fields)}
+
+def generate_m2m_view(doc_type, related_name, fields=[]):
+    if isinstance(fields, basestring):
+        fields = ["%s[i]" % related_name, fields]
+    else:
+        fields = ["%s[i]" % related_name] + fields
+    if len(fields) == 1:
+        fields = "doc." + fields[0]
+    else:
+        fields = "[" + ", ".join(map(lambda s: "doc."+s, fields)) + "]"
+    return {"map": "function(doc) {\n\tif (doc.doc_type == \"%s\") {\n\t\tfor (var i in doc.%s)\n\t\t\temit(%s, doc);\n\t}\n}" % (doc_type, related_name, fields)}
 
 class DjangoAppDocLoader(FileSystemDocsLoader):
     """
@@ -56,7 +72,7 @@ class DjangoAppDocLoader(FileSystemDocsLoader):
         self.design_name = app_name.split('.')[-1]
         
     def get_docs(self, verbose=False):
-        from couchdbkit_extmod.django.schema import Document, ForeignKeyProperty
+        from couchdbkit_extmod.django.schema import Document, RelatedProperty
         from types import ClassType
         docs = []
         design_folder = os.path.join(self.designpath, self.name)
@@ -70,10 +86,10 @@ class DjangoAppDocLoader(FileSystemDocsLoader):
             cls = getattr(self.djapp, name)
             if isinstance(cls, type) and issubclass(cls, Document):
                 for prop_name, prop in cls._properties.iteritems():
-                    if isinstance(prop, ForeignKeyProperty) and prop._related_name != None:
-                        generated_views.update(prop._generate_views())
+                    if isinstance(prop, RelatedProperty) and prop._related_name != None:
+                        generated_views.update(prop.generate_views())
                 if hasattr(cls, "objects") and hasattr(cls.objects, "filters") and len(cls.objects.filters) > 0:
-                    generated_views.update(cls.objects._generate_views())
+                    generated_views.update(cls.objects.generate_views())
         if ddoc:
             print ddoc
             if len(generated_views) > 0:

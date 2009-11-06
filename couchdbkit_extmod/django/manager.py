@@ -21,7 +21,7 @@ import sys
 
 from django.core.exceptions import ObjectDoesNotExist
 
-from loading import SIMPLE_VIEW_TEMPLATE
+from loading import generate_view
 
 __all__ = ["DocumentManager"]
 
@@ -51,17 +51,30 @@ class DocumentManager(object):
         else:
             return self.filter(**kwargs).one()
     
+    def all(self):
+        view_name = "%s/%s_all" % (self.app_label, self.doc.__name__)
+        
+        if not "all" in self.filters:
+            print "Warning: Temp View used for lookup '%s'" % (view_name)
+            return list(self.temp_view(generate_view(self.doc.__name__, "_id")))
+        else:
+            return list(self.view(view_name))
+    
     def view(self, view_name, wrapper=None, dynamic_properties=True, **params):
         return self.doc.view(view_name, wrapper=wrapper, dynamic_properties=dynamic_properties, **params)
     
     def temp_view(self, design, wrapper=None, dynamic_properties=True, **params):
         return self.doc.temp_view(design, wrapper=wrapper, dynamic_properties=dynamic_properties, **params)
     
-    def _generate_views(self):
+    def generate_views(self):
         views = {}
         for filter in self.filters:
-            view_name = "%s_by_%s" % (self.doc.__name__, filter)
-            views[view_name] = {"map": SIMPLE_VIEW_TEMPLATE % (self.doc.__name__, filter)}
+            if filter == "all":
+                view_name = "%s_all" % (self.doc.__name__)
+                views[view_name] = generate_view(self.doc.__name__, "_id")
+            else:
+                view_name = "%s_by_%s" % (self.doc.__name__, filter)
+                views[view_name] = generate_view(self.doc.__name__, filter)
         return views
     
     def filter(self, **kwargs):
@@ -100,7 +113,7 @@ class DocumentManager(object):
         
         if not lookup_field in self.filters:
             print "Warning: Temp View used for lookup '%s'" % (view_name)
-            return self.temp_view({"map": SIMPLE_VIEW_TEMPLATE % (self.doc.__name__, lookup_field)}, **view_params)
+            return self.temp_view(generate_view(self.doc.__name__, lookup_field), **view_params)
         else:
             return self.view(view_name, **view_params)
 

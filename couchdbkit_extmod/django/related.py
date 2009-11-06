@@ -19,14 +19,34 @@
 
 import sys
 from couchdbkit import schema
-from couchdbkit_extmod.django.loading import get_schema, SIMPLE_VIEW_TEMPLATE
+from couchdbkit_extmod.django.loading import get_schema, generate_view, generate_m2m_view
 from django.db.models.fields.related import RECURSIVE_RELATIONSHIP_CONSTANT
 
-RELATED_VIEW_TEMPLATE = """function (doc) {
-	if (doc.doc_type == "%s") emit([doc.%s, doc.%s], doc);
-}"""
+class RelatedProperty(schema.Property):
+    """
+    This is the base property for all external reference properties to Documents.
+    """
+    
+    def __init__(self, related_schema, verbose_name=None, name=None, required=False, validators=None, default=None, related_name=None, related_filters=[]):
+        super(RelatedProperty, self).__init__(verbose_name=verbose_name, name=name, required=required, validators=validators)
+        
+        try:
+            getattr(related_schema, "_properties")
+        except AttributeError:
+            assert isinstance(related_schema, basestring), "%s(%r) is invalid. First parameter to a RelatedProperty must be either a model, a model name, or the string %r" % (self.__class__.__name__, related_schema, RECURSIVE_RELATIONSHIP_CONSTANT)
+        
+        self._related_schema = related_schema
+        self._related_name = related_name
+        self._related_filters = related_filters
+        self._host_schema = None # Filled in by metaclass
+    
+    def contribute_to_class(self, related_schema, related_name):
+        raise NotImplementedError
+    
+    def generate_views(self):
+        raise NotImplementedError
 
-class ForeignKeyProperty(schema.Property):
+class ForeignKeyProperty(RelatedProperty):
     """
     This property allows to have a reference to an external Document.
     It returns a schema.Document object on demand.
@@ -35,40 +55,26 @@ class ForeignKeyProperty(schema.Property):
     stored in the linked class if related_name is specified.
     """
     
-    def __init__(self, related_schema, verbose_name=None, name=None, required=False, validators=None, default=None, related_name=None, related_manager=None):
-        super(ForeignKeyProperty, self).__init__(verbose_name=verbose_name, name=name, required=required, validators=validators)
-        
-        try:
-            getattr(related_schema, "_properties")
-        except AttributeError:
-            assert isinstance(related_schema, basestring), "%s(%r) is invalid. First parameter to ForeignKey must be either a model, a model name, or the string %r" % (self.__class__.__name__, related_schema, RECURSIVE_RELATIONSHIP_CONSTANT)
-        
-        self._related_schema = related_schema
-        self._related_name = related_name
-        self._related_manager = related_manager
-        self._host_schema = None # Filled in by metaclass
-    
-    def _generate_views(self):
+    def generate_views(self):
         views = {}
         view_name = "%s_%s" % (self._related_schema.__name__, self._related_name)
-        views[view_name] = {"map": SIMPLE_VIEW_TEMPLATE % (self._host_schema.__name__, self.name)}
-        if self._related_manager != None:
-            views.update(self._related_manager._generate_views())
+        views[view_name] = generate_view(self._host_schema.__name__, self.name)
+        for filter in self._related_filters:
+            view_name = "%s_%s_by_%s" % (self._related_schema.__name__, self._related_name, filter)
+            views[view_name] = generate_view(self._host_schema.__name__, [self.name, filter])
         return views
     
-    def default_value(self):
-        return None
+    def contribute_to_class(self, related_schema, related_name):
+        setattr(related_schema, related_name, ForeignRelatedObjectsDescriptor(self))
     
-    def empty(self, value):
-        if value == None:
-            return True
-        return False
+    def create_related_manager(self, instance):
+        return ForeignRelatedManager(self, instance)
     
     def validate(self, value, required=True):
         if value == None:
             return None
         value.validate(required=required)
-        value = super(ForeignKeyProperty, self).validate(value)
+        value = super(RelatedProperty, self).validate(value)
         
         if value == None:
             return value
@@ -81,6 +87,11 @@ class ForeignKeyProperty(schema.Property):
                 type(value).__name__))
     
         return value
+    
+    def empty(self, value):
+        if value == None:
+            return True
+        return False
     
     def to_python(self, value):
         return self._related_schema.get(value)
@@ -101,52 +112,113 @@ class ForeignKeyProperty(schema.Property):
             value.save()
         return value._id
 
+class ManyToManyProperty(RelatedProperty):
+    """
+    This property allows to have multiple reference to an external Document.
+    It returns a list of schema.Document objects on demand.
+    The behaviour is similar to SchemaProperty, except that a list of references is
+    stored instead of the real documents. Additionally, a back-reference view is
+    stored in the linked class if related_name is specified.
+    """
+    
+    def __init__(self, related_schema, verbose_name=None, name=None, required=False, validators=None, default=None, related_name=None, related_filters=[], local_filters=[]):
+        super(ManyToManyProperty, self).__init__(related_schema, verbose_name, name, required, validators, default, related_name, related_filters)
+        self._local_filters = local_filters
+    
+    def __property_init__(self, document_instance, value):
+        if isinstance(value, ReverseRelatedManager):
+            value._bind(document_instance)
+        super(ManyToManyProperty, self).__property_init__(document_instance, value)
+    
+    def contribute_to_class(self, related_schema, related_name):
+        prop = ManyToManyProperty(self._host_schema, related_name=self.name, related_filters=self._local_filters, local_filters=self._related_filters)
+        prop._host_schema = related_schema
+        prop.__property_config__(related_schema, related_name)
+        setattr(related_schema, related_name, prop)
+        related_schema._properties[related_name] = prop
+    
+    def generate_views(self):
+        views = {}
+        view_name = "%s_%s" % (self._host_schema.__name__, self.name)
+        views[view_name] = generate_m2m_view(self._related_schema.__name__, self._related_name)
+        for filter in self._local_filters:
+            view_name = "%s_%s_by_%s" % (self._host_schema.__name__, self.name, filter)
+            views[view_name] = generate_m2m_view(self._related_schema.__name__, self._related_name, filter)
+        return views
+    
+    def default_value(self):
+        value = super(ManyToManyProperty, self).default_value()
+        if value is None:
+            value = []
+        return list(value)
+    
+    def empty(self, value):
+        return value.count() == 0
+    
+    def __get__(self, instance, instance_type=None):
+        if instance == None:
+            return self
+        return ReverseRelatedManager(self, instance)
+    
+    def to_python(self, value):
+        return ReverseRelatedManager(self, None)
+    
+    def to_json(self, values):
+        if isinstance(values, ReverseRelatedManager):
+            return values.instance._doc.get(self.name)
+        
+        if len(values) == 0:
+            return []
+        
+        for i in xrange(len(values)):
+            try:
+                getattr(values[i], "_properties")
+            except AttributeError:
+                schema = self._related_schema()
+                if not isinstance(values[i], dict):
+                    raise BadValueError("%s is not a dict" % str(value))
+                values[i] = schema(**values[i])
+            if not values[i]._id:
+                values[i].save()
+        
+        return map(lambda o: o._id, values)
+
 class ForeignRelatedObjectsDescriptor(object):
     def __init__(self, prop):
-        if prop._related_manager == None:
-            prop._related_manager = RelatedManager()
-        prop._related_manager.associate(prop)
         self.prop = prop
     
     def __get__(self, instance, instance_type=None):
         if instance is None:
             return self
         
-        return self.prop._related_manager.bind_instance(instance)
+        return self.prop.create_related_manager(instance)
 
 class RelatedManager(object):
-    filters = []
-    
-    def __init__(self, filters=[]):
-        self.filters = self.filters + filters
-        self.prop = None # Filled in by descriptor
-        self.app_label = ""
-        self.instance = None # Filled in on binding
-        self.view = None
-    
-    def associate(self, prop):
+    def add(self, *objs):
+        raise NotImplementedError
+    def remove(self, *objs):
+        raise NotImplementedError
+    def clear(self):
+        raise NotImplementedError
+    def create(self, **kwargs):
+        raise NotImplementedError
+    def all(self):
+        raise NotImplementedError
+    def count(self):
+        raise NotImplementedError
+    def get(self, **kwargs):
+        return self.filter(**kwargs).one()
+    def filter(self, **kwargs):
+        raise NotImplementedError
+
+class ForeignRelatedManager(RelatedManager):
+    def __init__(self, prop, instance):
         self.prop = prop
         document_module = sys.modules[prop._host_schema.__module__]
         self.app_label = document_module.__name__.split('.')[-2]
-    
-    def bind_instance(self, instance):
-        """
-        Return a clone which is bound to an instance.
-        """
-        c = self.__class__()
-        c.filters = self.filters # No deep copy here (!)
-        c.associate(self.prop)
-        c.instance = instance
+        self.instance = instance
         view_name = "%s/%s_%s" % (self.app_label, self.prop._related_schema.__name__, self.prop._related_name)
-        c.view = self.prop._host_schema.view(view_name, key=instance._id)
-        return c
-    
-    def _generate_views(self):
-        views = {}
-        for filter in self.filters:
-            view_name = "%s_%s_by_%s" % (self.prop._related_schema.__name__, self.prop._related_name, filter)
-            views[view_name] = {"map": RELATED_VIEW_TEMPLATE % (self.prop._host_schema.__name__, self.prop.name, filter)}
-        return views
+        self.view = self.prop._host_schema.view(view_name, key=instance._id)
     
     def add(self, *objs):
         for obj in objs:
@@ -178,9 +250,6 @@ class RelatedManager(object):
     
     def count(self):
         return self.view.count()
-    
-    def get(self, **kwargs):
-        return self.filter(**kwargs).one()
     
     def filter(self, **kwargs):
         lookup_field = ""
@@ -219,9 +288,115 @@ class RelatedManager(object):
         
         view_name = "%s/%s_%s_by_%s" % (self.app_label, self.prop._related_schema.__name__, self.prop._related_name, lookup_field)
         
-        if not lookup_field in self.filters:
+        if not lookup_field in self.prop._related_filters:
             print "Warning: Temp View used for lookup '%s'" % (view_name)
-            design = {"map": RELATED_VIEW_TEMPLATE % (self.prop._host_schema.__name__, self.prop.name, lookup_field)}
+            design = generate_view(self.prop._host_schema.__name__, [self.prop.name, lookup_field])
             return self.prop._host_schema.temp_view(design, **view_params)
         else:
             return self.prop._host_schema.view(view_name, **view_params)
+
+class ReverseRelatedManager(RelatedManager):
+    def __init__(self, prop, instance):
+        self.prop = prop
+        document_module = sys.modules[prop._host_schema.__module__]
+        self.app_label = document_module.__name__.split('.')[-2]
+        if instance != None:
+            self._bind(instance)
+    
+    def _bind(self, instance):
+        self.instance = instance
+        self.values = instance._doc.get(self.prop.name)
+        view_name = "%s/%s_%s" % (self.app_label, self.prop._host_schema.__name__, self.prop.name)
+        self.view = self.prop._related_schema.view(view_name, key=instance._id)
+    
+    def add(self, *objs):
+        assert self.instance != None, "Cannot perform operations on an unbound manager"
+        for obj in objs:
+            if not isinstance(obj, self.prop._related_schema):
+                raise TypeError, "'%s' instance expected" % self.prop._related_schema.__name__
+            if obj._id not in self.values:
+                self.values.append(obj._id)
+            obj_values = getattr(obj, self.prop._related_name).values
+            if self.instance._id not in obj_values:
+                obj_values.append(self.instance._id)
+                obj.save()
+        self.instance.save()
+    
+    def remove(self, *objs):
+        assert self.instance != None, "Cannot perform operations on an unbound manager"
+        for obj in objs:
+            if not isinstance(obj, self.prop._related_schema):
+                raise TypeError, "'%s' instance expected" % self.prop._related_schema.__name__
+            if obj._id not in self.values:
+                raise ValueError("%r is not related to %r." % (obj, self.instance))
+            self.values.remove(obj._id)
+            getattr(obj, self.prop._related_name).values.remove(self.instance._id)
+            obj.save()
+        self.instance.save()
+    
+    def clear(self):
+        assert self.instance != None, "Cannot perform operations on an unbound manager"
+        for obj in self.all():
+            getattr(obj, self.prop._related_name).values.remove(self.instance._id)
+            obj.save()
+        del self.values[:]
+        self.instance.save()
+    
+    def create(self, **kwargs):
+        obj = self.prop._related_schema(**kwargs)
+        obj.save()
+        self.add(obj)
+        return obj
+    
+    def all(self):
+        assert self.instance != None, "Cannot perform operations on an unbound manager"
+        return list(self.view)
+    
+    def count(self):
+        assert self.instance != None, "Cannot perform operations on an unbound manager"
+        return len(self.values)
+    
+    def filter(self, **kwargs):
+        assert self.instance != None, "Cannot perform operations on an unbound manager"
+        lookup_field = ""
+        fcount = 0
+        
+        view_params = {}
+        
+        for arg_name, arg_val in kwargs.iteritems():
+            if fcount > 0:
+                raise ValueError, "Filters with more than one field are currently not supported"
+            
+            spl = arg_name.split("__")
+            lookup_field = spl[0]
+            
+            if len(spl) > 2:
+                raise ValueError, "Document-spanning queries are currently not supported"
+            
+            if len(spl) > 1:
+                if spl[1] not in ("eq", "neq", "gt", "lt", "gte", "lte"):
+                    raise ValueError, "Document-spanning queries are currently not supported"
+                if spl[1] == "eq":
+                    view_params["key"] = [self.instance._id, arg_val]
+                elif spl[1] == "gte":
+                    view_params["startkey"] = [self.instance._id, arg_val]
+                elif spl[1] == "lte":
+                    view_params["endkey"] = [self.instance._id, arg_val]
+                else:
+                    raise ValueError, "Query modification '%s' not supported" % spl[1]
+            else:
+                view_params["key"] = [self.instance._id, arg_val]
+            
+            fcount += 1
+        
+        if fcount == 0:
+            return self.view
+        
+        view_name = "%s/%s_%s_by_%s" % (self.app_label, self.prop._host_schema.__name__, self.prop.name, lookup_field)
+        
+        if not lookup_field in self.prop._local_filters:
+            print "Warning: Temp View used for lookup '%s'" % (view_name)
+            design = generate_m2m_view(self.prop._related_schema.__name__, self.prop._related_name, lookup_field)
+            return self.prop._related_schema.temp_view(design, **view_params)
+        else:
+            return self.prop._related_schema.view(view_name, **view_params)
