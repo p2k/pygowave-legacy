@@ -15,7 +15,7 @@ class UserOnlineMiddleware:
 	def process_request(self, request):
 		if request.user.is_authenticated():
 			try:
-				profile_obj = request.user.get_profile()
+				profile_obj = Participant.objects.get(user__id=request.user.id)
 			except ObjectDoesNotExist:
 				profile_obj = Participant()
 				profile_obj.id = "%s@%s" % (request.user.username, settings.WAVE_DOMAIN)

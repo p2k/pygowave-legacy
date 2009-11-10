@@ -95,7 +95,7 @@ def find_random_id(manager, length, suffix="", prefix=""):
 	
 	"""
 	rnd_id = prefix + gen_random_id(length) + suffix
-	while manager.filter(pk=rnd_id).count() > 0:
+	while manager.filter(id=rnd_id).count() > 0:
 		rnd_id = prefix + gen_random_id(length) + suffix
 	return rnd_id
 

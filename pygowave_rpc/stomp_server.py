@@ -19,16 +19,74 @@
 from twisted.internet.protocol import Protocol, ServerFactory
 from twisted.internet.task import LoopingCall
 
-import stomper, anyjson
-from morbid import StompProtocol
+import stomper, anyjson, traceback
 
 from c2s_mp import PyGoWaveClientMessageProcessor
 import logger
 
 __all__ = ["StompServerFactory"]
 
+class StompServerProtocol(Protocol):
+	id = 0
+	def __init__(self):
+		self.state = 'initial'
+		self.stompBuffer = stomper.stompbuffer.StompBuffer()
+		StompServerProtocol.id += 1
+		self.id = StompServerProtocol.id
+	
+	def dataReceived(self, data):
+		self.stompBuffer.appendData(data.replace('\0', '\0\n'))
+		
+		while True:
+			msg = self.stompBuffer.getOneMessage()
+			
+			if self.stompBuffer.buffer.startswith('\n'):
+				self.stompBuffer.buffer = self.stompBuffer.buffer[1:]
+			
+			if msg is None or (not msg['headers'] and not msg['body'] and not msg['cmd']):
+				break
+			
+			msg['cmd'] = msg['cmd'].lower()
+			getattr(self, 'read_%s' % self.state)(**msg)
+	
+	def read_initial(self, cmd, headers, body):
+		assert cmd == 'connect', "Invalid cmd: expected CONNECT"
+		self.state = 'connected'
+		self.sendFrame('CONNECTED', {"session": self.id}, "")
+		self.factory.connected(self)
+	
+	def sendError(self, e):
+		exception, instance, tb = traceback.sys.exc_info()
+		tbOutput= "".join(traceback.format_tb(tb))
+		self.sendFrame('ERROR', {'message': str(e) }, tbOutput)
+	
+	def sendFrame(self, cmd, headers, body):
+		f = stomper.Frame()
+		f.cmd = cmd
+		f.headers.update(headers)
+		f.body = body
+		self.transport.write(f.pack())
+	
+	def read_connected(self, cmd, headers, body):
+		return getattr(self, 'frame_%s' % cmd)(headers, body)
+	
+	def frame_subscribe(self, headers, body):
+		self.factory.subscribe(self, headers['destination'])
+	
+	def frame_unsubscribe(self, headers, body):
+		self.factory.unsubscribe(self, headers['destination'])
+	
+	def frame_send(self, headers, body):
+		self.factory.send(headers['destination'], body, headers)
+	
+	def frame_disconnect(self, headers, body):
+		self.transport.loseConnection()
+	
+	def connectionLost(self, reason):
+		self.factory.disconnected(self)
+
 class StompServerFactory(ServerFactory):
-	protocol = StompProtocol
+	protocol = StompServerProtocol
 	
 	def __init__(self):
 		self.subscriptions = {}

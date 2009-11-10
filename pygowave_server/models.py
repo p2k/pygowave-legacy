@@ -208,7 +208,7 @@ class Wavelet(models.Model):
 		"""
 		
 		try:
-			return self.blips.get(pk=id)
+			return self.blips.get(id=id)
 		except ObjectDoesNotExist:
 			return None
 	
@@ -406,7 +406,7 @@ class Blip(models.Model):
 		
 		elt = self.elements.get(position=index)
 		if elt.type != 2:
-			raise TypeError("Element #%d is not a Gadget Element" % (id))
+			raise TypeError("Element #%d is not a Gadget Element" % (elt.id))
 		elt.to_gadget().apply_delta(delta)
 	
 	@transaction.commit_on_success
@@ -418,7 +418,7 @@ class Blip(models.Model):
 		
 		elt = self.elements.get(position=index)
 		if elt.type != 2:
-			raise TypeError("Element #%d is not a Gadget Element" % (id))
+			raise TypeError("Element #%d is not a Gadget Element" % (elt.id))
 		elt.to_gadget().set_userpref(key, value)
 	
 	def save(self, force_insert=False, force_update=False):
@@ -604,6 +604,9 @@ class InlineBlip(Element):
 	
 	i_blip = models.ForeignKey(Blip)
 
+def element_property(name, default=""):
+	return property(lambda self: self.properties.get(name, default), lambda self, value: self.properties.set(name, value))
+
 class GadgetElement(Element):
 	"""
 	A gadget element. Note that these are individual instances unlike Gadget
@@ -611,19 +614,7 @@ class GadgetElement(Element):
 	
 	"""
 	
-	@property
-	def url(self):
-		d = self.get_data()
-		if d.has_key("url"):
-			return d["url"]
-		else:
-			return ""
-	
-	@url.setter
-	def url(self, value):
-		d = self.get_data()
-		d["url"] = value
-		self.set_data(d)
+	url = element_property("url")
 	
 	def apply_delta(self, delta, save=True):
 		"""
@@ -632,9 +623,7 @@ class GadgetElement(Element):
 		
 		"""
 		d = self.get_data()
-		if not d.has_key("fields"):
-			d["fields"] = {}
-		fields = d["fields"]
+		fields = d.setdefault("fields", {})
 		
 		fields.update(delta)
 		
@@ -655,9 +644,7 @@ class GadgetElement(Element):
 		
 		"""
 		d = self.get_data()
-		if not d.has_key("userprefs"):
-			d["userprefs"] = {}
-		prefs = d["userprefs"]
+		prefs = d.setdefault("userprefs", {})
 		
 		prefs[key] = value
 		
@@ -680,10 +667,7 @@ class GadgetElement(Element):
 		Return userprefs (name:value) as python map (JSON decoded).
 		
 		"""
-		d = self.get_data()
-		if not d.has_key("userprefs"):
-			return {}
-		return d["userprefs"]
+		return self.get_data().get("userprefs", {})
 
 	def save(self, force_insert=False, force_update=False):
 		self.type = 2
@@ -702,10 +686,10 @@ class FormElement(Element):
 	
 	"""
 	
-	label = models.CharField(max_length=255)
-	name = models.CharField(max_length=255)
-	value = models.CharField(max_length=255)
-	default_value = models.CharField(max_length=255)
+	label = element_property("label")
+	name = element_property("name")
+	value = element_property("value")
+	default_value = element_property("default_value")
 
 class Image(Element):
 	"""
@@ -713,11 +697,11 @@ class Image(Element):
 	
 	"""
 	
-	attachment_id = models.CharField(max_length=255)
-	caption = models.CharField(max_length=255)
-	url = models.URLField(verify_exists=False)
-	height = models.IntegerField()
-	width = models.IntegerField()
+	attachment_id = element_property("attachment_id")
+	caption = element_property("caption")
+	url = element_property("url")
+	height = element_property("height", 0)
+	width = element_property("width", 0)
 
 class Delta(models.Model):
 	"""
@@ -744,7 +728,7 @@ class Delta(models.Model):
 		"""
 		newobj = cls(
 			version=version,
-			wavelet= Wavelet.objects.get(pk=opman.waveletId),
+			wavelet= Wavelet.objects.get(id=opman.waveletId),
 			operations=simplejson.dumps(opman.serialize())
 		)
 		newobj._OpManager = opman
