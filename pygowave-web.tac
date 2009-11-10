@@ -30,7 +30,7 @@ pkg_resources.require("twisted==8.2.0") # Specific workarounds needed
 
 def addOrbitedService(site):
 	# Duplicates functionality of orbited's start script
-	pkg_resources.require("orbited>=0.7.7")
+	pkg_resources.require("orbited>=0.7.10")
 	
 	from orbited import config
 	from orbited import logging

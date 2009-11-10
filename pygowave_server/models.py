@@ -625,6 +625,9 @@ class InlineBlip(Element):
 def element_property(name, default=""):
 	return property(lambda self: self.properties.get(name, default), lambda self, value: self.properties.set(name, value))
 
+def element_property(name, default=""):
+	return property(lambda self: self.properties.get(name, default), lambda self, value: self.properties.set(name, value))
+
 class GadgetElement(Element):
 	"""
 	A gadget element. Note that these are individual instances unlike Gadget
