@@ -52,7 +52,15 @@ class ParticipantManager(manager.DocumentManager):
 	
 	"""
 	
-	filters = ["name", "last_contact"]
+	filters = ["id", "name", manager.Filter("name__icontains", min_len=3), "last_contact", "user_id"]
+	
+	# Dirty hack to allow user__id filter
+	@staticmethod
+	def _process_filter_args(filter_args, fkey=None):
+		if filter_args.has_key("user__id"):
+			filter_args["user_id"] = filter_args["user__id"]
+			del filter_args["user__id"]
+		return manager.DocumentManager._process_filter_args(filter_args, fkey)
 	
 	def online_count(self):
 		timeout = datetime.now() - timedelta(minutes=settings.ONLINE_TIMEOUT_MINUTES)
@@ -76,8 +84,21 @@ class Participant(schema.Document):
 	last_contact = schema.DateTimeProperty()
 	
 	name = schema.StringProperty()
-	avatar = schema.StringProperty()
-	profile = schema.StringProperty()
+	avatar = schema.StringProperty(default="")
+	profile = schema.StringProperty(default="")
+	
+	@property
+	def user(self):
+		if self.user_id != 0:
+			return User.objects.get(id=self.user_id)
+		else:
+			return None
+	@user.setter
+	def user(self, value):
+		if value != None:
+			self.user_id = value.id
+		else:
+			self.user_id = 0
 	
 	def create_new_connection(self):
 		"""
@@ -113,7 +134,7 @@ class ParticipantConn(schema.Document):
 	
 	"""
 	
-	objects = manager.DocumentManager(["rx_key", "tx_key"])
+	objects = manager.DocumentManager(["all", "rx_key", "tx_key"])
 	
 	id = property(lambda self: self._id) # Tiny workaround to stay compatible
 	
@@ -196,15 +217,15 @@ class Wavelet(schema.Document):
 	objects = manager.DocumentManager(["id"])
 	
 	id = schema.StringProperty(required=True)
-	wave = schema.ForeignKeyProperty(Wave, related_name="wavelets")
+	wave = schema.ForeignKeyProperty(Wave, related_name="wavelets", related_filters=["is_root"])
 	creator = schema.ForeignKeyProperty(Participant, related_name="created_wavelets")
 	is_root = schema.BooleanProperty()
 	root_blip = schema.ForeignKeyProperty("Blip")
 	created = schema.DateTimeProperty(auto_now_add=True)
 	last_modified = schema.DateTimeProperty(auto_now=True)
 	title = schema.StringProperty()
-	version = schema.IntegerProperty()
-	participants = schema.ManyToManyProperty(Participant, related_name="wavelets")
+	version = schema.IntegerProperty(default=0)
+	participants = schema.ManyToManyProperty(Participant, related_name="wavelets", local_filters=["id"], related_filters=["id"])
 	participant_conns = schema.ManyToManyProperty(ParticipantConn, related_name="wavelets", verbose_name=_(u'connections'))
 	
 	def blipById(self, id):
@@ -327,13 +348,13 @@ class Blip(schema.Document):
 	wavelet = schema.ForeignKeyProperty(Wavelet, related_name="blips", related_filters=["id"])
 	parent = schema.ForeignKeyProperty("self", related_name="children")
 	creator = schema.ForeignKeyProperty(Participant, related_name="created_blips")
-	version = schema.IntegerProperty()
+	version = schema.IntegerProperty(default=0)
 	last_modified = schema.DateTimeProperty(auto_now=True)
-	submitted = schema.BooleanProperty()
+	submitted = schema.BooleanProperty(default=False)
 	
 	contributors = schema.ManyToManyProperty(Participant, related_name="contributed_blips")
 	
-	text = schema.StringProperty()
+	text = schema.StringProperty(default="")
 	
 	def insertText(self, index, text):
 		"""
@@ -422,12 +443,12 @@ class Blip(schema.Document):
 			raise TypeError("Element #%d is not a Gadget Element" % (elt.id))
 		elt.to_gadget().set_userpref(key, value)
 	
-	def save(self, force_insert=False, force_update=False):
-		if not self.id:
+	def save(self):
+		if not self._id:
 			self.id = find_random_id(Blip.objects, 10)
-			super(Blip, self).save(True)
+			super(Blip, self).save()
 		else:
-			super(Blip, self).save(force_insert, force_update)
+			super(Blip, self).save()
 	
 	def serialize(self):
 		"""
@@ -483,9 +504,7 @@ class Annotation(schema.Document):
 	
 	"""
 	
-	objects = manager.DocumentManager(["start"])
-	
-	blip = schema.ForeignKeyProperty(Blip, related_name="annotations")
+	blip = schema.ForeignKeyProperty(Blip, related_name="annotations", related_filters=["start"])
 	name = schema.StringProperty()
 	start = schema.IntegerProperty()
 	end = schema.IntegerProperty()
@@ -534,11 +553,9 @@ class Element(schema.Document):
 		(10, "IMAGE"),
 	)
 	
-	objects = manager.DocumentManager(["position"])
-	
 	id = property(lambda self: self._id) # Tiny workaround to stay compatible
 	
-	blip = schema.ForeignKeyProperty(Blip, related_name="elements")
+	blip = schema.ForeignKeyProperty(Blip, related_name="elements", related_filters=["position"])
 	position = schema.IntegerProperty()
 	type = schema.IntegerProperty(choices=ELEMENT_TYPES)
 	properties = schema.DictProperty()
@@ -711,7 +728,7 @@ class Delta(schema.Document):
 	
 	timestamp = schema.DateTimeProperty(auto_now_add=True)
 	version = schema.IntegerProperty()
-	wavelet = schema.ForeignKeyProperty(Wavelet, related_name="deltas")
+	wavelet = schema.ForeignKeyProperty(Wavelet, related_name="deltas", related_filters=["version"])
 	
 	operations = schema.ListProperty()
 	
@@ -758,6 +775,8 @@ class Gadget(schema.Document):
 	instances.
 	
 	"""
+	
+	objects = manager.DocumentManager(["url"])
 	
 	def by_user(self):
 		return User.objects.get(id=self.by_user_id)

@@ -35,6 +35,8 @@ from pygowave_server.engine import GadgetLoader
 
 from registration.forms import RegistrationForm
 
+from couchdbkit_extmod.django.forms import DocumentForm
+
 class MyRegistrationForm(RegistrationForm):
 	
 	def clean_username(self):
@@ -115,15 +117,15 @@ class AvatarField(forms.ImageField):
 		
 		return settings.AVATAR_URL + value.name
 
-class ParticipantProfileForm(forms.ModelForm):
+class ParticipantProfileForm(DocumentForm):
 	avatar = AvatarField(required=False)
 	profile = forms.CharField(max_length=200, required=False, label=_(u'Profile URL'))
 	
 	class Meta:
-		model = get_profile_model()
+		document = get_profile_model()
 		fields = ('avatar', 'profile')
 
-class GadgetRegistryForm(forms.ModelForm):
+class GadgetRegistryForm(DocumentForm):
 	description = forms.CharField(max_length=255, required=False, widget=widgets.Textarea(attrs={"cols": 45, "rows": 4}))
 	external = forms.IntegerField(widget=widgets.HiddenInput, initial=0)
 	upload = forms.FileField(required=False)
@@ -190,7 +192,7 @@ class GadgetRegistryForm(forms.ModelForm):
 		return self.cleaned_data
 	
 	class Meta:
-		model = Gadget
+		document = Gadget
 		exclude = ('by_user')
 
 class NewWaveForm(forms.Form):

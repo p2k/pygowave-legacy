@@ -39,26 +39,6 @@ from restkit.httpc import HttpClient, BasicAuth
 
 COUCHDB_DATABASES = getattr(settings, "COUCHDB_DATABASES", [])
 
-def generate_view(doc_type, fields):
-    if isinstance(fields, basestring):
-        fields = "doc." + fields
-    elif len(fields) == 1:
-        fields = "doc." + fields[0]
-    else:
-        fields = "[" + ", ".join(map(lambda s: "doc."+s, fields)) + "]"
-    return {"map": "function (doc) {\n\tif (doc.doc_type == \"%s\") emit(%s, doc);\n}" % (doc_type, fields)}
-
-def generate_m2m_view(doc_type, related_name, fields=[]):
-    if isinstance(fields, basestring):
-        fields = ["%s[i]" % related_name, fields]
-    else:
-        fields = ["%s[i]" % related_name] + fields
-    if len(fields) == 1:
-        fields = "doc." + fields[0]
-    else:
-        fields = "[" + ", ".join(map(lambda s: "doc."+s, fields)) + "]"
-    return {"map": "function(doc) {\n\tif (doc.doc_type == \"%s\") {\n\t\tfor (var i in doc.%s)\n\t\t\temit(%s, doc);\n\t}\n}" % (doc_type, related_name, fields)}
-
 class DjangoAppDocLoader(FileSystemDocsLoader):
     """
     Load design doc from a django app folder. Additionally create views for

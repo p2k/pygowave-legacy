@@ -149,7 +149,7 @@ class PyGoWaveClientMessageProcessor(object):
 				self.emit(pconn, "PONG", message["property"]) # Traditionally
 			
 			elif message["type"] == "WAVELET_OPEN":
-				self.logger.info("[%s/%d@%s] Opening wavelet" % (participant.name, pconn.id, wavelet.wave.id))
+				self.logger.info("[%s/%s@%s] Opening wavelet" % (participant.name, pconn.id, wavelet.wave.id))
 				pconn.wavelets.add(wavelet)
 				# I know this is neat :)
 				self.emit(pconn, "WAVELET_OPEN", {
@@ -158,7 +158,7 @@ class PyGoWaveClientMessageProcessor(object):
 				})
 			
 			elif message["type"] == "PARTICIPANT_INFO":
-				self.logger.info("[%s/%d@%s] Sending participant information" % (participant.name, pconn.id, wavelet.wave.id))
+				self.logger.info("[%s/%s@%s] Sending participant information" % (participant.name, pconn.id, wavelet.wave.id))
 				p_info = {}
 				for p_id in message["property"]:
 					try:
@@ -170,9 +170,9 @@ class PyGoWaveClientMessageProcessor(object):
 			elif message["type"] == "PARTICIPANT_SEARCH":
 				if len(message["property"]) < getattr(settings, "PARTICIPANT_SEARCH_LENGTH", 0):
 					self.emit(pconn, "PARTICIPANT_SEARCH", {"result": "TOO_SHORT", "data": getattr(settings, "PARTICIPANT_SEARCH_LENGTH", 0)})
-					self.logger.debug("[%s/%d@%s] Participant search query too short" % (participant.name, pconn.id, wavelet.wave.id))
+					self.logger.debug("[%s/%s@%s] Participant search query too short" % (participant.name, pconn.id, wavelet.wave.id))
 				else:
-					self.logger.info("[%s/%d@%s] Performing participant search" % (participant.name, pconn.id, wavelet.wave.id))
+					self.logger.info("[%s/%s@%s] Performing participant search" % (participant.name, pconn.id, wavelet.wave.id))
 					
 					lst = []
 					for p in Participant.objects.filter(name__icontains=message["property"]).exclude(id=participant.id):
@@ -181,7 +181,7 @@ class PyGoWaveClientMessageProcessor(object):
 			
 			elif message["type"] == "GADGET_LIST":
 				all_gadgets = map(lambda g: {"id": g.id, "uploaded_by": g.by_user.participants.all()[0].name, "name": g.title, "descr": g.description, "url": g.url}, Gadget.objects.all())
-				self.logger.info("[%s/%d@%s] Sending Gadget list" % (participant.name, pconn.id, wavelet.wave.id))
+				self.logger.info("[%s/%s@%s] Sending Gadget list" % (participant.name, pconn.id, wavelet.wave.id))
 				self.emit(pconn, "GADGET_LIST", all_gadgets)
 			
 			elif message["type"] == "WAVELET_ADD_PARTICIPANT":
@@ -189,23 +189,23 @@ class PyGoWaveClientMessageProcessor(object):
 				try:
 					p = Participant.objects.get(id=message["property"])
 				except ObjectDoesNotExist:
-					self.logger.error("[%s/%d@%s] Target participant '%s' not found" % (participant.name, pconn.id, wavelet.wave.id, message["property"]))
+					self.logger.error("[%s/%s@%s] Target participant '%s' not found" % (participant.name, pconn.id, wavelet.wave.id, message["property"]))
 					return True # Fail silently (TODO: report error to user)
 				# Check if already participating
 				if wavelet.participants.filter(id=message["property"]).count() > 0:
-					self.logger.error("[%s/%d@%s] Target participant '%s' already there" % (participant.name, pconn.id, wavelet.wave.id, message["property"]))
+					self.logger.error("[%s/%s@%s] Target participant '%s' already there" % (participant.name, pconn.id, wavelet.wave.id, message["property"]))
 					return True # Fail silently (TODO: report error to user)
 				wavelet.participants.add(p)
-				self.logger.info("[%s/%d@%s] Added new participant '%s'" % (participant.name, pconn.id, wavelet.wave.id, message["property"]))
+				self.logger.info("[%s/%s@%s] Added new participant '%s'" % (participant.name, pconn.id, wavelet.wave.id, message["property"]))
 				self.broadcast(wavelet, "WAVELET_ADD_PARTICIPANT", message["property"])
 				
 			elif message["type"] == "WAVELET_REMOVE_SELF":
 				self.broadcast(wavelet, "WAVELET_REMOVE_PARTICIPANT", participant.id)
 				wavelet.participants.remove(participant) # Bye bye
 				pconn.wavelets.remove(wavelet) # Also for your connection
-				self.logger.info("[%s/%d@%s] Participant removed himself" % (participant.name, pconn.id, wavelet.wave.id))
+				self.logger.info("[%s/%s@%s] Participant removed himself" % (participant.name, pconn.id, wavelet.wave.id))
 				if wavelet.participants.count() == 0: # Oh my god, you killed the Wave! You bastard!
-					self.logger.info("[%s/%d@%s] Wave got killed!" % (participant.name, pconn.id, wavelet.wave.id))
+					self.logger.info("[%s/%s@%s] Wave got killed!" % (participant.name, pconn.id, wavelet.wave.id))
 					wavelet.wave.delete()
 				return False
 			
@@ -221,6 +221,7 @@ class PyGoWaveClientMessageProcessor(object):
 						newdelta.transform(op) # Trash results (an existing delta cannot be changed)
 				
 				# Apply
+				old_blipsums = wavelet.blipsums()
 				wavelet.applyOperations(newdelta.operations)
 				
 				# Raise version and store
@@ -236,13 +237,13 @@ class PyGoWaveClientMessageProcessor(object):
 				self.emit(pconn, "OPERATION_MESSAGE_BUNDLE_ACK", {"version": wavelet.version, "blipsums": blipsums})
 				self.broadcast(wavelet, "OPERATION_MESSAGE_BUNDLE", {"version": wavelet.version, "operations": newdelta.serialize(), "blipsums": blipsums}, [pconn])
 				
-				self.logger.debug("[%s/%d@%s] Processed delta #%d -> v%d" % (participant.name, pconn.id, wavelet.wave.id, version, wavelet.version))
+				self.logger.debug("[%s/%s@%s] Processed delta #%d -> v%d" % (participant.name, pconn.id, wavelet.wave.id, version, wavelet.version))
 				
 			else:
-				self.logger.error("[%s/%d@%s] Unknown message: %s" % (participant.name, pconn.id, wavelet.wave.id, message))
+				self.logger.error("[%s/%s@%s] Unknown message: %s" % (participant.name, pconn.id, wavelet.wave.id, message))
 		
 		else:
-			self.logger.error("[%s/%d@%s] Unknown message: %s" % (participant.name, pconn.id, wavelet.wave.id, message))
+			self.logger.error("[%s/%s@%s] Unknown message: %s" % (participant.name, pconn.id, wavelet.wave.id, message))
 		
 		return True
 	
@@ -255,6 +256,7 @@ class PyGoWaveClientMessageProcessor(object):
 		excluded from the broadcast.
 		
 		"""
+		except_connections = map(lambda c: c.id, except_connections)
 		msg_dict = {
 			"type": type,
 			"property": property
@@ -262,7 +264,7 @@ class PyGoWaveClientMessageProcessor(object):
 		self.logger.debug("Broadcasting Message:\n" + repr(msg_dict))
 		for p in wavelet.participants.all():
 			for conn in p.connections.all():
-				if not conn in except_connections:
+				if not conn.id in except_connections:
 					if self.out_queue.has_key(conn.rx_key):
 						self.out_queue[conn.rx_key].append(msg_dict)
 					else:
@@ -278,7 +280,7 @@ class PyGoWaveClientMessageProcessor(object):
 			"type": type,
 			"property": property
 		}
-		self.logger.debug("Emiting Message to %s/%d:\n%s" % (to.participant.name, to.id, repr(msg_dict)))
+		self.logger.debug("Emiting Message to %s/%s:\n%s" % (to.participant.name, to.id, repr(msg_dict)))
 		if self.out_queue.has_key(to.rx_key):
 			self.out_queue[to.rx_key].append(msg_dict)
 		else:
@@ -296,6 +298,6 @@ class PyGoWaveClientMessageProcessor(object):
 				conn_id, conn_participant_name = conn.id, conn.participant.name
 				for wavelet in conn.wavelets.all():
 					wavelet.participant_conns.remove(conn)
-					self.logger.info("[%s/%d@%s] Connection to wavelet closed" % (conn.participant.name, conn.id, wavelet.wave.id))
+					self.logger.info("[%s/%s@%s] Connection to wavelet closed" % (conn.participant.name, conn_id, wavelet.wave.id))
 				conn.delete()
-				self.logger.info("[%s/%d] Connection to server closed" % (conn_participant_name, conn_id))
+				self.logger.info("[%s/%s] Connection to server closed" % (conn_participant_name, conn_id))

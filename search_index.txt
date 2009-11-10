@@ -1,0 +1,8 @@
+function (doc) {
+	if (doc.doc_type == "Participant") {
+		for (var p = 0; p < doc.name.length(); p++) {
+			if (doc.name.indexOf(doc.name.substring(p)) == p)
+				emit(doc.name.substring(p), doc);
+		}
+	}
+}

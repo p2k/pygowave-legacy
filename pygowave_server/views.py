@@ -42,7 +42,7 @@ def index(request):
 	# Handle logout
 	if request.user.is_authenticated() and request.GET.has_key("logout"):
 		try:
-			p = request.user.get_profile()
+			p = Participant.objects.get(user__id=request.user.id)
 			p.last_contact = datetime.now() + timedelta(minutes=django_settings.ONLINE_TIMEOUT_MINUTES+1)
 			p.save()
 		except:
@@ -73,7 +73,7 @@ def home(request):
 	online_count = Participant.objects.online_count()
 	users_count = User.objects.filter(is_active=True).count()
 	try:
-		profile = request.user.get_profile()
+		profile = Participant.objects.get(user__id=request.user.id)
 	except ObjectDoesNotExist:
 		profile = None
 	return render_to_response('pygowave_server/home.html', {"username": profile.name, "profile": profile, "online_count": online_count, "users_count": users_count}, context_instance=RequestContext(request))
@@ -82,7 +82,7 @@ def home(request):
 def settings(request):
 	
 	try:
-		profile_obj = request.user.get_profile()
+		profile_obj = Participant.objects.get(user__id=request.user.id)
 	except ObjectDoesNotExist:
 		profile_obj = None
 	
@@ -105,7 +105,7 @@ def settings(request):
 @login_required
 def wave_list(request):
 	
-	participant = request.user.get_profile()
+	participant = Participant.objects.get(user__id=request.user.id)
 	
 	if request.method == "POST":
 		form = NewWaveForm(data=request.POST)
@@ -170,14 +170,14 @@ def all_gadgets(request):
 def wave(request, wave_id):
 	
 	try:
-		wave = Wave.objects.get(pk=wave_id)
+		wave = Wave.objects.get(id=wave_id)
 	except ObjectDoesNotExist:
 		if request.is_ajax():
 			return HttpResponse("Error: Invalid Wave ID")
 		else:
 			return render_to_response('pygowave_server/waves/invalid_wave.html', context_instance=RequestContext(request))
 	
-	participant = request.user.get_profile()
+	participant = Participant.objects.get(user__id=request.user.id)
 
 	wavelet = wave.root_wavelet()
 	
@@ -190,7 +190,7 @@ def wave(request, wave_id):
 	if request.is_ajax():
 		if request.GET.has_key("get_participant"):
 			try:
-				p_obj = wavelet.participants.get(pk=request.GET["get_participant"])
+				p_obj = wavelet.participants.get(id=request.GET["get_participant"])
 			except ObjectDoesNotExist:
 				return HttpResponse("Error: Participant not found")
 			p = {

@@ -9,7 +9,7 @@
 {% block content %}
 <div class="content_div">
 <div class="wavelet_participant as_avatar">
-	<img class="thumbnail" src="{% if profile.avatar %}{{ profile.avatar }}{% else %}{{ AVATAR_URL }}/default.png{% endif %}" alt="{{ profile.name }}" title="{{ profile.name }}" />
+	<img class="thumbnail" src="{% if profile.avatar %}{{ profile.avatar }}{% else %}{{ AVATAR_URL }}default.png{% endif %}" alt="{{ profile.name }}" title="{{ profile.name }}" />
 </div>
 <h1>
 {% blocktrans %}

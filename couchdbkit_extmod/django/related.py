@@ -19,8 +19,10 @@
 
 import sys
 from couchdbkit import schema
-from couchdbkit_extmod.django.loading import get_schema, generate_view, generate_m2m_view
+from couchdbkit_extmod.django.loading import get_schema
+from couchdbkit_extmod.django.manager import DocumentManager, Filter
 from django.db.models.fields.related import RECURSIVE_RELATIONSHIP_CONSTANT
+from django.core.exceptions import ObjectDoesNotExist
 
 class RelatedProperty(schema.Property):
     """
@@ -37,8 +39,15 @@ class RelatedProperty(schema.Property):
         
         self._related_schema = related_schema
         self._related_name = related_name
-        self._related_filters = related_filters
+        self._related_filters = Filter.toFilters(related_filters)
         self._host_schema = None # Filled in by metaclass
+        self._subclasses = []
+    
+    def class_names(self):
+        if len(self._subclasses) == 0:
+            return self._host_schema.__name__
+        else:
+            return map(lambda c: c.__name__, [self._host_schema] + self._subclasses)
     
     def contribute_to_class(self, related_schema, related_name):
         raise NotImplementedError
@@ -58,10 +67,10 @@ class ForeignKeyProperty(RelatedProperty):
     def generate_views(self):
         views = {}
         view_name = "%s_%s" % (self._related_schema.__name__, self._related_name)
-        views[view_name] = generate_view(self._host_schema.__name__, self.name)
+        views[view_name] = DocumentManager._generate_view(self.class_names(), self.name)
         for filter in self._related_filters:
-            view_name = "%s_%s_by_%s" % (self._related_schema.__name__, self._related_name, filter)
-            views[view_name] = generate_view(self._host_schema.__name__, [self.name, filter])
+            view_name = "%s_%s_by_%s" % (self._related_schema.__name__, self._related_name, filter.name())
+            views[view_name] = DocumentManager._generate_view(self.class_names(), [self.name, filter])
         return views
     
     def contribute_to_class(self, related_schema, related_name):
@@ -71,22 +80,7 @@ class ForeignKeyProperty(RelatedProperty):
         return ForeignRelatedManager(self, instance)
     
     def validate(self, value, required=True):
-        if value == None:
-            return None
-        value.validate(required=required)
-        value = super(RelatedProperty, self).validate(value)
-        
-        if value == None:
-            return value
-    
-        try:
-            getattr(value, "_properties")
-        except AttributeError:
-            raise BadValueError(
-                'Property %s must be DocumentSchema instance, not a %s' % (self.name,
-                type(value).__name__))
-    
-        return value
+        return value # Do not validate
     
     def empty(self, value):
         if value == None:
@@ -94,7 +88,7 @@ class ForeignKeyProperty(RelatedProperty):
         return False
     
     def to_python(self, value):
-        return self._related_schema.get(value)
+        return value
     
     def to_json(self, value):
         if value == None:
@@ -111,6 +105,23 @@ class ForeignKeyProperty(RelatedProperty):
         if not value._id:
             value.save()
         return value._id
+    
+    def __property_init__(self, document_instance, value):
+        if isinstance(value, basestring):
+            document_instance._doc[self.name] = value
+            return
+        else:
+            super(ForeignKeyProperty, self).__property_init__(document_instance, value)
+    
+    def __get__(self, instance, instance_type=None):
+        if instance == None:
+            return self
+        
+        value = instance._doc.get(self.name)
+        if value is not None:
+            value = self._related_schema.get(value)
+        
+        return value
 
 class ManyToManyProperty(RelatedProperty):
     """
@@ -123,12 +134,18 @@ class ManyToManyProperty(RelatedProperty):
     
     def __init__(self, related_schema, verbose_name=None, name=None, required=False, validators=None, default=None, related_name=None, related_filters=[], local_filters=[]):
         super(ManyToManyProperty, self).__init__(related_schema, verbose_name, name, required, validators, default, related_name, related_filters)
-        self._local_filters = local_filters
+        self._local_filters = Filter.toFilters(local_filters)
     
     def __property_init__(self, document_instance, value):
+        if isinstance(value, list):
+            document_instance._doc[self.name] = value
+            return
         if isinstance(value, ReverseRelatedManager):
             value._bind(document_instance)
         super(ManyToManyProperty, self).__property_init__(document_instance, value)
+    
+    def validate(self, value, required=True):
+        return value # Do not validate
     
     def contribute_to_class(self, related_schema, related_name):
         prop = ManyToManyProperty(self._host_schema, related_name=self.name, related_filters=self._local_filters, local_filters=self._related_filters)
@@ -140,10 +157,11 @@ class ManyToManyProperty(RelatedProperty):
     def generate_views(self):
         views = {}
         view_name = "%s_%s" % (self._host_schema.__name__, self.name)
-        views[view_name] = generate_m2m_view(self._related_schema.__name__, self._related_name)
+        releated_prop = getattr(self._related_schema, self._related_name)
+        views[view_name] = DocumentManager._generate_view(releated_prop.class_names(), self._related_name, True)
         for filter in self._local_filters:
-            view_name = "%s_%s_by_%s" % (self._host_schema.__name__, self.name, filter)
-            views[view_name] = generate_m2m_view(self._related_schema.__name__, self._related_name, filter)
+            view_name = "%s_%s_by_%s" % (self._host_schema.__name__, self.name, filter.name())
+            views[view_name] = DocumentManager._generate_view(releated_prop.class_names(), [self._related_name, filter], True)
         return views
     
     def default_value(self):
@@ -161,7 +179,7 @@ class ManyToManyProperty(RelatedProperty):
         return ReverseRelatedManager(self, instance)
     
     def to_python(self, value):
-        return ReverseRelatedManager(self, None)
+        return value
     
     def to_json(self, values):
         if isinstance(values, ReverseRelatedManager):
@@ -207,7 +225,10 @@ class RelatedManager(object):
     def count(self):
         raise NotImplementedError
     def get(self, **kwargs):
-        return self.filter(**kwargs).one()
+        ret = self.filter(**kwargs).one()
+        if ret == None:
+            raise ObjectDoesNotExist
+        return ret
     def filter(self, **kwargs):
         raise NotImplementedError
 
@@ -252,45 +273,16 @@ class ForeignRelatedManager(RelatedManager):
         return self.view.count()
     
     def filter(self, **kwargs):
-        lookup_field = ""
-        fcount = 0
+        lookup_field, view_params = DocumentManager._process_filter_args(kwargs, self.instance._id)
         
-        view_params = {}
-        
-        for arg_name, arg_val in kwargs.iteritems():
-            if fcount > 0:
-                raise ValueError, "Filters with more than one field are currently not supported"
-            
-            spl = arg_name.split("__")
-            lookup_field = spl[0]
-            
-            if len(spl) > 2:
-                raise ValueError, "Document-spanning queries are currently not supported"
-            
-            if len(spl) > 1:
-                if spl[1] not in ("eq", "neq", "gt", "lt", "gte", "lte"):
-                    raise ValueError, "Document-spanning queries are currently not supported"
-                if spl[1] == "eq":
-                    view_params["key"] = [self.instance._id, arg_val]
-                elif spl[1] == "gte":
-                    view_params["startkey"] = [self.instance._id, arg_val]
-                elif spl[1] == "lte":
-                    view_params["endkey"] = [self.instance._id, arg_val]
-                else:
-                    raise ValueError, "Query modification '%s' not supported" % spl[1]
-            else:
-                view_params["key"] = [self.instance._id, arg_val]
-            
-            fcount += 1
-        
-        if fcount == 0:
+        if lookup_field == None:
             return self.view
         
-        view_name = "%s/%s_%s_by_%s" % (self.app_label, self.prop._related_schema.__name__, self.prop._related_name, lookup_field)
+        view_name = "%s/%s_%s_by_%s" % (self.app_label, self.prop._related_schema.__name__, self.prop._related_name, lookup_field.name())
         
         if not lookup_field in self.prop._related_filters:
             print "Warning: Temp View used for lookup '%s'" % (view_name)
-            design = generate_view(self.prop._host_schema.__name__, [self.prop.name, lookup_field])
+            design = DocumentManager._generate_view(self.prop._host_schema.__name__, [self.prop.name, lookup_field])
             return self.prop._host_schema.temp_view(design, **view_params)
         else:
             return self.prop._host_schema.view(view_name, **view_params)
@@ -358,45 +350,16 @@ class ReverseRelatedManager(RelatedManager):
     
     def filter(self, **kwargs):
         assert self.instance != None, "Cannot perform operations on an unbound manager"
-        lookup_field = ""
-        fcount = 0
+        lookup_field, view_params = DocumentManager._process_filter_args(kwargs, self.instance._id)
         
-        view_params = {}
-        
-        for arg_name, arg_val in kwargs.iteritems():
-            if fcount > 0:
-                raise ValueError, "Filters with more than one field are currently not supported"
-            
-            spl = arg_name.split("__")
-            lookup_field = spl[0]
-            
-            if len(spl) > 2:
-                raise ValueError, "Document-spanning queries are currently not supported"
-            
-            if len(spl) > 1:
-                if spl[1] not in ("eq", "neq", "gt", "lt", "gte", "lte"):
-                    raise ValueError, "Document-spanning queries are currently not supported"
-                if spl[1] == "eq":
-                    view_params["key"] = [self.instance._id, arg_val]
-                elif spl[1] == "gte":
-                    view_params["startkey"] = [self.instance._id, arg_val]
-                elif spl[1] == "lte":
-                    view_params["endkey"] = [self.instance._id, arg_val]
-                else:
-                    raise ValueError, "Query modification '%s' not supported" % spl[1]
-            else:
-                view_params["key"] = [self.instance._id, arg_val]
-            
-            fcount += 1
-        
-        if fcount == 0:
+        if lookup_field == None:
             return self.view
         
-        view_name = "%s/%s_%s_by_%s" % (self.app_label, self.prop._host_schema.__name__, self.prop.name, lookup_field)
+        view_name = "%s/%s_%s_by_%s" % (self.app_label, self.prop._host_schema.__name__, self.prop.name, lookup_field.name())
         
         if not lookup_field in self.prop._local_filters:
             print "Warning: Temp View used for lookup '%s'" % (view_name)
-            design = generate_m2m_view(self.prop._related_schema.__name__, self.prop._related_name, lookup_field)
+            design = DocumentManager._generate_view(self.prop._related_schema.__name__, [self.prop._related_name, lookup_field], True)
             return self.prop._related_schema.temp_view(design, **view_params)
         else:
             return self.prop._related_schema.view(view_name, **view_params)

@@ -64,24 +64,27 @@ class DocumentMeta(schema.SchemaProperties):
         # Inject views for RelatedProperty
         for prop_name, prop in new_class._properties.iteritems():
             if isinstance(prop, RelatedProperty):
-                prop._host_schema = new_class
-                if isinstance(prop._related_schema, basestring):
-                    if prop._related_schema == "self":
-                        prop._related_schema = new_class
-                    else:
-                        rel = get_schema(app_label, prop._related_schema)
-                        if rel == None:
-                            pending_relations.setdefault((app_label, prop._related_schema), []).append(prop)
+                if prop._host_schema == None: # Base class?
+                    prop._host_schema = new_class
+                    if isinstance(prop._related_schema, basestring):
+                        if prop._related_schema == "self":
+                            prop._related_schema = new_class
                         else:
-                            prop._related_schema = rel
-                if prop._related_name != None and prop._related_schema != None:
-                    prop.contribute_to_class(prop._related_schema, prop._related_name)
+                            rel = get_schema(app_label, prop._related_schema)
+                            if rel == None:
+                                pending_relations.setdefault((app_label, prop._related_schema), []).append(prop)
+                            else:
+                                prop._related_schema = rel
+                    if prop._related_name != None and prop._related_schema != None:
+                        prop.contribute_to_class(prop._related_schema, prop._related_name)
+                else:
+                    prop._subclasses.append(new_class)
         
         # Process manager (quick and dirty)
         if attrs.has_key("objects"):
             new_class.objects.contribute_to_class(new_class, "objects")
         else:
-            new_class.objects._copy_to_class(new_class, "objects")
+            new_class.objects.copy_to_class(new_class, "objects")
         
         return new_class
 

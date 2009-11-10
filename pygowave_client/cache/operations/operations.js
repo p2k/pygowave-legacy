@@ -354,9 +354,9 @@ pygowave.operations = (function() {
 							if (op.index >= end)
 								op.index -= myop.length();
 							else if (op.index + op.length() <= end) {
+								myop.resize(myop.length() - op.length());
 								op_lst.pop(j);
 								j--;
-								myop.resize(myop.length() - op.length());
 								if (myop.isNull()) {
 									this.fireEvent("beforeOperationsRemoved", [i, i]);
 									this.operations.pop(i);
