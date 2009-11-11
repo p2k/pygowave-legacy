@@ -4,8 +4,8 @@
 # rc-script for Arch Linux to launch PyGoWave at system startup
 #
 
-daemon_name="pygowave-rpc"
-daemon_title="PyGoWave Server RPC"
+daemon_name="pygowave-web"
+daemon_title="PyGoWave Server"
 
 . /etc/rc.conf
 . /etc/rc.d/functions

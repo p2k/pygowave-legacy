@@ -28,7 +28,7 @@ from django.conf import settings as django_settings
 from django.utils.translation import ugettext as _
 from django.utils import simplejson
 
-from pygowave_server.forms import ParticipantProfileForm, GadgetRegistryForm, NewWaveForm
+from pygowave_server.forms import ParticipantProfileForm, GadgetRegistryForm, DuplicateGadgetForm, NewWaveForm
 from pygowave_server.models import Participant, Gadget, Wave, GadgetElement
 from pygowave_server.engine import GadgetLoader
 
@@ -136,20 +136,64 @@ def my_gadgets(request):
 		except:
 			pass # Silent error on hacking attempt
 	
+	duplicate = False
+	can_overwrite = False
 	gadget_registered = False
 	if request.method == "POST":
-		form = GadgetRegistryForm(data=request.POST, files=request.FILES)
-		
-		if form.is_valid():
-			gadget = form.save(commit=False)
-			gadget.by_user = request.user
-			if not form.external_url():
-				gadget.hosted_filename = form.cleaned_data["upload"]
-			gadget.save()
-			
-			# New form
-			gadget_registered = True
-			form = GadgetRegistryForm()
+		if not request.GET.has_key("duplicate"):
+			form = GadgetRegistryForm(data=request.POST, files=request.FILES)
+			if form.is_valid():
+				gadget = form.save(commit=False)
+				gadget.by_user = request.user
+				if not form.external_url():
+					gadget.hosted_filename = form.cleaned_data["upload"]
+				try:
+					old_gadget = Gadget.objects.get(title=gadget.title)
+				except ObjectDoesNotExist:
+					gadget.save()
+					
+					# New form
+					gadget_registered = True
+					form = GadgetRegistryForm()
+				else:
+					duplicate = True
+					if old_gadget.by_user == request.user:
+						can_overwrite = True
+					form = DuplicateGadgetForm(initial={
+						"external": form.cleaned_data["external"],
+						"title": form.cleaned_data["title"],
+						"description": form.cleaned_data["description"],
+						"url": form.cleaned_data["url"]
+					})
+		else:
+			form = DuplicateGadgetForm(data=request.POST)
+			if request.POST.has_key("cancel"):
+				form = GadgetRegistryForm()
+			elif form.is_valid():
+				gadget = form.save(commit=False)
+				gadget.by_user = request.user
+				if not form.external_url():
+					gadget.hosted_filename = form.cleaned_data["url"].split("/")[-1]
+				try:
+					old_gadget = Gadget.objects.get(title=gadget.title)
+				except ObjectDoesNotExist:
+					gadget.save()
+					
+					gadget_registered = True
+					form = GadgetRegistryForm()
+				else:
+					if old_gadget.by_user == request.user:
+						old_gadget.url = gadget.url
+						old_gadget.description = gadget.description
+						old_gadget.hosted_filename = gadget.hosted_filename
+						old_gadget.save()
+						
+						gadget_registered = True
+						form = GadgetRegistryForm()
+					else:
+						duplicate = True
+			else:
+				duplicate = True
 	else:
 		form = GadgetRegistryForm()
 	
@@ -157,7 +201,9 @@ def my_gadgets(request):
 	return render_to_response('pygowave_server/gadgets/my_gadgets.html',
 							  {"my_gadgets": my_gadgets,
 							   "form": form,
-							   "gadget_registered": gadget_registered},
+							   "gadget_registered": gadget_registered,
+							   "duplicate": duplicate,
+							   "can_overwrite": can_overwrite},
 							  context_instance=RequestContext(request))
 
 @login_required

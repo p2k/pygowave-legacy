@@ -67,7 +67,7 @@ class Event:
 
 class GadgetLoader:
 	
-	SUPPORTED_FEATURES = ("rpc", "wave", "wave-preview", "setprefs", "dynamic-height")
+	SUPPORTED_FEATURES = ("rpc", "wave", "wave-preview", "setprefs", "dynamic-height", "flash")
 	
 	def __init__(self, url):
 		"""

@@ -26,6 +26,7 @@
 
 import sys, os, logging, stomper
 
+sys.path.append(os.path.dirname(__file__))
 if not os.environ.has_key("DJANGO_SETTINGS_MODULE"):
 	os.environ["DJANGO_SETTINGS_MODULE"] = "settings"
 

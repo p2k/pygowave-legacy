@@ -6,6 +6,7 @@
 {% block nav %}{% pgw_navbar "gadgets" "my_gadgets" %}{% endblock %}
 
 {% block content %}
+{% if not duplicate %}
 <h4>{% trans "Manage my Gadgets" %}</h4>
 <div class="section">
 	{% if gadget_registered %}<span class="success_message">{% trans "Your Gadget was successfully registered." %}</span><br/>{% endif %}
@@ -34,8 +35,10 @@
 	{% trans "You didn't submit any Gadgets. Use the form below to add one." %}
 	{% endif %}
 </div>
+{% endif %}
 <h4>{% trans "Add or upload new Gadget" %}</h4>
 <div class="section">
+	{% if not duplicate %}
 	<form method="post" action="{% url pygowave_server.views.my_gadgets %}" enctype="multipart/form-data" class="gadget_form">
 		<table>
 			<tr><td colspan="2">
@@ -68,10 +71,49 @@
 					})();
 				</script>
 			</td></tr>
-			<tr><th><label for="id_title">{{ form.title.label }}:</label></th><td><input id="id_title" type="text" value="{% trans "(filled in by Gadget header)" %}" disabled="disabled" /></td></tr>
+			<tr><th><label for="id_title">{{ form.title.label }}:</label></th><td>
+				{{ form.title }}
+				<script type="text/javascript">
+					(function () {
+						// Default title
+						var default_title = "{% trans "(From Gadget header)" %}";
+						$("id_title").addEvent('focus', function () {
+							var elt = $("id_title");
+							if (elt.get("value") == default_title) {
+								elt.set("value", "");
+								elt.removeClass("default_title");
+							}
+						}).addEvent('blur', function () {
+							var elt = $("id_title");
+							if (elt.get("value") == "") {
+								elt.set("value", default_title);
+								elt.addClass("default_title");
+							}
+						}).fireEvent('blur');
+						$$(".gadget_form").addEvent("submit", function () {
+							var elt = $("id_title");
+							if (elt.get("value") == default_title)
+								elt.set("value", "");
+						});
+					})();
+				</script>
+			</td></tr>
 			<tr><th><label for="id_description">{{ form.description.label }}:</label></th><td>{{ form.description }}</td></tr>
 			<tr><td class="submit_td" colspan="2"><input type="submit" value="{% trans "Submit" %}" /></td></tr>
 		</table>
 	</form>
+	{% else %}
+	<form method="post" action="{% url pygowave_server.views.my_gadgets %}?duplicate" enctype="multipart/form-data" class="gadget_form">
+		<table>
+			<tr><td colspan="2">
+				{{ form.external }}{{ form.url }}{{ form.description }}
+				<ul class="errorlist"><li>{% trans "A Gadget with this title already exists." %}</li></ul>
+				{% if can_overwrite %}{% trans "You may change the title or leave it to overwrite the existing Gadget." %}{% else %}{% trans "Please enter a new title." %}{% endif %}
+			</td></tr>
+			<tr><th><label for="id_title">{{ form.title.label }}:</label></th><td>{{ form.title }}{{ form.title.errors }}</td></tr>
+			<tr><td class="submit_td" colspan="2"><input type="submit" name="cancel" value="{% trans "Cancel" %}" /> <input type="submit" value="{% trans "Submit" %}" /></td></tr>
+		</table>
+	</form>
+	{% endif %}
 </div>
 {% endblock %}

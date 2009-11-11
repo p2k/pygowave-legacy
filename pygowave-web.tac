@@ -103,7 +103,8 @@ def setupDjangoService():
 	return CombinedWSGISite(root, wsgi_resource)
 
 sys.path.append(os.path.dirname(__file__))
-os.environ["DJANGO_SETTINGS_MODULE"] = "settings"
+if not os.environ.has_key("DJANGO_SETTINGS_MODULE"):
+	os.environ["DJANGO_SETTINGS_MODULE"] = "settings"
 
 application = service.Application("PyGoWave Web Server")
 

@@ -244,6 +244,11 @@ p
 	width: 200px;
 }
 
+.gadget_form .default_title
+{
+	color: #C0C0C0;
+}
+
 .gadget_form #id_upload
 {
 	width: 390px;

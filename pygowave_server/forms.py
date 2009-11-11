@@ -180,12 +180,56 @@ class GadgetRegistryForm(forms.ModelForm):
 		except urllib2.HTTPError:
 			raise forms.ValidationError(_(u'Gadget could not be downloaded.'))
 		except XMLSyntaxError:
+			if not self.external_url():
+				os.remove(settings.GADGET_ROOT + self.cleaned_data["upload"])
 			raise forms.ValidationError(_(u'Gadget quick-check failed: Bad XML format.'))
 		except ValueError, e:
+			if not self.external_url():
+				os.remove(settings.GADGET_ROOT + self.cleaned_data["upload"])
 			raise forms.ValidationError(_(u'Gadget quick-check failed: %s.') % (e.args[0]))
 		
 		# Get title
-		self.cleaned_data["title"] = gadget.title
+		if self.cleaned_data["title"] == "":
+			self.cleaned_data["title"] = gadget.title
+		
+		return self.cleaned_data
+	
+	class Meta:
+		model = Gadget
+		exclude = ('by_user')
+
+class DuplicateGadgetForm(forms.ModelForm):
+	description = forms.CharField(max_length=255, required=False, widget=widgets.HiddenInput)
+	external = forms.IntegerField(required=True, widget=widgets.HiddenInput)
+	url = forms.CharField(required=True, widget=widgets.HiddenInput)
+	title = forms.CharField(required=True)
+	
+	def external_url(self):
+		return self.cleaned_data["external"] == 1
+
+	def clean(self):
+		if len(self.errors) > 0:
+			return self.cleaned_data
+		
+		if self.external_url():
+			url = self.cleaned_data["url"]
+		else:
+			# Local path
+			url = "file://" + settings.GADGET_ROOT + self.cleaned_data["url"].split("/")[-1]
+		
+		# Check Gadget
+		try:
+			gadget = GadgetLoader(url)
+		except urllib2.HTTPError:
+			raise forms.ValidationError(_(u'Gadget could not be downloaded.'))
+		except XMLSyntaxError:
+			if not self.external_url():
+				os.remove(settings.GADGET_ROOT + self.cleaned_data["upload"])
+			raise forms.ValidationError(_(u'Gadget quick-check failed: Bad XML format.'))
+		except ValueError, e:
+			if not self.external_url():
+				os.remove(settings.GADGET_ROOT + self.cleaned_data["upload"])
+			raise forms.ValidationError(_(u'Gadget quick-check failed: %s.') % (e.args[0]))
 		
 		return self.cleaned_data
 	
@@ -195,4 +239,3 @@ class GadgetRegistryForm(forms.ModelForm):
 
 class NewWaveForm(forms.Form):
 	title = forms.CharField(max_length=50, label=_(u'Title'))
-	
