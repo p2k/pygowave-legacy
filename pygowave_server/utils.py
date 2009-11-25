@@ -83,7 +83,7 @@ RANDOM_ID_BASE = string.letters+string.digits
 def gen_random_id(length):
 	"""
 	Generate a random string with the given length.
-	Characgters are taken from RANDOM_ID_BASE.
+	Characters are taken from RANDOM_ID_BASE.
 	
 	"""
 	return "".join([random.choice(RANDOM_ID_BASE) for x in xrange(length)])

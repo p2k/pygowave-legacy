@@ -114,7 +114,6 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 			this.waves.set(model.id(), model);
 			
 			this.wavelets = new Hash();
-			this.new_participants = new Array();
 			this.participants = new Hash();
 			this._cachedGadgetList = null;
 			this._deferredMessageBundles = new Array();
@@ -129,6 +128,15 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 				onclose: function(c) {self.onConnClose(c);},
 				onerror: function(e) {self.onConnError(e);},
 				onconnectedframe: function() {
+					// Subscribe to manager
+					this.subscribe(
+						self.options.waveAccessKeyRx + ".manager.waveop",
+						{
+							routing_key: self.options.waveAccessKeyRx + ".manager.waveop",
+							exchange: "wavelet.direct",
+							exclusive: true
+						}
+					);
 					self.openWavelet(self.options.initialWave, self.options.initialWavelet);
 				},
 				onmessageframe: function(frame) {
@@ -194,6 +202,36 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 			if (this.wavelets.has(wavelet_id))
 				wavelet_model = this.wavelets[wavelet_id].model;
 			
+			if (wavelet_id == "manager") {
+				for (var it = new _Iterator(msg);it.hasNext();) {
+					msg = it.next();
+					switch (msg.type) {
+						case "PARTICIPANT_INFO":
+							this._processParticipantsInfo(msg.property);
+							break;
+						case "PARTICIPANT_SEARCH":
+							if (msg.property.result == "OK") {
+								this._collateParticipants(msg.property.data);
+								this._iview.updateSearchResults(this._getParticipants(msg.property.data));
+							}
+							else if (msg.property.result == "TOO_SHORT")
+								this._iview.invalidSearch(msg.property.data);
+							break;
+						case "WAVELET_REMOVE_PARTICIPANT":
+							if (this.wavelets.has(msg.property.waveletId))
+								this.wavelets[msg.property.waveletId].model.removeParticipant(msg.property.id);
+							break;
+						case "PONG":
+							this.fireEvent("ping", $time() - msg.property);
+							break;
+						case "ERROR":
+							this._iview.showControllerError(gettext("The server reports the following error:<br/><br/>%s<br/><br/>Error Tag: %s").sprintf(msg.property.desc, msg.property.tag));
+							break;
+					}
+				}
+				return;
+			}
+			
 			for (var it = new _Iterator(msg);it.hasNext();) {
 				msg = it.next();
 				switch (msg.type) {
@@ -204,15 +242,14 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 						var wave_id = msg.property.wavelet.waveId;
 						var wave_model = this.waves[wave_id];
 						wave_model.loadFromSnapshot(msg.property, this.participants);
+						wavelet_model = wave_model.wavelet(wavelet_id);
 						this.wavelets[wavelet_id] = {
-							model: wave_model.wavelet(wavelet_id),
+							model: wavelet_model,
 							pending: false,
 							blocked: false
 						};
 						this._setupOpManagers(wave_id, wavelet_id);
 						this.fireEvent("waveletOpened", [wave_id, wavelet_id]);
-						
-						this._requestParticipantInfo(wavelet_id);
 						break;
 					case "OPERATION_MESSAGE_BUNDLE_ACK":
 						this._queueMessageBundle(wavelet_model, "ACK", msg.property.version, msg.property.blipsums);
@@ -220,39 +257,12 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 					case "OPERATION_MESSAGE_BUNDLE":
 						this._queueMessageBundle(wavelet_model, msg.property.operations, msg.property.version, msg.property.blipsums);
 						break;
-					case "PARTICIPANT_INFO":
-						this._processParticipantsInfo(msg.property);
-						break;
-					case "PARTICIPANT_SEARCH":
-						if (msg.property.result == "OK") {
-							this._collateParticipants(msg.property.data);
-							this._iview.updateSearchResults(this._getParticipants(msg.property.data));
-							this._requestParticipantInfo(wavelet_id);
-						}
-						else if (msg.property.result == "TOO_SHORT")
-							this._iview.invalidSearch(msg.property.data);
-						break;
-					case "WAVELET_ADD_PARTICIPANT":
-						this._collateParticipants([msg.property]);
-						wavelet_model.addParticipant(this.participants[msg.property]);
-						this._requestParticipantInfo(wavelet_id);
-						break;
-					case "WAVELET_REMOVE_PARTICIPANT":
-						if (msg.property == this.options.viewerId) {
-							// Bye bye
-							this.conn.disconnect();
-							window.location.href = this.options.waveOverviewUrl;
-							return;
-						}
-						else
-							wavelet_model.removeParticipant(msg.property);
-						break;
 					case "GADGET_LIST":
 						this._cachedGadgetList = msg.property;
 						this._iview.updateGadgetList(msg.property);
 						break;
-					case "PONG":
-						this.fireEvent("ping", $time() - msg.property);
+					case "ERROR":
+						this._iview.showControllerError(gettext("The server reports the following error:<br/><br/>%s<br/><br/>Wavelet ID: %s<br/>Error Tag: %s").sprintf(msg.property.desc, wavelet_id, msg.property.tag));
 						break;
 				}
 			}
@@ -345,29 +355,32 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 		 * @function {private} _sendPing
 		 */
 		_sendPing: function () {
-			// Pick first wavelet
-			wavelet_id = this.wavelets.getKeys()[0];
-			if (!$defined(wavelet_id))
-				return;
-			this.conn.sendJson(wavelet_id, {
+			this.conn.sendJson("manager", {
 				type: "PING",
 				property: $time()
 			});
 		},
 		/**
 		 * Collate the internal participant "database" with the given ID list.
-		 * New participants will be added to the new_participants array, so
-		 * they can be retrieved later.
+		 * New participants will be retrieved and updated later.
 		 * @function {private} _collateParticipants
 		 * @param {String[]} id_list List of participant IDs
 		 */
 		_collateParticipants: function (id_list) {
+			var todo = new Array();
 			for (var it = new _Iterator(id_list);it.hasNext();) {
 				var id = it.next();
 				if (!this.participants.has(id)) {
 					this.participants.set(id, new pygowave.model.Participant(id));
-					this.new_participants.append(id);
+					todo.append(id);
 				}
+			}
+			
+			if (todo.length > 0) {
+				this.conn.sendJson("manager", {
+					type: "PARTICIPANT_INFO",
+					property: todo
+				});
 			}
 		},
 		
@@ -387,24 +400,6 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 		},
 		
 		/**
-		 * Requests information on participants from the server, which have not
-		 * been retrieved yet. Reads from the new_participants array.
-		 * @function {private} _requestParticipantInfo
-		 * @param {String} wavelet_id ID of the Wavelet
-		 */
-		_requestParticipantInfo: function (wavelet_id) {
-			if (this.new_participants.length == 0)
-				return;
-			
-			this.conn.sendJson(wavelet_id, {
-				type: "PARTICIPANT_INFO",
-				property: this.new_participants
-			});
-			
-			this.new_participants = new Array();
-		},
-		
-		/**
 		 * Callback from server after participant info request.
 		 * @function {private} _processParticipantsInfo
 		 * @param {Object} pmap Participants map
@@ -412,9 +407,6 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 		_processParticipantsInfo: function (pmap) {
 			for (var it = new _Iterator(pmap); it.hasNext(); ) {
 				var pdata = it.next(), id = it.key();
-				var i = this.new_participants.indexOf(id);
-				if (i != -1)
-					this.new_participants.pop(i);
 				var obj;
 				if (this.participants.has(id))
 					obj = this.participants[id];
@@ -443,6 +435,25 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 					self._transferOperations(wavelet_id);
 			};
 			this.wavelets[wavelet_id].mcached.addEvent('afterOperationsInserted', this.wavelets[wavelet_id]._mcached_wrapper);
+			this.wavelets[wavelet_id]._participants_watcher = function () {
+				self._checkParticipants(wavelet_id);
+			}
+			this.wavelets[wavelet_id].model.addEvent('participantsChanged', this.wavelets[wavelet_id]._participants_watcher)
+		},
+		/**
+		 * Check if we are on the wavelet or if we have been removed
+		 */
+		_checkParticipants: function (wavelet_id) {
+			if (this.wavelets[wavelet_id].model.participant(this.options.viewerId) == null) {
+				// Bye bye
+				this.conn.sendJson("manager", {type: "DISCONNECT"});
+				this.conn.disconnect();
+				var self = this;
+				(function () {
+					window.location.href = self.options.waveOverviewUrl;
+				}).delay(25);
+				return;
+			}
 		},
 		/**
 		 * Send ready made operations to the server.
@@ -528,8 +539,18 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 					}
 				}
 				
+				// Check for new participants
+				var newParticipants = new Array();
+				for (var op_it = new _Iterator(ops); op_it.hasNext(); ) {
+					var op = op_it.next();
+					if (op.type == pygowave.operations.WAVELET_ADD_PARTICIPANT)
+						newParticipants.push(op.property);
+				}
+				if (newParticipants.length > 0)
+					this._collateParticipants(newParticipants);
+				
 				// Apply operations
-				wavelet.applyOperations(ops);
+				wavelet.applyOperations(ops, this.participants);
 				
 				// Set version and checkup
 				wavelet.options.version = version;
@@ -656,7 +677,7 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 		 * @param {String} text Entered search query
 		 */
 		_onSearchForParticipant: function (waveletId, text) {
-			this.conn.sendJson(waveletId, {
+			this.conn.sendJson("manager", {
 				type: "PARTICIPANT_SEARCH",
 				property: text
 			});
@@ -668,10 +689,11 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 		 * @param {String} participantId ID of the Participant to add
 		 */
 		_onAddParticipant: function (waveletId, participantId) {
-			this.conn.sendJson(waveletId, {
-				type: "WAVELET_ADD_PARTICIPANT",
-				property: participantId
-			});
+			if (this.wavelets[waveletId].model.participant(participantId))
+				return; // Do nothing
+			this.wavelets[waveletId].mcached.waveletAddParticipant(participantId);
+			this._collateParticipants([participantId]);
+			this.wavelets[waveletId].model.addParticipant(this.participants[participantId]);
 		},
 		/**
 		 * Callback from view to leave the (root) wavelet.
@@ -679,9 +701,14 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 		 * @param {String} waveletId ID of the Wavelet
 		 */
 		_onLeaveWavelet: function (waveletId) {
-			this.conn.sendJson(waveletId, {
-				type: "WAVELET_REMOVE_SELF"
-			});
+			this.wavelets[waveletId].mcached.waveletRemoveParticipant(this.options.viewerId);
+			// Bye bye
+			this.conn.sendJson("manager", {type: "DISCONNECT"});
+			this.conn.disconnect();
+			var self = this;
+			(function () {
+				window.location.href = self.options.waveOverviewUrl;
+			}).delay(25);
 		},
 		/**
 		 * Callback from view on gadget adding.

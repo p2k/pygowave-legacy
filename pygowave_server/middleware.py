@@ -17,9 +17,6 @@ class UserOnlineMiddleware:
 			try:
 				profile_obj = Participant.objects.get(user__id=request.user.id)
 			except ObjectDoesNotExist:
-				profile_obj = Participant()
-				profile_obj.id = "%s@%s" % (request.user.username, settings.WAVE_DOMAIN)
-				profile_obj.name = request.user.username
-				profile_obj.user = request.user
+				profile_obj = Participant.objects.create_from_user(request.user)
 			profile_obj.last_contact = datetime.now()
 			profile_obj.save()

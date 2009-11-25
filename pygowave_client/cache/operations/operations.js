@@ -37,6 +37,10 @@ pygowave.operations = (function() {
 
 	var DOCUMENT_ELEMENT_DELETE = "DOCUMENT_ELEMENT_DELETE";
 
+	var WAVELET_ADD_PARTICIPANT = "WAVELET_ADD_PARTICIPANT";
+
+	var WAVELET_REMOVE_PARTICIPANT = "WAVELET_REMOVE_PARTICIPANT";
+
 	var DOCUMENT_ELEMENT_DELTA = "DOCUMENT_ELEMENT_DELTA";
 
 	var DOCUMENT_ELEMENT_SETPREF = "DOCUMENT_ELEMENT_SETPREF";
@@ -342,9 +346,7 @@ pygowave.operations = (function() {
 							}
 							else {
 								op.resize(op.length() - myop.length());
-								this.fireEvent("beforeOperationsRemoved", [i, i]);
-								this.operations.pop(i);
-								this.fireEvent("afterOperationsRemoved", [i, i]);
+								this.removeOperation(i);
 								i--;
 								break;
 							}
@@ -354,13 +356,11 @@ pygowave.operations = (function() {
 							if (op.index >= end)
 								op.index -= myop.length();
 							else if (op.index + op.length() <= end) {
+								myop.resize(myop.length() - op.length());
 								op_lst.pop(j);
 								j--;
-								myop.resize(myop.length() - op.length());
 								if (myop.isNull()) {
-									this.fireEvent("beforeOperationsRemoved", [i, i]);
-									this.operations.pop(i);
-									this.fireEvent("afterOperationsRemoved", [i, i]);
+									this.removeOperation(i);
 									i--;
 									break;
 								}
@@ -405,9 +405,7 @@ pygowave.operations = (function() {
 							myop.resize(op.index - myop.index);
 							this.fireEvent("operationChanged", i);
 							new_op.resize(new_op.length() - myop.length());
-							this.fireEvent("beforeOperationsInserted", [i + 1, i + 1]);
-							this.operations.insert(i + 1, new_op);
-							this.fireEvent("afterOperationsInserted", [i + 1, i + 1]);
+							this.insertOperation(i + 1, new_op);
 							op.index = myop.index;
 						}
 					}
@@ -447,6 +445,13 @@ pygowave.operations = (function() {
 						if (op.index <= myop.index) {
 							myop.index += op.length();
 							this.fireEvent("operationChanged", i);
+						}
+					}
+					else if (op.type == WAVELET_ADD_PARTICIPANT && myop.type == WAVELET_ADD_PARTICIPANT || op.type == WAVELET_REMOVE_PARTICIPANT && myop.type == WAVELET_REMOVE_PARTICIPANT) {
+						if (op.property == myop.property) {
+							this.removeOperation(i);
+							i--;
+							break;
 						}
 					}
 					j++;
@@ -568,9 +573,7 @@ pygowave.operations = (function() {
 							newop.resize(newop.length() - remain);
 						}
 						if (op.isNull()) {
-							this.fireEvent("beforeOperationsRemoved", [i, i]);
-							this.operations.pop(i);
-							this.fireEvent("afterOperationsRemoved", [i, i]);
+							this.removeOperation(i);
 							i--;
 						}
 						else
@@ -581,9 +584,7 @@ pygowave.operations = (function() {
 					else if (newop.index < op.index && newop.index + newop.length() > op.index) {
 						if (newop.index + newop.length() >= (op.index + op.length())) {
 							newop.resize(newop.length() - op.length());
-							this.fireEvent("beforeOperationsRemoved", [i, i]);
-							this.operations.pop(i);
-							this.fireEvent("afterOperationsRemoved", [i, i]);
+							this.removeOperation(i);
 							i--;
 						}
 						else {
@@ -607,10 +608,43 @@ pygowave.operations = (function() {
 						return;
 					}
 				}
+				else if (newop.type == WAVELET_ADD_PARTICIPANT && op.type == WAVELET_ADD_PARTICIPANT || newop.type == WAVELET_REMOVE_PARTICIPANT && op.type == WAVELET_REMOVE_PARTICIPANT) {
+					if (newop.property == op.property)
+						return;
+				}
 			}
-			this.fireEvent("beforeOperationsInserted", [i + 1, i + 1]);
-			this.operations.append(newop);
-			this.fireEvent("afterOperationsInserted", [i + 1, i + 1]);
+			this.insertOperation(i + 1, newop);
+		},
+
+		/**
+		 * Inserts an operation at the specified index.
+		 * Fires signals appropriately.
+		 *
+		 * @function {public} insertOperation
+		 * @param {int} index Position in operations list
+		 * @param {Operation} op Operation object to insert
+		 */
+		insertOperation: function (index, op) {
+			if (index > len(this.operations) || index < 0)
+				return;
+			this.fireEvent("beforeOperationsInserted", [index, index]);
+			this.operations.insert(index, op);
+			this.fireEvent("afterOperationsInserted", [index, index]);
+		},
+
+		/**
+		 * Removes an operation at the specified index.
+		 * Fires signals appropriately.
+		 *
+		 * @function {public} removeOperation
+		 * @param {int} index Position in operations list
+		 */
+		removeOperation: function (index) {
+			if (index < 0 || index >= len(this.operations))
+				return;
+			this.fireEvent("beforeOperationsRemoved", [index, index]);
+			this.operations.pop(index);
+			this.fireEvent("afterOperationsRemoved", [index, index]);
 		},
 
 		/**
@@ -690,6 +724,26 @@ pygowave.operations = (function() {
 				key: key,
 				value: value
 			}));
+		},
+
+		/**
+		 * Requests to add a Participant to the wavelet.
+		 *
+		 * @function {public} waveletAddParticipant
+		 * @param {String} id ID of the Participant to add
+		 */
+		waveletAddParticipant: function (id) {
+			this.__insert(new Operation(WAVELET_ADD_PARTICIPANT, this.waveId, this.waveletId, "", -1, id));
+		},
+
+		/**
+		 * Requests to remove a Participant to the wavelet.
+		 *
+		 * @function {public} waveletRemoveParticipant
+		 * @param {String} id ID of the Participant to remove
+		 */
+		waveletRemoveParticipant: function (id) {
+			this.__insert(new Operation(WAVELET_REMOVE_PARTICIPANT, this.waveId, this.waveletId, "", -1, id));
 		}
 	});
 
@@ -700,6 +754,8 @@ pygowave.operations = (function() {
 		DOCUMENT_ELEMENT_INSERT: DOCUMENT_ELEMENT_INSERT,
 		DOCUMENT_ELEMENT_DELETE: DOCUMENT_ELEMENT_DELETE,
 		DOCUMENT_ELEMENT_DELTA: DOCUMENT_ELEMENT_DELTA,
-		DOCUMENT_ELEMENT_SETPREF: DOCUMENT_ELEMENT_SETPREF
+		DOCUMENT_ELEMENT_SETPREF: DOCUMENT_ELEMENT_SETPREF,
+		WAVELET_ADD_PARTICIPANT: WAVELET_ADD_PARTICIPANT,
+		WAVELET_REMOVE_PARTICIPANT: WAVELET_REMOVE_PARTICIPANT
 	};
 })();

@@ -30,14 +30,12 @@ DOCUMENT_INSERT = 'DOCUMENT_INSERT'
 DOCUMENT_DELETE = 'DOCUMENT_DELETE'
 DOCUMENT_ELEMENT_INSERT = 'DOCUMENT_ELEMENT_INSERT'
 DOCUMENT_ELEMENT_DELETE = 'DOCUMENT_ELEMENT_DELETE'
+WAVELET_ADD_PARTICIPANT = 'WAVELET_ADD_PARTICIPANT'
+WAVELET_REMOVE_PARTICIPANT = 'WAVELET_REMOVE_PARTICIPANT'
 
 # Currently supported, but non-official operations
 DOCUMENT_ELEMENT_DELTA = 'DOCUMENT_ELEMENT_DELTA'
 DOCUMENT_ELEMENT_SETPREF = 'DOCUMENT_ELEMENT_SETPREF'
-
-# Currently supported operations, which are not handled within OT
-#WAVELET_ADD_PARTICIPANT = 'WAVELET_ADD_PARTICIPANT'
-#WAVELET_REMOVE_SELF = 'WAVELET_REMOVE_SELF'
 
 # Currently not supported operations
 #WAVELET_APPEND_BLIP = 'WAVELET_APPEND_BLIP'
@@ -69,6 +67,8 @@ __all__ = [
 	"DOCUMENT_ELEMENT_DELETE",
 	"DOCUMENT_ELEMENT_DELTA",
 	"DOCUMENT_ELEMENT_SETPREF",
+	"WAVELET_ADD_PARTICIPANT",
+	"WAVELET_REMOVE_PARTICIPANT",
 ]
 
 @Class
@@ -377,9 +377,7 @@ class OpManager(object):
 							self.fireEvent("operationChanged", i)
 						else: # end >= myop.index + myop.length()
 							op.resize(op.length() - myop.length())
-							self.fireEvent("beforeOperationsRemoved", [i, i])
-							self.operations.pop(i)
-							self.fireEvent("afterOperationsRemoved", [i, i])
+							self.removeOperation(i)
 							i -= 1
 							break
 					else: # op.index >= myop.index
@@ -391,9 +389,7 @@ class OpManager(object):
 							op_lst.pop(j)
 							j -= 1
 							if myop.isNull():
-								self.fireEvent("beforeOperationsRemoved", [i, i])
-								self.operations.pop(i)
-								self.fireEvent("afterOperationsRemoved", [i, i])
+								self.removeOperation(i)
 								i -= 1
 								break
 							else:
@@ -430,9 +426,7 @@ class OpManager(object):
 						myop.resize(op.index - myop.index)
 						self.fireEvent("operationChanged", i)
 						new_op.resize(new_op.length() - myop.length())
-						self.fireEvent("beforeOperationsInserted", [i+1, i+1])
-						self.operations.insert(i+1, new_op)
-						self.fireEvent("afterOperationsInserted", [i+1, i+1])
+						self.insertOperation(i+1, new_op)
 						op.index = myop.index
 				
 				elif op.isInsert() and myop.isInsert():
@@ -462,6 +456,12 @@ class OpManager(object):
 					if op.index <= myop.index:
 						myop.index += op.length()
 						self.fireEvent("operationChanged", i)
+				elif (op.type == WAVELET_ADD_PARTICIPANT and myop.type == WAVELET_ADD_PARTICIPANT) \
+					or (op.type == WAVELET_REMOVE_PARTICIPANT and myop.type == WAVELET_REMOVE_PARTICIPANT):
+					if op.property == myop.property:
+						self.removeOperation(i)
+						i -= 1
+						break
 				
 				j += 1
 				
@@ -571,9 +571,7 @@ class OpManager(object):
 						op.deleteString(newop.index - op.index, remain)
 						newop.resize(newop.length() - remain)
 					if op.isNull():
-						self.fireEvent("beforeOperationsRemoved", [i, i])
-						self.operations.pop(i)
-						self.fireEvent("afterOperationsRemoved", [i, i])
+						self.removeOperation(i)
 						i -= 1
 					else:
 						self.fireEvent("operationChanged", i)
@@ -582,9 +580,7 @@ class OpManager(object):
 				elif newop.index < op.index and newop.index+newop.length() > op.index:
 					if newop.index+newop.length() >= op.index+op.length():
 						newop.resize(newop.length() - op.length())
-						self.fireEvent("beforeOperationsRemoved", [i, i])
-						self.operations.pop(i)
-						self.fireEvent("afterOperationsRemoved", [i, i])
+						self.removeOperation(i)
 						i -= 1
 					else:
 						dlength = newop.index+newop.length() - op.index
@@ -601,11 +597,42 @@ class OpManager(object):
 					op.resize(op.length() + newop.length())
 					self.fireEvent("operationChanged", i)
 					return
+			elif (newop.type == WAVELET_ADD_PARTICIPANT and op.type == WAVELET_ADD_PARTICIPANT) \
+				or (newop.type == WAVELET_REMOVE_PARTICIPANT and op.type == WAVELET_REMOVE_PARTICIPANT):
+				if newop.property == op.property:
+					return
 		
 		# If we reach this the operation could not be merged, so add it.
-		self.fireEvent("beforeOperationsInserted", [i+1, i+1])
-		self.operations.append(newop)
-		self.fireEvent("afterOperationsInserted", [i+1, i+1])
+		self.insertOperation(i+1, newop)
+
+	def insertOperation(self, index, op):
+		"""
+		Inserts an operation at the specified index.
+		Fires signals appropriately.
+		
+		@function {public} insertOperation
+		@param {int} index Position in operations list
+		@param {Operation} op Operation object to insert
+		"""
+		if index > len(self.operations) or index < 0:
+			return
+		self.fireEvent("beforeOperationsInserted", [index, index])
+		self.operations.insert(index, op)
+		self.fireEvent("afterOperationsInserted", [index, index])
+	
+	def removeOperation(self, index):
+		"""
+		Removes an operation at the specified index.
+		Fires signals appropriately.
+		
+		@function {public} removeOperation
+		@param {int} index Position in operations list
+		"""
+		if index < 0 or index >= len(self.operations):
+			return
+		self.fireEvent("beforeOperationsRemoved", [index, index])
+		self.operations.pop(index)
+		self.fireEvent("afterOperationsRemoved", [index, index])
 
 	# --------------------------------------------------------------------------
 
@@ -710,4 +737,32 @@ class OpManager(object):
 				"key": key,
 				"value": value
 			}
+		))
+	
+	def waveletAddParticipant(self, id):
+		"""
+		Requests to add a Participant to the wavelet.
+		
+		@function {public} waveletAddParticipant
+		@param {String} id ID of the Participant to add
+		"""
+		self.__insert(Operation(
+			WAVELET_ADD_PARTICIPANT,
+			self.waveId, self.waveletId, "",
+			-1,
+			id
+		))
+	
+	def waveletRemoveParticipant(self, id):
+		"""
+		Requests to remove a Participant to the wavelet.
+		
+		@function {public} waveletRemoveParticipant
+		@param {String} id ID of the Participant to remove
+		"""
+		self.__insert(Operation(
+			WAVELET_REMOVE_PARTICIPANT,
+			self.waveId, self.waveletId, "",
+			-1,
+			id
 		))

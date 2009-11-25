@@ -54,6 +54,7 @@ class StompMessageProcessor(stomper.Engine):
 	
 	def ack(self, message):
 		rkey = message["headers"]["destination"]
+		self.pygo_mp.logger.info("Got "+message["body"])
 		message_data = anyjson.deserialize(message["body"])
 		
 		msg_dict = self.pygo_mp.process(rkey, message_data)
@@ -83,6 +84,7 @@ class StompClientProtocol(Protocol):
 	
 	def connectionMade(self):
 		"""Register with the stomp server."""
+		self.factory.connection = self
 		self.transport.write(self.mp.connect())
 		self.lc = LoopingCall(self.mp.pygo_mp.purge_connections)
 		self.lc.start(10 * 60) # Purge every 10 minutes
@@ -109,12 +111,10 @@ class StompClientProtocol(Protocol):
 				self.transport.write(returned)
 
 class StompClientFactory(ReconnectingClientFactory):
+	protocol = StompClientProtocol
+	
 	def startedConnecting(self, connector):
 		"""Started to connect."""
-	
-	def buildProtocol(self, addr):
-		"""Transport level connected now create the communication protocol."""
-		return StompClientProtocol()
 	
 	def clientConnectionLost(self, connector, reason):
 		"""Lost connection."""

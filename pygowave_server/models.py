@@ -28,9 +28,10 @@ from django.utils.hashcompat import sha_constructor as sha1
 
 from django.utils import simplejson
 
+import uuid
+
 from pygowave_server.utils import find_random_id, gen_random_id, datetime2milliseconds
-from pygowave_server.common.operations import OpManager, DOCUMENT_DELETE, DOCUMENT_INSERT, \
-	DOCUMENT_ELEMENT_INSERT, DOCUMENT_ELEMENT_DELETE, DOCUMENT_ELEMENT_DELTA, DOCUMENT_ELEMENT_SETPREF
+from pygowave_server.common.operations import *
 
 __author__ = "patrick.p2k.schneider@gmail.com"
 
@@ -53,6 +54,13 @@ class ParticipantManager(models.Manager):
 	def online_count(self):
 		timeout = datetime.now() - timedelta(minutes=settings.ONLINE_TIMEOUT_MINUTES)
 		return self.filter(last_contact__gte=timeout).count()
+	
+	def create_from_user(self, user):
+		return self.create(
+			id = "%s@%s" % (user.username, settings.WAVE_DOMAIN),
+			name = user.username,
+			user = user
+		)
 
 class Participant(models.Model):
 	"""
@@ -124,12 +132,12 @@ class ParticipantConn(models.Model):
 	
 	@classmethod
 	def find_random_keys(cls):
-		rx_key = gen_random_id(10)
+		rx_key = str(uuid.uuid1())
 		while cls.objects.filter(rx_key=rx_key).count() > 0:
-			rx_key = gen_random_id(10)
-		tx_key = gen_random_id(10)
+			rx_key = str(uuid.uuid1()) # Should never happen, but just in case :)
+		tx_key = str(uuid.uuid1())
 		while cls.objects.filter(tx_key=tx_key).count() > 0:
-			tx_key = gen_random_id(10)
+			tx_key = str(uuid.uuid1())
 		return rx_key, tx_key
 	
 	def __unicode__(self):
@@ -175,6 +183,17 @@ class Wave(models.Model):
 			super(Wave, self).save(True)
 		else:
 			super(Wave, self).save(force_insert, force_update)
+	
+	def create_wavelet(self, creator, title):
+		wavelet = Wavelet(wave=self, creator=creator, title=title, is_root=False)
+		wavelet.save()
+		wavelet.participants.add(creator)
+		
+		blip = Blip(wavelet=wavelet, creator=creator)
+		blip.save()
+		wavelet.root_blip = blip
+		wavelet.save()
+		return wavelet
 	
 	def __unicode__(self):
 		return u"Wave %s" % (self.id)
@@ -242,6 +261,7 @@ class Wavelet(models.Model):
 			"version": self.version,
 			"lastModifiedTime": datetime2milliseconds(self.last_modified),
 			"waveId": self.wave.id,
+			"isRoot": self.is_root,
 		}
 	
 	def serialize_blips(self):
@@ -283,6 +303,20 @@ class Wavelet(models.Model):
 					except:
 						pass #TODO: error handling
 				blip.save()
+			else:
+				if op.type == WAVELET_ADD_PARTICIPANT:
+					# Find participant
+					try:
+						p = Participant.objects.get(id=op.property)
+					except ObjectDoesNotExist:
+						continue #TODO: error handling
+					# Check if already participating
+					if self.participants.filter(id=op.property).count() > 0:
+						continue #TODO: error handling
+					self.participants.add(p)
+				elif op.type == WAVELET_REMOVE_PARTICIPANT:
+					if self.participants.filter(id=op.property).count() > 0:
+						self.participants.remove(self.participants.get(id=op.property))
 	
 	def blipsums(self):
 		"""

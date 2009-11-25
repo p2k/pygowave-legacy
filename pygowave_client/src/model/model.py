@@ -90,6 +90,16 @@ class Participant(object):
 		"""
 		return self.options["displayName"]
 	
+	def setDisplayName(self, value):
+		"""
+		Sets the participant's display name.
+		@function {public} setDisplayName
+		@param {String} value The new name
+		"""
+		if self.options["displayName"] != value:
+			self.options["displayName"] = value
+			self.fireEvent('dataChanged')
+	
 	def thumbnailUrl(self):
 		"""
 		Returns the URL of the participant's avatar.
@@ -97,6 +107,16 @@ class Participant(object):
 		"""
 		return self.options["thumbnailUrl"]
 	
+	def setThumbnailUrl(self, value):
+		"""
+		Sets the URL of the participant's avatar.
+		@function {public} setThumbnailUrl
+		@param {String} value The new URL
+		"""
+		if self.options["thumbnailUrl"] != value:
+			self.options["thumbnailUrl"] = value
+			self.fireEvent('dataChanged')
+
 	def profileUrl(self):
 		"""
 		Returns the URL to the participant's profile.
@@ -104,6 +124,16 @@ class Participant(object):
 		"""
 		return self.options["profileUrl"]
 	
+	def setProfileUrl(self, value):
+		"""
+		Sets the URL to the participant's profile.
+		@function {public} setProfileUrl
+		@param {String} value The new URL
+		"""
+		if self.options["profileUrl"] != value:
+			self.options["profileUrl"] = value
+			self.fireEvent('dataChanged')
+
 	def isBot(self):
 		"""
 		Returns weather the participant is a bot.
@@ -111,6 +141,16 @@ class Participant(object):
 		"""
 		return self.options["isBot"]
 	
+	def setBot(self, value):
+		"""
+		Sets weather the participant is a bot.
+		@function {public} setBot
+		@param {String} value True, if this participant is a bot
+		"""
+		if self.options["isBot"] != value:
+			self.options["isBot"] = value
+			self.fireEvent('dataChanged')
+
 	def isOnline(self):
 		"""
 		Returns weather the participant is a online.
@@ -568,6 +608,19 @@ class Blip(object):
 		"""
 		return self.options["is_root"]
 
+	def elementById(self, id):
+		"""
+		Returns an Element by its id.
+		@function {public Element} elementById
+		@param {int} id ID of the element
+		"""
+		for i in xrange(len(self._elements)):
+			elt = self._elements[i]
+			if elt.id() == id:
+				return elt
+		
+		return None
+
 	def elementAt(self, index):
 		"""
 		Returns the Element object at the given position or null.
@@ -809,6 +862,18 @@ class Wavelet(object):
 	@event onStatusChange
 	@param {String} status The new status; can be 'clean', 'dirty' or 'invalid'
 	"""
+	
+	"""
+	Fired when the Wavelet's title changed.
+	@event onTitleChanged
+	@param {String} title The Wavelet's new title
+	"""
+	
+	"""
+	Fired when the Wavelet's last modification date/time changed.
+	@event onLastModifiedChanged
+	@param {Date} datetime New date of last modification
+	"""
 	# ---------------------------
 	
 	def __init__(self, wave, id, options):
@@ -840,6 +905,23 @@ class Wavelet(object):
 		self._blips = []
 		self._rootBlip = None
 	
+	def title(self):
+		"""
+		Returns the title of this Wavelet
+		@function {public String} title
+		"""
+		return self.options["title"]
+	
+	def setTitle(self, title):
+		"""
+		Sets the title of this Wavelet
+		@function {public} setTitle
+		@param {String} title The new title
+		"""
+		if self.options["title"] != title:
+			self.options["title"] = title
+			self.fireEvent('titleChanged', title)
+	
 	def isRoot(self):
 		"""
 		Returns true, if this Wavelet is the Wave's root Wavelet.
@@ -867,6 +949,13 @@ class Wavelet(object):
 		@function {public WaveModel} waveModel
 		"""
 		return self._wave
+
+	def participantCount(self):
+		"""
+		Returns the number of participants on this Wavelet.
+		@function {public int} participantCount
+		"""
+		return self._participants.getLength()
 
 	def addParticipant(self, participant):
 		"""
@@ -899,7 +988,10 @@ class Wavelet(object):
 		@function {Participant} participant
 		@param {String} id ID of the Participant
 		"""
-		return self._participants.get(id)
+		if self._participants.has(id):
+			return self._participants.get(id)
+		else:
+			return None
 	
 	def allParticipants(self):
 		"""
@@ -984,6 +1076,26 @@ class Wavelet(object):
 		
 		return None
 
+	def allBlips(self):
+		"""
+		Returns a list of all Blips on this Wavelet, starting with the root Blip.
+		
+		@function {Blip[]} allBlips
+		"""
+		return self._blips
+	
+	def allBlipIDs(self):
+		"""
+		Returns a list of all IDs of the Blips on this Wavelet, starting with
+		the root Blip.
+		
+		@function {public String[]} allBlipIDs
+		"""
+		ids = []
+		for blip in self._blips:
+			ids.append(blip.id())
+		return ids
+
 	def _setRootBlip(self, blip):
 		"""
 		Internal method to set the root Blip. Not intended to be called
@@ -1007,6 +1119,37 @@ class Wavelet(object):
 			self.options["status"] = status
 			self.fireEvent("statusChange", status)
 	
+	def status(self):
+		"""
+		Returns the Wavelet's current status. Can be "clean", "dirty" or "invalid".
+		@function {public String} status
+		"""
+		return self.options["status"]
+	
+	def created(self):
+		"""
+		Returns the creation date/time of this Wavelet.
+		@function {public Date} created
+		"""
+		return self.options["created"]
+	
+	def lastModified(self):
+		"""
+		Returns the date/time of the last modification of this Wavelet.
+		@function {public Date} lastModified
+		"""
+		return self.options["last_modified"]
+	
+	def setLastModified(self, value):
+		"""
+		Sets the date/time of the last modification of this Wavelet.
+		@function {public} setLastModified
+		@param {Date} value The new date/time of the last modification
+		"""
+		if value != self.options["last_modified"]:
+			self.options["last_modified"] = value
+			self.fireEvent('lastModifiedChanged', value)
+	
 	def checkSync(self, blipsums):
 		"""
 		Calculate and compare checksums of all Blips to the given map.
@@ -1027,7 +1170,7 @@ class Wavelet(object):
 		else:
 			self._setStatus("invalid")
 	
-	def applyOperations(self, ops):
+	def applyOperations(self, ops, participants):
 		"""
 		Apply the operations on the wavelet.
 		
@@ -1050,6 +1193,37 @@ class Wavelet(object):
 					blip.applyElementDelta(op.index, op.property)
 				elif op.type == pygowave.operations.DOCUMENT_ELEMENT_SETPREF:
 					blip.setElementUserpref(op.index, op.property["key"], op.property["value"])
+			else:
+				if op.type == pygowave.operations.WAVELET_ADD_PARTICIPANT:
+					self.addParticipant(participants[op.property])
+				elif op.type == pygowave.operations.WAVELET_REMOVE_PARTICIPANT:
+					self.removeParticipant(op.property)
+	
+	def loadBlipsFromSnapshot(self, blips, rootBlipId, participants):
+		"""
+		Load the blips from a snapshot.
+		@function {public} loadBlipsFromSnapshot
+		@param {Object} blips The JSON-serialized snapshot to load
+		@param {String} rootBlipId ID to identify the root Blip
+		@param {Hash} participants A map of participant objects
+		"""
+		
+		for blip_id, blip in blips.iteritems():
+			#TODO: handle Blip contributors
+			blip_options = {
+				"creator": participants[blip["creator"]],
+				"is_root": blip_id == rootBlipId,
+				"last_modified": blip["lastModifiedTime"],
+				"version": blip["version"],
+				"submitted": blip["submitted"]
+			}
+			blip_elements = []
+			for serialelement in blip["elements"]:
+				if serialelement["type"] == ELEMENT_TYPE["GADGET"]:
+					blip_elements.append(GadgetElement(None, serialelement["id"], serialelement["index"], serialelement["properties"]))
+				else:
+					blip_elements.append(Element(None, serialelement["id"], serialelement["index"], serialelement["type"], serialelement["properties"]))
+			blipObj = self.appendBlip(blip_id, blip_options, blip["content"], blip_elements)
 
 @Implements(Events)
 @Class
@@ -1066,6 +1240,12 @@ class WaveModel(object):
 	@event onWaveletAdded
 	@param {String} waveletId ID of the Wavelet that has been added
 	@param {Boolean} isRoot True if this is the (new) root Wavelet
+	"""
+	
+	"""
+	Fired before a wavelet is removed.
+	@event onWaveletAboutToBeRemoved
+	@param {String} waveletId ID of the Wavelet that will be removed
 	"""
 	# ---------------------------
 	
@@ -1123,22 +1303,7 @@ class WaveModel(object):
 		for part_id in rootWavelet["participants"]:
 			rootWaveletObj.addParticipant(participants[part_id])
 		
-		for blip_id, blip in obj["blips"].iteritems():
-			#TODO: handle Blip contributors
-			blip_options = {
-				"creator": participants[blip["creator"]],
-				"is_root": blip["blipId"] == rootWavelet["rootBlipId"],
-				"last_modified": blip["lastModifiedTime"],
-				"version": blip["version"],
-				"submitted": blip["submitted"]
-			}
-			blip_elements = []
-			for serialelement in blip["elements"]:
-				if serialelement["type"] == ELEMENT_TYPE["GADGET"]:
-					blip_elements.append(GadgetElement(None, serialelement["id"], serialelement["index"], serialelement["properties"]))
-				else:
-					blip_elements.append(Element(None, serialelement["id"], serialelement["index"], serialelement["type"], serialelement["properties"]))
-			blipObj = rootWaveletObj.appendBlip(blip_id, blip_options, blip["content"], blip_elements)
+		rootWaveletObj.loadBlipsFromSnapshot(obj["blips"], rootWavelet["rootBlipId"], participants);
 
 	def createWavelet(self, id, options):
 		"""
@@ -1164,6 +1329,14 @@ class WaveModel(object):
 		"""
 		return self._wavelets.get(waveletId)
 	
+	def allWavelets(self):
+		"""
+		Return a list of all Wavelets on this Wave.
+		
+		@function {public Wavelet[]} allWavelets
+		"""
+		return self._wavelets.getValues()
+
 	def rootWavelet(self):
 		"""
 		Returns the root Wavelet of this Wave.
@@ -1181,3 +1354,20 @@ class WaveModel(object):
 		@param {Wavelet} wavelet Wavelet to be set as root Wavelet
 		"""
 		self._rootWavelet = wavelet
+	
+	def removeWavelet(self, waveletId):
+		"""
+		Removes and deletes a wavelet by its id. Fires
+		{@link pygowave.model.WaveModel.onWaveletAboutToBeRemoved} beforehand.
+		
+		@function {public} removeWavelet
+		@param {String} waveletId ID of the Wavelet to remove
+		"""
+		if not self._wavelets.has(waveletId):
+			return
+		
+		self.fireEvent('waveletAboutToBeRemoved', waveletId)
+		wavelet = self._wavelets.get(waveletId)
+		self._wavelets.erase(waveletId)
+		if wavelet == self._rootWavelet:
+			self._rootWavelet = None
