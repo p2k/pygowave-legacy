@@ -77,7 +77,7 @@ class Participant(models.Model):
 	id = models.CharField(max_length=255, primary_key=True)
 	user = models.ForeignKey(User, blank=True, null=True, unique=True, related_name="participants")
 	is_bot = models.BooleanField()
-	last_contact = models.DateTimeField()
+	last_contact = models.DateTimeField(auto_now_add=True)
 	
 	name = models.CharField(max_length=255, blank=True)
 	avatar = models.URLField(verify_exists=False, blank=True)
