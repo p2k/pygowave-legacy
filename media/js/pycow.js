@@ -71,6 +71,8 @@ repr = function (obj) {
 		return obj.__repr__();
 	else if ($type(obj) == "boolean")
 		return String(obj);
+	else if ($type(obj) == "array")
+		return "["+obj.map(repr).join(", ")+"]";
 	else
 		return JSON.encode(obj);
 };

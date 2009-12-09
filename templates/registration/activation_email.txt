@@ -1,6 +1,7 @@
 Hi,
 
-you are receiving this mail because of your registration request on PyGoWave Server.
+you are receiving this mail because of your registration request on one of
+the free PyGoWave servers around the world.
 
 Please click the following link to activate your account:
 
@@ -9,4 +10,4 @@ http://{{ site }}{% url registration_activate activation_key %}
 This account activation expires in {{ expiration_days }} days.
 
 Thank you,
-Patrick.p2k.Schneider@gmail.com - admin and developer of PyGoWave Server.
+the admins.

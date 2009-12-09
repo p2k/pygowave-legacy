@@ -27,11 +27,9 @@ from django.utils.hashcompat import sha_constructor
 
 import os, urllib2
 from random import random
-from lxml.etree import XMLSyntaxError
 
 from pygowave_server.utils import AlreadyUploadedFile, get_profile_model
 from pygowave_server.models import Gadget
-from pygowave_server.engine import GadgetLoader
 
 from registration.forms import RegistrationForm
 
@@ -151,6 +149,13 @@ class GadgetRegistryForm(forms.ModelForm):
 		return self.cleaned_data["external"] == 1
 
 	def clean(self):
+		try:
+			from lxml.etree import XMLSyntaxError
+		except ImportError:
+			raise forms.ValidationError(_(u'This server currently does not support Gadgets (lxml package missing).'))
+		
+		from pygowave_server.engine import GadgetLoader
+		
 		if len(self.errors) > 0:
 			return self.cleaned_data
 		

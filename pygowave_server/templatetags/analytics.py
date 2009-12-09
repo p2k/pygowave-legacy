@@ -23,7 +23,7 @@ register = Library()
 
 @register.simple_tag
 def track_event(category=None, action=None, opt_label=None, opt_value=None):
-	if settings.IS_LOCAL:
+	if getattr(settings, "ANALYTICS_ID", "") == "":
 		return ""
 	
 	l = []
@@ -31,3 +31,21 @@ def track_event(category=None, action=None, opt_label=None, opt_value=None):
 		if arg != None:
 			l.append('"%s"' % (arg))
 	return "<script type=\"text/javascript\">pageTracker._trackEvent(%s);</script>" % (", ".join(l))
+
+@register.simple_tag
+def tracker_code():
+	if getattr(settings, "ANALYTICS_ID", "") == "":
+		return ""
+	
+	return """<!-- Begin Google Analytics Code-->
+<script type="text/javascript">
+var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
+document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
+</script>
+<script type="text/javascript">
+try {
+	var pageTracker = _gat._getTracker("%s");
+	pageTracker._trackPageview();
+} catch(err) {}
+</script>
+<!-- End Google Analytics Code-->""" % (settings.ANALYTICS_ID)

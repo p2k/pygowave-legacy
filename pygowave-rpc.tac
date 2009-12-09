@@ -31,6 +31,7 @@ if not os.environ.has_key("DJANGO_SETTINGS_MODULE"):
 	os.environ["DJANGO_SETTINGS_MODULE"] = "settings"
 
 from twisted.application import service, internet
+from twisted.python import log
 
 import pygowave_rpc.logger
 
@@ -39,6 +40,8 @@ from django.conf import settings
 pygowave_rpc.logger.setupLogging()
 
 application = service.Application("PyGoWave RPC Server")
+#def NullLogger(data): pass
+#application.setComponent(log.ILogObserver, NullLogger)
 
 if getattr(settings, "STOMP_MODE", "client") == "client":
 	from pygowave_rpc.stomp_client import StompClientFactory

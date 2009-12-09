@@ -25,6 +25,14 @@ Currently, there are <b>{{ online_count }}</b> users online out of
 {{ users_count }} registred users.
 {% endblocktrans %}
 </p>
+{% if DEVELOPER_MODE %}
+<p>
+{% blocktrans %}
+This is a development server, not intended for production use.
+Happy hacking!
+{% endblocktrans %}
+</p>
+{% endif %}
 {% include "pygowave_server/project_status.html" %}
 </div>
 {% endblock %}

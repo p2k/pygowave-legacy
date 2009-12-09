@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Django settings for pygowave_project project.
+# Django settings for PyGoWave. Template for development servers.
 
 #
 # PyGoWave Server - The Python Google Wave Server
@@ -19,32 +19,24 @@
 # limitations under the License.
 #
 
-DEBUG = True
-TEMPLATE_DEBUG = DEBUG
+# --- Important Settings ---
 
 ADMINS = (
-    ('Patrick "p2k" Schneider', 'patrick.p2k.schneider@gmail.com'),
+    #('Your name', 'Your email'),
 )
 
-MANAGERS = ADMINS
-
-DATABASE_ENGINE = 'mysql'      # 'postgresql_psycopg2', 'postgresql', 'mysql', 'sqlite3' or 'oracle'.
-DATABASE_NAME = 'pygowave'     # Or path to database file if using sqlite3.
-DATABASE_USER = 'pygowave'     # Not used with sqlite3.
-DATABASE_PASSWORD = 'pygowave' # Not used with sqlite3.
-DATABASE_HOST = 'localhost'    # Set to empty string for localhost. Not used with sqlite3.
+DATABASE_ENGINE = 'sqlite3'    # 'postgresql_psycopg2', 'postgresql', 'mysql', 'sqlite3' or 'oracle'.
+DATABASE_NAME = 'pygowave.sqlite3' # Or path to database file if using sqlite3.
+DATABASE_USER = ''             # Not used with sqlite3.
+DATABASE_PASSWORD = ''         # Not used with sqlite3.
+DATABASE_HOST = ''             # Set to empty string for localhost. Not used with sqlite3.
 DATABASE_PORT = ''             # Set to empty string for default. Not used with sqlite3.
 
-DEFAULT_FROM_EMAIL = 'noreply@localhost'
-
-# The domain used in wave URLs
+# The domain used in wave URLs; also used as base in other settings
 WAVE_DOMAIN = 'localhost'
 
-LOGIN_URL = '/accounts/login/'
-LOGIN_REDIRECT_URL = '/home/'
-
-# Set to False to enable some non-localhost features
-IS_LOCAL = True
+# Set to True on a development system, False on a production system
+DEVELOPER_MODE = True
 
 # Local time zone for this installation. Choices can be found here:
 # http://en.wikipedia.org/wiki/List_of_tz_zones_by_name
@@ -61,12 +53,30 @@ LANGUAGES = (
 	('de', 'German - Deutsch'),
 	('en', 'English - English'),
 	('nl', 'Dutch - Nederlands'),
+	('es', u'Spanish - Español'),
 	('ar', u'Arabic - al-ʿarabīyah'),
 	('ru', u'Russian - русский'),
 	('ja', u'Japanese - 日本語'),
 )
 
-VERSION = 'alpha-0.4.dev'
+# Make this unique, and don't share it with anybody.
+SECRET_KEY = 'n*hye&*_3ry)ds-6xwkp9f$u^$))nwt1j^332(+hj!qt@1mk!y'
+
+# Set this to your Google Analytics ID (UA-xxxxxxx-x) to activate tracking,
+# leave empty to disable tracking.
+ANALYTICS_ID = ""
+
+# --- Derived, Auto-Generated And Other Settings ---
+
+DEFAULT_FROM_EMAIL = 'noreply@' + WAVE_DOMAIN
+
+DEBUG = DEVELOPER_MODE
+TEMPLATE_DEBUG = DEVELOPER_MODE
+
+MANAGERS = ADMINS
+
+LOGIN_URL = '/accounts/login/'
+LOGIN_REDIRECT_URL = '/home/'
 
 SITE_ID = 1
 
@@ -94,14 +104,11 @@ MEDIA_URL = '/media/'
 # Examples: "http://foo.com/media/", "/media/".
 ADMIN_MEDIA_PREFIX = '/admin_media/'
 
-# Make this unique, and don't share it with anybody.
-SECRET_KEY = 'n*hye&*_3ry)ds-6xwkp9f$u^$))nwt1j^332(+hj!qt@1mk!y'
-
 # List of callables that know how to import templates from various sources.
 TEMPLATE_LOADERS = (
     'django.template.loaders.filesystem.load_template_source',
     'django.template.loaders.app_directories.load_template_source',
-#     'django.template.loaders.eggs.load_template_source',
+#    'django.template.loaders.eggs.load_template_source',
 )
 
 MIDDLEWARE_CLASSES = (
@@ -144,6 +151,10 @@ INSTALLED_APPS = (
 # Don't change this:
 AUTH_PROFILE_MODULE = 'pygowave_server.participant'
 
+# --- PyGoWave Specific Settings ---
+
+VERSION = 'alpha-0.4'
+
 ACCOUNT_ACTIVATION_DAYS = 7
 
 AVATAR_ROOT = MEDIA_ROOT + 'avatars/'
@@ -165,12 +176,16 @@ ACCESS_KEY_TIMEOUT_MINUTES = 2
 # Minimum characters to engage a search
 PARTICIPANT_SEARCH_LENGTH = 3
 
+# This setting holds the path for pygowave_client to store converted and
+# compressed versions of the source files.
+CLIENT_CACHE_FOLDER = os.path.dirname(os.path.abspath(__file__)) + os.path.sep + "client_cache" + os.path.sep
+
 # RPC settings here
-RPC_SERVER = "localhost"
+RPC_SERVER = WAVE_DOMAIN
 RPC_USER = "pygowave_server"
 RPC_PASSWORD = "pygowave_server"
 RPC_LOGGING = "normal" # Possible values: "normal", "quiet", "verbose"
-RPC_LOGFILE_INFO = "" # Leave empty to write to console i.e. use twistd's builtin logger
+RPC_LOGFILE_INFO = "" # Leave empty to write to console (stderr)
 RPC_LOGFILE_ERROR = ""
 
 # AMQP RPC specific
@@ -182,5 +197,5 @@ STOMP_PORT = 61613
 STOMP_MODE = "server" # Possible values: "client" (use message broker), "server" (no message broker)
 
 # Orbited settings here
-ORBITED_SERVER = "localhost"
-ORBITED_PORT = 80
+ORBITED_SERVER = WAVE_DOMAIN
+ORBITED_PORT = "auto" # Set to the string "auto" to use the http server's current port; set to a number to override

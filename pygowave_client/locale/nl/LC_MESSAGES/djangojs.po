@@ -2,206 +2,279 @@
 # Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
 # This file is distributed under the same license as the PACKAGE package.
 # FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
-#
-#, fuzzy
+# 
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2009-09-01 02:57+0200\n"
-"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"POT-Creation-Date: 2009-12-09 02:44+0100\n"
+"PO-Revision-Date: 2009-12-09 03:08\n"
+"Last-Translator: <me@p2k-network.org>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
+"X-Translated-Using: django-rosetta 0.4.0\n"
 
-#: controller/controller.js:159
+#: src/controller/controller.js:244
 #, perl-format
 msgid "The connection was lost.<br/><br/>Error code: %d"
 msgstr ""
 
-#: controller/controller.js:170
+#: src/controller/controller.js:255
 #, perl-format
 msgid "A connection error occured.<br/><br/>Error code: %d"
 msgstr ""
 
-#: view/blip_editor.js:252
-msgid ""
-"Sorry, but this Blip Editor has gone out of sync with the internal "
-"representation. Please click resync."
+#: src/controller/controller.js:297
+#, perl-format
+msgid "The server reports the following error:<br/><br/>%s<br/><br/>Error Tag: %s"
 msgstr ""
 
-#: view/blip_editor.js:253
+#: src/controller/controller.js:335
+#, perl-format
+msgid "The server reports the following error:<br/><br/>%s<br/><br/>Wavelet ID: %s<br/>Error Tag: %s"
+msgstr ""
+
+#: src/controller/controller.js:547
+msgid "The server did not acknowledge the last operation within 10 seconds. This could be a bug in the client or a server crash. Try to reload."
+msgstr ""
+
+#: src/utils/monthname.js:27
+msgid "Jan"
+msgstr "Jan"
+
+#: src/utils/monthname.js:28
+msgid "Feb"
+msgstr "Feb"
+
+#: src/utils/monthname.js:29
+msgid "Mar"
+msgstr "Mar"
+
+#: src/utils/monthname.js:30
+msgid "Apr"
+msgstr "Apr"
+
+#: src/utils/monthname.js:31
+msgid "May"
+msgstr "Mei"
+
+#: src/utils/monthname.js:32
+msgid "Jun"
+msgstr "Jun"
+
+#: src/utils/monthname.js:33
+msgid "Jul"
+msgstr "Jul"
+
+#: src/utils/monthname.js:34
+msgid "Aug"
+msgstr "Aug"
+
+#: src/utils/monthname.js:35
+msgid "Sep"
+msgstr "Sep"
+
+#: src/utils/monthname.js:36
+msgid "Oct"
+msgstr "Oct"
+
+#: src/utils/monthname.js:37
+msgid "Nov"
+msgstr "Nov"
+
+#: src/utils/monthname.js:38
+msgid "Dec"
+msgstr "Dec"
+
+#: src/view/blip_editor.js:310
+msgid "Edit Blip"
+msgstr ""
+
+#: src/view/blip_editor.js:346
+msgid "Delete"
+msgstr ""
+
+#: src/view/blip_editor.js:352
+msgid "Done"
+msgstr ""
+
+#: src/view/blip_editor.js:356
+msgid "Draft"
+msgstr ""
+
+#: src/view/blip_editor.js:357
+msgid "Not yet implemented by Google..."
+msgstr ""
+
+#: src/view/blip_editor.js:436
+msgid "Sorry, but this Blip Editor has gone out of sync with the internal representation. Please click resync."
+msgstr ""
+
+#: src/view/blip_editor.js:437
 msgid "Resync"
 msgstr ""
 
-#: view/blip_editor.js:258
-msgid ""
-"The text content could not be rendered correctly. This may be a bug or you "
-"are using an unsupported browser."
+#: src/view/blip_editor.js:442
+msgid "The text content could not be rendered correctly. This may be a bug or you are using an unsupported browser."
 msgstr ""
 
-#: view/blip_editor.js:259 view/view.js:444
+#: src/view/blip_editor.js:443 src/view/view.js:580
 msgid "Dismiss"
 msgstr ""
 
-#: view/blip_editor.js:265
-msgid ""
-"Unfortunately, this Blip has gone out of sync with the server. You have to "
-"reload the page to be able to use it again."
+#: src/view/blip_editor.js:449
+msgid "Unfortunately, this Blip has gone out of sync with the server. You have to reload the page to be able to use it again."
 msgstr ""
 
-#: view/blip_editor.js:266 view/view.js:445
+#: src/view/blip_editor.js:450 src/view/view.js:581
 msgid "Reload"
 msgstr ""
 
-#: view/debug_tools.js:95
+#: src/view/blip_editor.js:1011
+msgid "and"
+msgstr ""
+
+#: src/view/debug_tools.js:95
 msgid "Operations Viewer (Debug)"
 msgstr ""
 
-#: view/debug_tools.js:156
+#: src/view/debug_tools.js:160
 msgid "Unblock"
 msgstr ""
 
-#: view/debug_tools.js:160
+#: src/view/debug_tools.js:164
 msgid "Block"
 msgstr ""
 
-#: view/debug_tools.js:345
+#: src/view/debug_tools.js:298
+#, perl-format
+msgid "Ping: %dms"
+msgstr ""
+
+#: src/view/debug_tools.js:366
 msgid "Status: Waiting for acknowledgement"
 msgstr ""
 
-#: view/debug_tools.js:349
+#: src/view/debug_tools.js:370
 msgid "Status: Document in sync with server"
 msgstr ""
 
-#: view/debug_tools.js:353
+#: src/view/debug_tools.js:374
 msgid "Status: Document not in sync with server"
 msgstr ""
 
-#: view/debug_tools.js:368
+#: src/view/debug_tools.js:389
 #, perl-format
 msgid "Position: %d"
 msgstr ""
 
-#: view/debug_tools.js:370
+#: src/view/debug_tools.js:391
 #, perl-format
 msgid "Selected: %d-%d"
 msgstr ""
 
-#: view/gadgets.js:53
+#: src/view/gadgets.js:53
 msgid "Choose a Gadget from the list below:"
 msgstr ""
 
-#: view/gadgets.js:63 view/participants.js:223
+#: src/view/gadgets.js:63 src/view/participants.js:223
 msgid "Cancel"
 msgstr ""
 
-#: view/gadgets.js:64 view/participants.js:224 view/view.js:483
+#: src/view/gadgets.js:64 src/view/participants.js:224 src/view/view.js:619
 msgid "OK"
 msgstr ""
 
-#: view/gadgets.js:67 view/view.js:205
+#: src/view/gadgets.js:67 src/view/view.js:278
 msgid "Add Gadget"
 msgstr ""
 
-#: view/gadgets.js:86 view/gadgets.js.py:176
+#: src/view/gadgets.js:86 src/view/gadgets.js.py:176
 msgid "Loading..."
 msgstr ""
 
-#: view/gadgets.js:113
+#: src/view/gadgets.js:113
 msgid "You must choose a gadget from the list first."
 msgstr ""
 
-#: view/gadgets.js:113 view/participants.js:280
+#: src/view/gadgets.js:113 src/view/participants.js:280
 msgid "Notice"
 msgstr ""
 
-#: view/gadgets.js:133
+#: src/view/gadgets.js:133
 msgid "(Please choose...)"
 msgstr ""
 
-#: view/gadgets.js:160 view/gadgets.js.py:164
+#: src/view/gadgets.js:160 src/view/gadgets.js.py:164
 msgid "Description"
 msgstr ""
 
-#: view/gadgets.js:164
+#: src/view/gadgets.js:164
 #, perl-format
 msgid "Uploaded by %s"
 msgstr ""
 
-#: view/gadgets.js:231
+#: src/view/gadgets.js:233
 msgid "Delete Gadget"
 msgstr ""
 
-#: view/gadgets.js:301
+#: src/view/gadgets.js:368
 #, perl-format
 msgid "Gadget #%d at index %d says:"
 msgstr ""
 
-#: view/participants.js:230 view/participants.js.py:417
+#: src/view/participants.js:230 src/view/participants.js.py:417
 msgid "Add participant"
 msgstr ""
 
-#: view/participants.js:280
+#: src/view/participants.js:280
 msgid "You must select a participant from your search results first."
 msgstr ""
 
-#: view/participants.js:393
+#: src/view/participants.js:393
 #, perl-format
 msgid "Please enter at least %d letters."
-msgstr ""
+msgstr "Vul ten minste %d letters in."
 
-#: view/selection.js:357
+#: src/view/selection.js:357
 msgid ""
 "Internet Explorer bug:\n"
 "Could not create Selection object from TextRange!"
 msgstr ""
 
-#: view/view.js:206
-msgid "Add a gadget to the blip"
+#: src/view/view.js:269
+msgid "Reply"
 msgstr ""
 
-#: view/view.js:447
+#: src/view/view.js:270
+msgid "Reply to this Wavelet"
+msgstr ""
+
+#: src/view/view.js:279
+msgid "Add a Gadget to the Blip"
+msgstr ""
+
+#: src/view/view.js:583
 msgid "Shit happens..."
 msgstr ""
 
-#: view/view.js:462
+#: src/view/view.js:598
 msgid ""
 "Do you really want to leave the Wave?<br/>\n"
 "<br/>\n"
-"Warning: If you do so, you cannot come back to this wave unless someone adds "
-"you again."
+"Warning: If you do so, you cannot come back to this wave unless someone adds you again."
 msgstr ""
 
-#: view/view.js:463
+#: src/view/view.js:599
 msgid "Please confirm"
 msgstr ""
 
-#: view/view.js:505
+#: src/view/view.js:641
 msgid "Yes"
-msgstr ""
+msgstr "Ja"
 
-#: view/view.js:507
+#: src/view/view.js:643
 msgid "No"
-msgstr ""
-
-msgid "Oh well"
-msgstr ""
-
-msgid "The WaveletWidget for Wavelet '%s' was not found."
-msgstr ""
-
-msgid "Sorry, but..."
-msgstr ""
-
-msgid "I see"
-msgstr ""
-
-msgid "You must be inside of a Blip to add a Gadget."
-msgstr ""
-
-msgid "You must place your cursor inside the text to mark the Gadget's insertion point."
-msgstr ""
-
+msgstr "Nee"

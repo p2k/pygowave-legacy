@@ -2,456 +2,39 @@
 # Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
 # This file is distributed under the same license as the PACKAGE package.
 # FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
-#
+# 
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2009-09-01 02:50+0200\n"
-"PO-Revision-Date: 2009-06-27 17:38\n"
-"Last-Translator: <alex-pygo@aperte.nl>\n"
+"POT-Creation-Date: 2009-12-09 03:11+0100\n"
+"PO-Revision-Date: 2009-12-09 03:22\n"
+"Last-Translator: <me@p2k-network.org>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "X-Translated-Using: django-rosetta 0.4.0\n"
 
-#: pygowave_server/engine.py:89
-msgid "Invalid Gadget XML format (Module tag missing)"
-msgstr "Ongeldige Gadget XML formaat (Module tag ontbreekt)"
-
-#: pygowave_server/engine.py:94
-msgid "Invalid Gadget XML format (ModulePrefs/title missing)"
-msgstr "Ongeldige Gadget XML formaat (ModulePrefs / title ontbreekt)"
-
-#: pygowave_server/engine.py:109
-#, python-format
-msgid "Required feature \"%s\" is unsupported"
-msgstr "Vereiste functie \"%s\" wordt niet ondersteund"
-
-#: pygowave_server/engine.py:137
-msgid "Invalid Gadget XML format (Content tag missing)"
-msgstr "Ongeldige Gadget XML formaat (Content tag ontbreekt)"
-
-#: pygowave_server/forms.py:47
-msgid ""
-"Your desired username is too short. Please enter at least three characters."
-msgstr "Je gewenste gebruikersnaam is te kort. Geef tenminste drie tekens op."
-
-#: pygowave_server/forms.py:76
-msgid "(Avatar)"
-msgstr "(Avatar)"
-
-#: pygowave_server/forms.py:120
-msgid "Profile URL"
-msgstr "Profiel URL"
-
-#: pygowave_server/forms.py:159
-msgid "You must enter an URL or choose \"Upload\" and upload a file."
-msgstr "Je moet een URL invullen of kies \"Upload\" en upload een bestand."
-
-#: pygowave_server/forms.py:169
-msgid "You must upload a file or choose \"External URL\" and enter an URL."
-msgstr ""
-"Je moet een bestand uploaden of kies \"Externe URL\" en vul een URL in."
-
-#: pygowave_server/forms.py:181 pygowave_server/views.py:246
-msgid "Gadget could not be downloaded."
-msgstr "Gadget kan niet gedownload worden."
-
-#: pygowave_server/forms.py:183 pygowave_server/views.py:248
-msgid "Gadget quick-check failed: Bad XML format."
-msgstr "Gadget quick-check mislukt: Ongeldig XML formaat"
-
-#: pygowave_server/forms.py:185 pygowave_server/views.py:250
-#, python-format
-msgid "Gadget quick-check failed: %s."
-msgstr "Gadget quick-check mislukt: %s"
-
-#: pygowave_server/forms.py:197 pygowave_server/models.py:780
-#: templates/pygowave_server/gadgets/all_gadgets.html:14
-#: templates/pygowave_server/waves/wave_list.html:22
-msgid "Title"
-msgstr "Titel"
-
-#: pygowave_server/models.py:138
-#, fuzzy
-msgid "participant connection"
-msgstr "Wave Deelnemer instellingen"
-
-#: pygowave_server/models.py:139
-#, fuzzy
-msgid "participant connections"
-msgstr "Wave Deelnemer instellingen"
-
-#: pygowave_server/models.py:200
-msgid "connections"
-msgstr ""
-
-#: pygowave_server/models.py:781
-msgid "Description"
-msgstr "Omschrijving"
-
-#: pygowave_server/models.py:782
-msgid "URL"
-msgstr "URL"
-
-#: pygowave_server/models.py:783
-msgid "Hosted filename"
-msgstr ""
-
-#: pygowave_server/models.py:784
-msgid "Development version"
-msgstr ""
-
-#: pygowave_server/views.py:231
-msgid "No URL specified."
-msgstr "Geen URL opgegeven"
-
-#: pygowave_server/views.py:258
-msgid "GadgetElement could not be found."
-msgstr "GadgetElement kon niet worden gevonden."
-
-#: pygowave_server/templatetags/pgw_nav.py:30
-msgid "Home"
-msgstr "Thuis"
-
-#: pygowave_server/templatetags/pgw_nav.py:35
-#: templates/pygowave_server/home.html:6
-#: templates/pygowave_server/index.html:4
-msgid "Welcome"
-msgstr "Welkom"
-
-#: pygowave_server/templatetags/pgw_nav.py:40
-#: templates/pygowave_server/settings.html:5
-msgid "Settings"
-msgstr "Instellingen"
-
-#: pygowave_server/templatetags/pgw_nav.py:47
-msgid "Gadgets"
-msgstr "Gadgets"
-
-#: pygowave_server/templatetags/pgw_nav.py:52
-#: templates/pygowave_server/gadgets/my_gadgets.html:5
-msgid "My Gadgets"
-msgstr "Mijn Gadgets"
-
-#: pygowave_server/templatetags/pgw_nav.py:57
-#: templates/pygowave_server/gadgets/all_gadgets.html:6
-msgid "All Gadgets"
-msgstr "Alle Gadgets"
-
-#: pygowave_server/templatetags/pgw_nav.py:64
-msgid "Waves"
-msgstr "Waves"
-
-#: pygowave_server/templatetags/pgw_nav.py:69
-#: templates/pygowave_server/waves/wave_list.html:5
-msgid "All Waves"
-msgstr "Alle Waves"
-
-#: pygowave_server/templatetags/pgw_nav.py:74
-#: templates/pygowave_server/waves/on_the_wave.html:7
-msgid "On the Wave"
-msgstr "Op de Golf"
-
-#: templates/base.html:44
+#: templates/base.html:31
 msgid "Change language"
 msgstr "Verander taal"
 
-#: templates/base.html:68
+#: templates/base.html:65
 msgid "Please select your language:"
 msgstr "Selecteer jouw taal"
 
-#: templates/base.html:81
+#: templates/base.html:78
 msgid "Select language"
 msgstr "Selecteer taal"
 
-#: templates/base.html:96
+#: templates/base.html:93
 msgid "Cancel"
 msgstr "Annuleren"
 
-#: templates/base.html:99
+#: templates/base.html:96
 msgid "OK"
 msgstr "OK"
-
-#: templates/pygowave_server/home.html:15
-#, python-format
-msgid ""
-"\n"
-"Welcome %(username)s, enjoy your stay!\n"
-msgstr ""
-"\n"
-"Welkom %(username)s, veel plezier!\n"
-
-#: templates/pygowave_server/home.html:20
-#: templates/pygowave_server/index.html:30
-#, fuzzy, python-format
-msgid ""
-"\n"
-"Currently, there is <b>%(online_count)s</b> user online out of\n"
-"%(users_count)s registred users.\n"
-msgid_plural ""
-"\n"
-"Currently, there are <b>%(online_count)s</b> users online out of\n"
-"%(users_count)s registred users.\n"
-msgstr[0] ""
-"\n"
-"Op dit moment is er <b>%(online_count)s</b> gebruiker ingelogd van de \n"
-"%(users_count)s geregistreerde gebruikers.\n"
-msgstr[1] ""
-"\n"
-"Op dit moment zijn er <b>%(online_count)s</b> gebruiker(s) ingelogd van de \n"
-"%(users_count)s geregistreerde gebruikers.\n"
-
-#: templates/pygowave_server/index.html:9 templates/registration/login.html:9
-msgid "Authentication failed!"
-msgstr "Aanmelden is mislukt!"
-
-#: templates/pygowave_server/index.html:14
-#: templates/registration/login.html:14
-msgid "Login"
-msgstr "Inloggen"
-
-#: templates/pygowave_server/index.html:22
-msgid "Welcome to PyGoWave Server!"
-msgstr "Welkom bij PyGoWave Server!"
-
-#: templates/pygowave_server/index.html:23
-msgid ""
-"\n"
-"<p>You are looking at the start page of a very ambitious project. This is "
-"still\n"
-"early alpha and may be unreliable and inaccurate for the time being.</p>\n"
-"<p>I know, the style is a quick-and-dirty-rip-off from Google, but it "
-"serves\n"
-"the purpose right now.</p>\n"
-msgstr ""
-"\n"
-"<p>Je kijkt naar de startpagina van een zeer ambitieus project. Dit project "
-"is nog erg nieuw en kan nog onbetrouwbaar zijn. </p><p> Ik weet het, de "
-"stijl is een \"quick-and-dirty-rip-off\" van Google, maar het is voor nu "
-"voldoende. </p>\n"
-
-#: templates/pygowave_server/index.html:40
-msgid ""
-"\n"
-"Disclaimer: This is highly experimental. By using this software you are\n"
-"completely on your own. No warranty for anything. Also note, that you are "
-"being\n"
-"tracked by Google Analytics. I am just too curious :)\n"
-msgstr ""
-"\n"
-"Disclaimer: Dit is zeer experimenteel. Door gebruik te maken van deze "
-"software ben je volledig op jezelf aangewezen. Geen garanties. Merk ook op, "
-"dat je wordt bijgehouden door Google Analytics. Ik ben gewoon te "
-"nieuwsgierig:)\n"
-
-#: templates/pygowave_server/nav.html:19
-msgid "Logout"
-msgstr "Log uit"
-
-#: templates/pygowave_server/project_status.html:4
-#, python-format
-msgid ""
-"\n"
-"The version running on this server is: <b>%(VERSION)s</b><br/>\n"
-"Please check our <a href=\"http://code.google.com/p/pygowave-server/issues/"
-"list\">bug tracker</a>\n"
-"for a list of known issues and upcoming changes.\n"
-msgstr ""
-"\n"
-"De versie van deze server is: <b>%(VERSION)s</b><br/>\n"
-"Kijk op onze <a href=\"http://code.google.com/p/pygowave-server/issues/list"
-"\">bug tracker</a> voor een lijst van bekende gebreken.\n"
-
-#: templates/pygowave_server/project_status.html:12
-#, python-format
-msgid ""
-"\n"
-"PyGoWave has been tested and should work on the following browsers and\n"
-"operating systems (the percentages reflect the user base as of %(date)s).\n"
-msgstr ""
-
-#: templates/pygowave_server/settings.html:9
-msgid "Wave Participant Settings"
-msgstr "Wave Deelnemer instellingen"
-
-#: templates/pygowave_server/settings.html:12
-msgid ""
-"\n"
-"\tUse this form to set your public Wave participant information.\n"
-msgstr ""
-"\n"
-"Gebruik dit formulier om je publieke Wave deelnemer gegevens in te stellen.\n"
-
-#: templates/pygowave_server/settings.html:21
-msgid "Save"
-msgstr "Opslaan"
-
-#: templates/pygowave_server/gadgets/all_gadgets.html:12
-#: templates/pygowave_server/gadgets/my_gadgets.html:13
-msgid "Hover over a Gadget's title to see its description."
-msgstr "Beweeg over de titel van een gadget om de omschrijving te zien."
-
-#: templates/pygowave_server/gadgets/all_gadgets.html:14
-msgid "Uploaded by"
-msgstr "Toegevoegd door"
-
-#: templates/pygowave_server/gadgets/all_gadgets.html:14
-#: templates/pygowave_server/gadgets/all_gadgets.html:20
-#: templates/pygowave_server/gadgets/my_gadgets.html:19
-msgid "Download"
-msgstr "Download"
-
-#: templates/pygowave_server/gadgets/all_gadgets.html:29
-msgid "No one has submitted any Gadget. Sigh."
-msgstr "Niemand heeft een gadget toegevoegd. Zucht."
-
-#: templates/pygowave_server/gadgets/gadget_error.html:3
-msgid "Gadget Loader Error"
-msgstr "Gadget Lader fout"
-
-#: templates/pygowave_server/gadgets/gadget_error.html:10
-msgid "Error while loading Gadget:"
-msgstr "Fout bij het laden van gadget:"
-
-#: templates/pygowave_server/gadgets/my_gadgets.html:9
-msgid "Manage my Gadgets"
-msgstr "Beheer mijn Gadgets"
-
-#: templates/pygowave_server/gadgets/my_gadgets.html:11
-msgid "Your Gadget was successfully registered."
-msgstr "Je Gadget was succesvol geregistreerd"
-
-#: templates/pygowave_server/gadgets/my_gadgets.html:20
-msgid "Delete"
-msgstr "Verwijder"
-
-#: templates/pygowave_server/gadgets/my_gadgets.html:29
-#, python-format
-msgid "Do you really want to delete \\\"%s\\\"?"
-msgstr "Wil je werkelijk \\\"%s\\\" verwijderen?"
-
-#: templates/pygowave_server/gadgets/my_gadgets.html:34
-msgid "You didn't submit any Gadgets. Use the form below to add one."
-msgstr ""
-"Je hebt nog geen gadgets toegevoegd. Gebruik onderstaand formulier hiervoor."
-
-#: templates/pygowave_server/gadgets/my_gadgets.html:37
-msgid "Add or upload new Gadget"
-msgstr "Voeg een nieuwe gadget toe"
-
-#: templates/pygowave_server/gadgets/my_gadgets.html:45
-msgid "Upload"
-msgstr "Upload"
-
-#: templates/pygowave_server/gadgets/my_gadgets.html:46
-msgid "External URL"
-msgstr "Externe URL"
-
-#: templates/pygowave_server/gadgets/my_gadgets.html:71
-msgid "(filled in by Gadget header)"
-msgstr "(ingevuld door gadget koptekst)"
-
-#: templates/pygowave_server/gadgets/my_gadgets.html:73
-msgid "Submit"
-msgstr "Verstuur"
-
-#: templates/pygowave_server/waves/invalid_wave.html:5
-#: templates/pygowave_server/waves/invalid_wave.html:9
-msgid "Error: Invalid Wave ID"
-msgstr "Error: Ongeldige Wave ID"
-
-#: templates/pygowave_server/waves/invalid_wave.html:11
-msgid ""
-"\n"
-"Sorry, the desired Wave could not be found. It may have been deleted or "
-"simply\n"
-"was never created before.\n"
-msgstr ""
-"\n"
-"Sorry, de gewenste Wave kon niet worden gevonden. Het kan verwijderd zijn of "
-"het was gewoon nog niet aangemaakt.\n"
-
-#: templates/pygowave_server/waves/no_permission.html:5
-#: templates/pygowave_server/waves/no_permission.html:9
-msgid "Error: No Permission"
-msgstr "Fout: geen toestemming"
-
-#: templates/pygowave_server/waves/no_permission.html:11
-msgid ""
-"\n"
-"Sorry, you do not have permission to view this Wave. You must be added by "
-"the\n"
-"people who participate in this Wave.\n"
-msgstr ""
-"\n"
-"Sorry, je hebt geen toestemming voor deze Wave. Je moet toegevoegd zijn door "
-"een van de deelnemers van de Wave.\n"
-
-#: templates/pygowave_server/waves/on_the_wave.html:40
-#: templates/pygowave_server/waves/on_the_wave.html:41
-#: templates/pygowave_server/waves/on_the_wave.html:42
-msgid "Leave Wave"
-msgstr "Verlaat Wave"
-
-#: templates/pygowave_server/waves/on_the_wave.html:45
-#: templates/pygowave_server/waves/on_the_wave.html:46
-#: templates/pygowave_server/waves/on_the_wave.html:47
-msgid "Debug"
-msgstr ""
-
-#: templates/pygowave_server/waves/on_the_wave.html:52
-#, fuzzy
-msgid ""
-"\n"
-"\tHints: Click on the \"+\" to add a friend to your wave. The search "
-"currently\n"
-"\tcovers the whole database of users. You cannot remove other people but "
-"you\n"
-"\tcan remove yourself from a wave by clicking the \"Leave Wave\" button on "
-"the\n"
-"\tright hand side. Again, this application is experimental and may not work\n"
-"\tas expected.\n"
-"\t"
-msgstr ""
-"\n"
-"Een korte instructie: Klik op de \"+\" voor het toevoegen van een vriend aan "
-"jouw Wave. Het zoeken heeft betrekking op de gehele database van de "
-"gebruikers. <br/> Een gebruiker kan worden toegevoegd door iedereen die "
-"deelneemt aan de golf. Niemand kan een deelnemer verwijderen behalve de "
-"deelnemer zelf. Je kan zelf de wave verlaten door op de \"Verlaat Wave\" "
-"knop aan de rechterkant te klikken. <br/>Wederom, deze applicatie is "
-"experimenteel en kan niet correct werken.\n"
-
-#: templates/pygowave_server/waves/wave_list.html:9
-msgid "New Wave"
-msgstr "Nieuwe Wave"
-
-#: templates/pygowave_server/waves/wave_list.html:14
-msgid "Create"
-msgstr "Maak aan"
-
-#: templates/pygowave_server/waves/wave_list.html:18
-msgid "Existing Waves"
-msgstr "Bestaande Waves"
-
-#: templates/pygowave_server/waves/wave_list.html:22
-msgid "Creator"
-msgstr "Initiator"
-
-#: templates/pygowave_server/waves/wave_list.html:22
-msgid "Participants"
-msgstr "Deelnemers"
-
-#: templates/pygowave_server/waves/wave_list.html:22
-msgid "Created"
-msgstr "Geinitieerd"
-
-#: templates/pygowave_server/waves/wave_list.html:33
-msgid "There are currently no Waves to which you participate."
-msgstr "Er zijn momenteel geen Waves waar je aan deelneemt."
 
 #: templates/registration/activate.html:5
 #: templates/registration/activate.html:8
@@ -462,16 +45,22 @@ msgstr "Account activeren"
 msgid "Congratulations! Your account was activated. Have fun."
 msgstr "Gefeliciteerd! Je account was geactiveerd. Veel plezier!"
 
-#: templates/registration/activate.html:14
-msgid ""
-"Sorry, your account could not be activated. I don't care why this happened."
-msgstr ""
-"Sorry, je account kon niet worden geactiveerd. Het kan mij niets schelen "
-"waarom."
+#: templates/registration/activate.html:15
+#: templates/registration/login.html:14
+msgid "Login"
+msgstr "Inloggen"
+
+#: templates/registration/activate.html:19
+msgid "Sorry, your account could not be activated. Please contact the server administrator."
+msgstr "Sorry, je account kon niet worden geactiveerd. Neem contact op met de server beheerder."
 
 #: templates/registration/login.html:4 templates/registration/login.html:19
 msgid "Authentication required"
 msgstr "Authenticatie vereist"
+
+#: templates/registration/login.html:9
+msgid "Authentication failed!"
+msgstr "Aanmelden is mislukt!"
 
 #: templates/registration/login.html:13
 msgid "Register?"
@@ -484,55 +73,31 @@ msgid ""
 "Please use the login form on the right hand side.\n"
 msgstr ""
 "\n"
-"De opgevraagde pagina vereist dat je je aanmeldt. <br/> Gebruik de login-"
-"formulier aan de rechterkant.\n"
+"De opgevraagde pagina vereist dat je je aanmeldt.<br/>\n"
+"Gebruik de login-formulier aan de rechterkant.\n"
 
 #: templates/registration/registration_complete.html:5
 #: templates/registration/registration_complete.html:8
-#: templates/registration/registration_form.html:5
-#: templates/registration/registration_form.html:8
-#: templates/registration/registration_form.html:18
+#: templates/registration/registration_form.html:4
+#: templates/registration/registration_form.html:7
+#: templates/registration/registration_form.html:17
 msgid "Register"
 msgstr "Registreer"
 
 #: templates/registration/registration_complete.html:10
 msgid ""
 "\n"
-"\tThank you. Now go and check your mailbox and activate your account within "
-"7 days.\n"
+"\tThank you. Now go and check your mailbox and activate your account within 7 days.\n"
 msgstr ""
 "\n"
 "Dank je wel. Controleer je mailbox en activeer je account binnen 7 dagen.\n"
 
-#: templates/registration/registration_form.html:10
+#: templates/registration/registration_form.html:9
 msgid ""
 "\n"
-"\tYou wanna play around with it? Allright, then fill out this signup form."
-"<br/>\n"
+"\tYou wanna play around with it? Allright, then fill out this signup form.<br/>\n"
 "\tYou'll be sent an account activation E-Mail.\n"
 msgstr ""
 "\n"
-"Je wilt ermee spelen? Prima, vul dan dit aanmeldformulier in.<br/>Je krijgt "
-"dan een activatie-email waarmee je je account kan activeren.\n"
-
-#~ msgid "Add participant"
-#~ msgstr "Voeg deelnemer toe"
-
-#~ msgid "Playground"
-#~ msgstr "Speeltuin"
-
-#~ msgid "Select a gadget"
-#~ msgstr "Selecteer een gadget"
-
-#~ msgid "(none)"
-#~ msgstr "(geen)"
-
-#~ msgid ""
-#~ "\n"
-#~ "Please enter at least %(too_short)s letters.\n"
-#~ msgstr ""
-#~ "\n"
-#~ "Vul ten minste %(too_short)s letters in\n"
-
-#~ msgid "Sorry, your search yielded no results."
-#~ msgstr "Sorry, je zoekopdracht heeft geen resultaten gevonden."
+"Je wilt ermee spelen? Prima, vul dan dit aanmeldformulier in.<br/>\n"
+"Je krijgt dan een activatie-email waarmee je je account kan activeren.\n"

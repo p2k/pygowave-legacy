@@ -24,24 +24,35 @@ from pygowave_client.settings import *
 from datetime import datetime, timedelta
 import os, gzip
 
-def compile_and_cache(srcfile, cachefile, package, namespace):
+CACHE_FOLDER = getattr(django_settings, "CLIENT_CACHE_FOLDER")
+
+def compile_and_cache(package, module, namespace):
+	srcfile = SRC_FOLDER + package + os.path.sep + module
+	cachefile = CACHE_FOLDER + package + os.path.sep + module + ".js"
 	if os.path.exists(srcfile + ".py"):
 		srcfile += ".py"
 		mtime = datetime.utcfromtimestamp(os.path.getmtime(srcfile))
 		if not os.path.exists(cachefile) or os.path.getmtime(srcfile) > os.path.getmtime(cachefile):
+			if not os.path.exists(CACHE_FOLDER + package):
+				os.mkdir(CACHE_FOLDER + package)
 			try:
 				from pycow import translate_file, ParseError # Import has been placed here, so PyCow is not a dependency
 			except ImportError:
-				pass # Force use of cached versions (shipped with PyGoWave)
+				# Symlink/copy shipped version
+				shippedfile = SHIPPED_FOLDER + package + os.path.sep + module + ".js"
+				if os.name == "posix":
+					target = os.path.relpath(shippedfile, os.path.dirname(cachefile))
+					os.symlink(target, cachefile)
+				else:
+					open(cachefile, 'w').write(open(shippedfile, 'r').read())
+				return (cachefile, "changed", mtime)
 			else:
-				if not os.path.exists(CACHE_FOLDER + package):
-					os.mkdir(CACHE_FOLDER + package)
 				try:
 					translate_file(srcfile, cachefile, namespace=namespace, warnings=False)
-					return ("changed", mtime)
+					return (cachefile, "changed", mtime)
 				except ParseError, e:
 					os.unlink(cachefile)
-					return ("error", PARSE_ERROR_MESSAGE % (srcfile, e.value))
+					return ("", "error", PARSE_ERROR_MESSAGE % (srcfile, e.value))
 	elif os.path.exists(srcfile + ".js"):
 		srcfile += ".js"
 		mtime = datetime.utcfromtimestamp(os.path.getmtime(srcfile))
@@ -54,10 +65,10 @@ def compile_and_cache(srcfile, cachefile, package, namespace):
 				os.symlink(target, cachefile)
 			else:
 				open(cachefile, 'w').write(open(srcfile, 'r').read())
-			return ("changed", mtime)
+			return (cachefile, "changed", mtime)
 	else:
 		raise Http404
-	return ("unchanged", mtime)
+	return (cachefile, "unchanged", mtime)
 
 def view_module(request, package, module):
 	"""
@@ -67,11 +78,8 @@ def view_module(request, package, module):
 	"""
 	
 	namespace = "pygowave.%s" % (package)
-	module = package + os.path.sep + module
-	cachefile = CACHE_FOLDER + module + ".js"
-	srcfile = SRC_FOLDER + module
 	
-	result, mtime = compile_and_cache(srcfile, cachefile, package, namespace)
+	outfile, result, mtime = compile_and_cache(package, module, namespace)
 	
 	if result == "error":
 		return HttpResponse(mtime, mimetype="text/javascript")
@@ -90,12 +98,12 @@ def view_module(request, package, module):
 	
 	# Support for gzip
 	if os.name != "nt" and "gzip" in request.META["HTTP_ACCEPT_ENCODING"].split(","):
-		if not os.path.exists(cachefile + ".gz") or os.path.getmtime(cachefile) > os.path.getmtime(cachefile + ".gz"):
-			gzip.open(cachefile + ".gz", 'wb').write(open(cachefile, 'r').read())
-		cachefile = cachefile + ".gz"
+		if not os.path.exists(outfile + ".gz") or os.path.getmtime(outfile) > os.path.getmtime(outfile + ".gz"):
+			gzip.open(outfile + ".gz", 'wb').write(open(outfile, 'r').read())
+		outfile = outfile + ".gz"
 		response["Content-Encoding"] = "gzip"
 
-	response.write(open(cachefile, "r").read())
+	response.write(open(outfile, "r").read())
 
 	return response
 
@@ -110,22 +118,19 @@ def view_combined(request):
 	for package, modules in STATIC_LOAD_ORDER:
 		for module in modules:
 			namespace = "pygowave.%s" % (package)
-			module = package + os.path.sep + module
-			cachefile = CACHE_FOLDER + module + ".js"
-			srcfile = SRC_FOLDER + module
 			
-			result, mtime = compile_and_cache(srcfile, cachefile, package, namespace)
+			outfile, result, mtime = compile_and_cache(package, module, namespace)
 			
 			if result == "error":
 				return HttpResponse(mtime, mimetype="text/javascript")
 			elif result == "changed":
 				changed = True
 	
-	cachefile = CACHE_FOLDER + "pygowave_client_combined.js"
+	outfile = CACHE_FOLDER + "pygowave_client_combined.js"
 	
 	# Combine
-	if changed or not os.path.exists(cachefile):
-		cf = open(cachefile, 'w')
+	if changed or not os.path.exists(outfile):
+		cf = open(outfile, 'w')
 		first = True
 		for package, modules in STATIC_LOAD_ORDER:
 			for module in modules:
@@ -153,7 +158,7 @@ def view_combined(request):
 		cf.close()
 	
 	# Handle If-Modified-Since
-	mtime = datetime.utcfromtimestamp(os.path.getmtime(cachefile))
+	mtime = datetime.utcfromtimestamp(os.path.getmtime(outfile))
 	if request.META.has_key("HTTP_IF_MODIFIED_SINCE"):
 		try:
 			mstime = datetime.strptime(request.META["HTTP_IF_MODIFIED_SINCE"], RFC_1123_DATETIME)
@@ -167,11 +172,11 @@ def view_combined(request):
 
 	# Support for gzip
 	if "gzip" in request.META["HTTP_ACCEPT_ENCODING"].split(","):
-		if not os.path.exists(cachefile + ".gz") or os.path.getmtime(cachefile) > os.path.getmtime(cachefile + ".gz"):
-			gzip.open(cachefile + ".gz", 'wb').write(open(cachefile, 'r').read())
-		cachefile = cachefile + ".gz"
+		if not os.path.exists(outfile + ".gz") or os.path.getmtime(outfile) > os.path.getmtime(outfile + ".gz"):
+			gzip.open(outfile + ".gz", 'wb').write(open(outfile, 'r').read())
+		outfile = outfile + ".gz"
 		response["Content-Encoding"] = "gzip"
 	
-	response.write(open(cachefile, "r").read())
+	response.write(open(outfile, "r").read())
 
 	return response

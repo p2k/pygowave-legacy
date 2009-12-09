@@ -1,1 +1,1 @@
-[PyGoWave Server] Account activation
+PyGoWave Account activation

@@ -241,6 +241,22 @@ class Wavelet(models.Model):
 		else:
 			super(Wavelet, self).save(force_insert, force_update)
 	
+	def creationTimeMs(self):
+		"""
+		Returns the time of creation of this Wavelet in milliseconds since
+		the epoc.
+		
+		"""
+		return datetime2milliseconds(self.created)
+	
+	def lastModifiedTimeMs(self):
+		"""
+		Returns the last modified time of this Wavelet in milliseconds since
+		the epoc.
+		
+		"""
+		return datetime2milliseconds(self.last_modified)
+	
 	def __unicode__(self):
 		return u"Wavelet '%s' (%s)" % (self.title, self.id)
 	
@@ -254,12 +270,12 @@ class Wavelet(models.Model):
 			"rootBlipId": getattr(self.root_blip, "id", None),
 			"title": self.title,
 			"creator": self.creator.id,
-			"creationTime": datetime2milliseconds(self.created),
+			"creationTime": self.creationTimeMs(),
 			"dataDocuments": None, #TODO (is not declared in the robot protocol example)
 			"waveletId": self.id,
 			"participants": map(lambda p: p.id, self.participants.all()),
 			"version": self.version,
-			"lastModifiedTime": datetime2milliseconds(self.last_modified),
+			"lastModifiedTime": self.lastModifiedTimeMs(),
 			"waveId": self.wave.id,
 			"isRoot": self.is_root,
 		}
@@ -271,37 +287,62 @@ class Wavelet(models.Model):
 		
 		"""
 		blipmap = {}
-		for blip in self.blips.all():
+		for blip in self.blips.order_by("created").all():
 			blipmap[blip.id] = blip.serialize()
 		return blipmap
 	
-	def applyOperations(self, ops):
+	def applyOperations(self, ops, contributor):
 		"""
 		Apply the operations on the wavelet.
+		Returns a dict for tempId->blipId mapping.
+		
+		Note: This may modify or even delete some operations.
 		
 		"""
 		
-		for op in ops:
+		newBlips = {}
+		
+		i = 0
+		while i < len(ops):
+			op = ops[i]
 			if op.blipId != "":
 				blip = self.blipById(op.blipId)
+				if blip == None:
+					#TODO: error handling
+					del ops[i]
+					continue
 				if op.type == DOCUMENT_DELETE:
-					blip.deleteText(op.index, op.property)
+					blip.deleteText(op.index, op.property, contributor)
 				elif op.type == DOCUMENT_INSERT:
-					blip.insertText(op.index, op.property)
+					blip.insertText(op.index, op.property, contributor)
 				elif op.type == DOCUMENT_ELEMENT_DELETE:
-					blip.deleteElement(op.index)
+					blip.deleteElement(op.index, contributor)
 				elif op.type == DOCUMENT_ELEMENT_INSERT:
-					blip.insertElement(op.index, op.property["type"], op.property["properties"])
+					blip.insertElement(op.index, op.property["type"], op.property["properties"], contributor)
 				elif op.type == DOCUMENT_ELEMENT_DELTA:
 					try:
-						blip.applyElementDelta(op.index, op.property)
+						blip.applyElementDelta(op.index, op.property, contributor)
 					except:
-						pass #TODO: error handling
+						del ops[i]
+						continue #TODO: error handling
 				elif op.type == DOCUMENT_ELEMENT_SETPREF:
 					try:
-						blip.setElementUserpref(op.index, op.property["key"], op.property["value"])
+						blip.setElementUserpref(op.index, op.property["key"], op.property["value"], contributor)
 					except:
-						pass #TODO: error handling
+						del ops[i]
+						continue #TODO: error handling
+				elif op.type == BLIP_DELETE:
+					blip.delete()
+					i += 1
+					continue
+				elif op.type == BLIP_CREATE_CHILD:
+					childBlip = Blip(wavelet=self, creator=contributor, parent=blip)
+					childBlip.save()
+					newBlips[op.property["blipId"]] = childBlip.id
+					op.property["blipId"] = childBlip.id
+				else:
+					del ops[i]
+					continue #TODO: error handling
 				blip.save()
 			else:
 				if op.type == WAVELET_ADD_PARTICIPANT:
@@ -309,14 +350,29 @@ class Wavelet(models.Model):
 					try:
 						p = Participant.objects.get(id=op.property)
 					except ObjectDoesNotExist:
+						del ops[i]
 						continue #TODO: error handling
 					# Check if already participating
 					if self.participants.filter(id=op.property).count() > 0:
+						del ops[i]
 						continue #TODO: error handling
 					self.participants.add(p)
 				elif op.type == WAVELET_REMOVE_PARTICIPANT:
 					if self.participants.filter(id=op.property).count() > 0:
 						self.participants.remove(self.participants.get(id=op.property))
+					else:
+						del ops[i]
+				elif op.type == WAVELET_APPEND_BLIP:
+					newBlip = Blip(wavelet=self, creator=contributor)
+					newBlip.save()
+					newBlips[op.property["blipId"]] = newBlip.id
+					op.property["blipId"] = newBlip.id
+				else:
+					del ops[i]
+					continue #TODO: error handling
+			i += 1
+		
+		return newBlips
 	
 	def blipsums(self):
 		"""
@@ -353,6 +409,7 @@ class Blip(models.Model):
 	id = models.CharField(max_length=42, primary_key=True)
 	wavelet = models.ForeignKey(Wavelet, related_name="blips")
 	parent = models.ForeignKey("self", related_name="children", null=True, blank=True)
+	created = models.DateTimeField(auto_now_add=True)
 	creator = models.ForeignKey(Participant, related_name="created_blips")
 	version = models.IntegerField(default=0)
 	last_modified = models.DateTimeField(auto_now=True)
@@ -362,13 +419,39 @@ class Blip(models.Model):
 	
 	text = models.TextField(blank=True)
 	
+	def addContributor(self, contributor):
+		"""
+		Add a contributor if he is not already contributing.
+		
+		"""
+		if self.contributors.filter(id=contributor.id).count() == 0:
+			self.contributors.add(contributor)
+	
+	def creationTimeMs(self):
+		"""
+		Returns the time of creation of this Blip in milliseconds since
+		the epoc.
+		
+		"""
+		return datetime2milliseconds(self.created)
+	
+	def lastModifiedTimeMs(self):
+		"""
+		Returns the last modified time of this Blip in milliseconds since
+		the epoc.
+		
+		"""
+		return datetime2milliseconds(self.last_modified)
+	
 	@transaction.commit_on_success
-	def insertText(self, index, text):
+	def insertText(self, index, text, contributor):
 		"""
 		Insert a text at the specified index. This moves annotations and
 		elements as appropriate.
 		
 		"""
+		
+		self.addContributor(contributor)
 		
 		self.text = self.text[:index] + text + self.text[index:]
 		length = len(text)
@@ -383,12 +466,14 @@ class Blip(models.Model):
 			elt.save()
 	
 	@transaction.commit_on_success
-	def deleteText(self, index, length):
+	def deleteText(self, index, length, contributor):
 		"""
 		Delete text at the specified index. This moves annotations and
 		elements as appropriate.
 		
 		"""
+		
+		self.addContributor(contributor)
 		
 		self.text = self.text[:index] + self.text[index+length:]
 		
@@ -402,12 +487,14 @@ class Blip(models.Model):
 			elt.save()
 	
 	@transaction.commit_on_success
-	def insertElement(self, index, type, properties):
+	def insertElement(self, index, type, properties, contributor):
 		"""
 		Insert an element at the specified index. This implicitly adds a
 		protected newline character at the index.
 		
 		"""
+		
+		self.addContributor(contributor)
 		
 		self.insertText(index, "\n")
 		if type == 2:
@@ -418,12 +505,14 @@ class Blip(models.Model):
 		elt.save()
 	
 	@transaction.commit_on_success
-	def deleteElement(self, index):
+	def deleteElement(self, index, contributor):
 		"""
 		Delete an element at the specified index. This implicitly deletes the
 		protected newline character at the index.
 		
 		"""
+		
+		self.addContributor(contributor)
 		
 		elt = self.elements.get(position=index)
 		if elt.type == 2:
@@ -432,11 +521,13 @@ class Blip(models.Model):
 		self.deleteText(index, 1)
 	
 	@transaction.commit_on_success
-	def applyElementDelta(self, index, delta):
+	def applyElementDelta(self, index, delta, contributor):
 		"""
 		Apply an element delta. Currently only for gadget elements.
 		
 		"""
+		
+		self.addContributor(contributor)
 		
 		elt = self.elements.get(position=index)
 		if elt.type != 2:
@@ -444,11 +535,13 @@ class Blip(models.Model):
 		elt.to_gadget().apply_delta(delta)
 	
 	@transaction.commit_on_success
-	def setElementUserpref(self, index, key, value):
+	def setElementUserpref(self, index, key, value, contributor):
 		"""
 		Set an UserPref of an element. Currently only for gadget elements.
 		
 		"""
+		
+		self.addContributor(contributor)
 		
 		elt = self.elements.get(position=index)
 		if elt.type != 2:
@@ -459,6 +552,7 @@ class Blip(models.Model):
 		if not self.id:
 			self.id = find_random_id(Blip.objects, 10)
 			super(Blip, self).save(True)
+			self.contributors.add(self.creator)
 		else:
 			super(Blip, self).save(force_insert, force_update)
 	
@@ -474,11 +568,12 @@ class Blip(models.Model):
 			"elements": map(lambda e: e.serialize(), self.elements.all()),
 			"contributors": map(lambda p: p.id, self.contributors.all()),
 			"creator": self.creator.id,
+			"creationTime": self.creationTimeMs(),
 			"parentBlipId": getattr(self.parent, "id", None),
 			"annotations": map(lambda a: a.serialize(), self.annotations.all()),
 			"waveletId": self.wavelet.id,
 			"version": self.version,
-			"lastModifiedTime": datetime2milliseconds(self.last_modified),
+			"lastModifiedTime": self.lastModifiedTimeMs(),
 			"childBlipIds": map(lambda c: c.id, self.children.all()),
 			"waveId": self.wavelet.wave.id,
 			"submitted": bool(self.submitted),
@@ -751,6 +846,7 @@ class Delta(models.Model):
 	timestamp = models.DateTimeField(auto_now_add=True)
 	version = models.IntegerField()
 	wavelet = models.ForeignKey(Wavelet, related_name="deltas")
+	contributor = models.ForeignKey(Participant, related_name="deltas")
 	
 	operations = models.TextField() # JSON again
 	
@@ -762,7 +858,8 @@ class Delta(models.Model):
 		"""
 		newobj = cls(
 			version=version,
-			wavelet= Wavelet.objects.get(id=opman.waveletId),
+			wavelet=Wavelet.objects.get(id=opman.waveletId),
+			contributor=Participant.objects.get(id=opman.contributorId),
 			operations=simplejson.dumps(opman.serialize())
 		)
 		newobj._OpManager = opman
@@ -776,12 +873,20 @@ class Delta(models.Model):
 		"""
 		opman = getattr(self, "_OpManager", None)
 		if opman == None:
-			opman = OpManager(self.wavelet.wave.id, self.wavelet.id)
+			opman = OpManager(self.wavelet.wave.id, self.wavelet.id, self.contributor.id)
 			opman.unserialize(simplejson.loads(self.operations))
 			self._OpManager = opman
 		
 		return opman
 	
+	def timestampMs(self):
+		"""
+		Returns the timestamp of this Delta in milliseconds since
+		the epoc.
+		
+		"""
+		return datetime2milliseconds(self.timestamp)
+
 	def __unicode__(self):
 		return u"Delta #%d v%d@%s" % (self.id, self.version, self.wavelet.id)
 

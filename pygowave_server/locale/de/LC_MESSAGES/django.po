@@ -1,0 +1,449 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+# 
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2009-12-09 02:10+0100\n"
+"PO-Revision-Date: 2009-12-09 02:20\n"
+"Last-Translator: <me@p2k-network.org>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Translated-Using: django-rosetta 0.4.0\n"
+
+#: engine.py:89
+msgid "Invalid Gadget XML format (Module tag missing)"
+msgstr "Fehlerhaftes Gadget-XML-Format (Module-Tag fehlt)"
+
+#: engine.py:94
+msgid "Invalid Gadget XML format (ModulePrefs/title missing)"
+msgstr "Fehlerhaftes Gadget-XML-Format (ModulePrefs/title fehlt)"
+
+#: engine.py:109
+#, python-format
+msgid "Required feature \"%s\" is unsupported"
+msgstr "Das benötigte Feature \"%s\" wird nicht unterstützt"
+
+#: engine.py:137
+msgid "Invalid Gadget XML format (Content tag missing)"
+msgstr "Fehlerhaftes Gadget-XML-Format (Content-Tag fehlt)"
+
+#: forms.py:45
+msgid "Your desired username is too short. Please enter at least three characters."
+msgstr "Dein gewünschter Benutzername ist zu kurz. Bitte gib mindestens drei Zeichen ein."
+
+#: forms.py:74
+msgid "(Avatar)"
+msgstr "(Avatar)"
+
+#: forms.py:118
+msgid "Profile URL"
+msgstr "Profil-URL"
+
+#: forms.py:155 views.py:276
+msgid "This server currently does not support Gadgets (lxml package missing)."
+msgstr "Dieser Server unterstützt momentan keine Gadgets (lxml-Paket fehlt)."
+
+#: forms.py:164
+msgid "You must enter an URL or choose \"Upload\" and upload a file."
+msgstr "Du musst eine URL eingeben oder unter \"Upload\" eine Datei hochladen."
+
+#: forms.py:174
+msgid "You must upload a file or choose \"External URL\" and enter an URL."
+msgstr "Du musst eine Datei hochladen oder unter \"Externe URL\" eine URL eingeben."
+
+#: forms.py:186 forms.py:229 views.py:296
+msgid "Gadget could not be downloaded."
+msgstr "Gadget konnte nicht heruntergeladen werden."
+
+#: forms.py:190 forms.py:233 views.py:298
+msgid "Gadget quick-check failed: Bad XML format."
+msgstr "Gadget Quick-Check fehlgeschlagen: XML-Format fehlerhaft."
+
+#: forms.py:194 forms.py:237 views.py:300
+#, python-format
+msgid "Gadget quick-check failed: %s."
+msgstr "Gadget Quick-Check fehlgeschlagen: %s."
+
+#: forms.py:246 models.py:907
+#: templates/pygowave_server/gadgets/all_gadgets.html:14
+#: templates/pygowave_server/waves/wave_list.html:22
+msgid "Title"
+msgstr "Titel"
+
+#: models.py:147
+msgid "participant connection"
+msgstr "Wave-Teilnehmereinstellungen"
+
+#: models.py:148
+msgid "participant connections"
+msgstr "Wave-Teilnehmereinstellungen"
+
+#: models.py:220
+msgid "connections"
+msgstr "Verbindungen"
+
+#: models.py:908
+msgid "Description"
+msgstr "Beschreibung"
+
+#: models.py:909
+msgid "URL"
+msgstr "URL"
+
+#: models.py:910
+msgid "Hosted filename"
+msgstr "Gehosteter Dateiname"
+
+#: models.py:911
+msgid "Development version"
+msgstr "Entwicklerversion"
+
+#: views.py:281
+msgid "No URL specified."
+msgstr "Keine URL angegeben."
+
+#: views.py:308
+msgid "GadgetElement could not be found."
+msgstr "Gadget konnte nicht gefunden werden."
+
+#: templates/pygowave_server/home.html:6
+#: templates/pygowave_server/index.html:4 templatetags/pgw_nav.py:35
+msgid "Welcome"
+msgstr "Willkommen"
+
+#: templates/pygowave_server/home.html:15
+#, python-format
+msgid ""
+"\n"
+"Welcome %(username)s, enjoy your stay!\n"
+msgstr ""
+"\n"
+"Willkommen %(username)s, angenehmen Aufenthalt!\n"
+
+#: templates/pygowave_server/home.html:20
+#: templates/pygowave_server/index.html:50
+#, python-format
+msgid ""
+"\n"
+"Currently, there is <b>%(online_count)s</b> user online out of\n"
+"%(users_count)s registred users.\n"
+msgid_plural ""
+"\n"
+"Currently, there are <b>%(online_count)s</b> users online out of\n"
+"%(users_count)s registred users.\n"
+msgstr[0] ""
+"\n"
+"Zur Zeit ist <b>%(online_count)s</b> Benutzer online von insgesamt %(users_count)s registrierten Benutzern.\n"
+msgstr[1] "Zur Zeit sind <b>%(online_count)s</b> Benutzer online von insgesamt %(users_count)s registrierten Benutzern."
+
+#: templates/pygowave_server/home.html:30
+#: templates/pygowave_server/index.html:34
+msgid ""
+"\n"
+"This is a development server, not intended for production use.\n"
+"Happy hacking!\n"
+msgstr ""
+"\n"
+"Dies ist eine Entwicklerversion und nicht für den Produktionseinsatz gedacht. Frohes hacken!\n"
+
+#: templates/pygowave_server/index.html:9
+msgid "Authentication failed!"
+msgstr "Authentifizierung fehlgeschlagen!"
+
+#: templates/pygowave_server/index.html:13
+msgid "Register?"
+msgstr "Registrieren?"
+
+#: templates/pygowave_server/index.html:14
+msgid "Login"
+msgstr "Login"
+
+#: templates/pygowave_server/index.html:17
+msgid "Forgot password?"
+msgstr "Passwort vergessen?"
+
+#: templates/pygowave_server/index.html:22
+msgid "Welcome to PyGoWave!"
+msgstr "Willkommen zu PyGoWave!"
+
+#: templates/pygowave_server/index.html:24
+msgid ""
+"\n"
+"PyGoWave is the next generation communication platform for the web\n"
+"coded in <a href=\"http://www.python.org\">Python</a>.<br/>\n"
+"It is similar to its big brother <a href=\"http://wave.google.com\">Google Wave</a>\n"
+"and aims to be a comparable and compatible alternative.\n"
+msgstr ""
+"\n"
+"PyGoWave ist die Kommunikationsplatform der nächsten Generation, programmiert in <a href=\"http://www.python.org\">Python</a>.<br/>\n"
+"Es ist seinem großen Bruder <a href=\"http://wave.google.com\">Google Wave</a> ähnlich und hat zum Ziel eine vergleichbare und kompatible Alternative zu sein.\n"
+
+#: templates/pygowave_server/index.html:41
+msgid ""
+"\n"
+"This is not the official server, but one of (probably) many free\n"
+"participating servers around the world. Do not hesitate to sign up, we are a\n"
+"big family.\n"
+msgstr ""
+"\n"
+"Dies ist nicht der offizielle Server, dafür einer von (vermutlich) vielen frei teilnehmenden Servern überall auf der Welt. Zögere nicht Dich anzumelden, wir sind eine große Familie.\n"
+
+#: templates/pygowave_server/index.html:60
+msgid ""
+"\n"
+"Disclaimer: This is highly experimental. By using this software you are\n"
+"completely on your own. No warranty for anything.\n"
+msgstr ""
+"\n"
+"Haftungsausschluss: Alles hier ist hochgradig experimentell. Wenn Du diese Software benutzt, bist Du komplett auf dich alleingestellt. Wir garantieren für nichts.\n"
+
+#: templates/pygowave_server/nav.html:19
+msgid "Logout"
+msgstr "Ausloggen"
+
+#: templates/pygowave_server/project_status.html:4
+#, python-format
+msgid ""
+"\n"
+"The version running on this server is: <b>%(VERSION)s</b><br/>\n"
+"Please check the official <a href=\"http://github.com/p2k/pygowave/issues\">Bug Tracker</a>\n"
+"for a list of known issues and upcoming changes.\n"
+msgstr ""
+"\n"
+"Die Version, die auf diesem Server läuft, ist: <b>%(VERSION)s</b><br/>\n"
+"Bitte schau bei unserem <a href=\"http://github.com/p2k/pygowave/issues\">Bug Tracker</a>\n"
+"vorbei, um eine Liste der bekannten Probleme und der nächsten Änderungen einzusehen.\n"
+
+#: templates/pygowave_server/settings.html:5 templatetags/pgw_nav.py:40
+msgid "Settings"
+msgstr "Einstellungen"
+
+#: templates/pygowave_server/settings.html:9
+msgid "Wave Participant Settings"
+msgstr "Wave-Teilnehmereinstellungen"
+
+#: templates/pygowave_server/settings.html:12
+msgid ""
+"\n"
+"\tUse this form to set your public Wave participant information.\n"
+msgstr ""
+"\n"
+"Verwende dieses Formular, um Deine öffentlichen Wave-Teilnehmerinformationen festzulegen.\n"
+
+#: templates/pygowave_server/settings.html:21
+msgid "Save"
+msgstr "Sichern"
+
+#: templates/pygowave_server/settings.html:26
+msgid "Account Settings"
+msgstr "Account-Einstellungen"
+
+#: templates/pygowave_server/settings.html:29
+msgid "Change password"
+msgstr "Passwort ändern"
+
+#: templates/pygowave_server/gadgets/all_gadgets.html:6
+#: templatetags/pgw_nav.py:57
+msgid "All Gadgets"
+msgstr "Alle Gadgets"
+
+#: templates/pygowave_server/gadgets/all_gadgets.html:12
+#: templates/pygowave_server/gadgets/my_gadgets.html:14
+msgid "Hover over a Gadget's title to see its description."
+msgstr "Bewege den Mauszeiger über einen Titel, um die Beschreibung anzuzeigen."
+
+#: templates/pygowave_server/gadgets/all_gadgets.html:14
+msgid "Uploaded by"
+msgstr "Hochgeladen von"
+
+#: templates/pygowave_server/gadgets/all_gadgets.html:14
+#: templates/pygowave_server/gadgets/all_gadgets.html:20
+#: templates/pygowave_server/gadgets/my_gadgets.html:20
+msgid "Download"
+msgstr "Herunterladen"
+
+#: templates/pygowave_server/gadgets/all_gadgets.html:29
+msgid "No one has submitted any Gadget. Sigh."
+msgstr "Niemand hat auch nur ein einziges Gadget eingetragen. Seufz."
+
+#: templates/pygowave_server/gadgets/gadget_error.html:3
+msgid "Gadget Loader Error"
+msgstr "Gadget Loader Fehler"
+
+#: templates/pygowave_server/gadgets/gadget_error.html:10
+msgid "Error while loading Gadget:"
+msgstr "Fehler beim Laden des Gadgets:"
+
+#: templates/pygowave_server/gadgets/my_gadgets.html:5
+#: templatetags/pgw_nav.py:52
+msgid "My Gadgets"
+msgstr "Meine Gadgets"
+
+#: templates/pygowave_server/gadgets/my_gadgets.html:10
+msgid "Manage my Gadgets"
+msgstr "Meine Gadgets verwalten"
+
+#: templates/pygowave_server/gadgets/my_gadgets.html:12
+msgid "Your Gadget was successfully registered."
+msgstr "Dein Gadget wurde erfolgreich registriert."
+
+#: templates/pygowave_server/gadgets/my_gadgets.html:21
+msgid "Delete"
+msgstr "Löschen"
+
+#: templates/pygowave_server/gadgets/my_gadgets.html:30
+#, python-format
+msgid "Do you really want to delete \\\"%s\\\"?"
+msgstr "Willst du \\\"%s\\\" wirklich löschen?"
+
+#: templates/pygowave_server/gadgets/my_gadgets.html:35
+msgid "You didn't submit any Gadgets. Use the form below to add one."
+msgstr "Du hast noch keine Gadgets eingetragen. Verwende das Formular weiter unten um ein Gadget hinzuzufügen."
+
+#: templates/pygowave_server/gadgets/my_gadgets.html:39
+msgid "Add or upload new Gadget"
+msgstr "Neues Gadget hinzufügen oder hochladen"
+
+#: templates/pygowave_server/gadgets/my_gadgets.html:48
+msgid "Upload"
+msgstr "Hochladen"
+
+#: templates/pygowave_server/gadgets/my_gadgets.html:49
+msgid "External URL"
+msgstr "Externe URL"
+
+#: templates/pygowave_server/gadgets/my_gadgets.html:79
+msgid "(From Gadget header)"
+msgstr "(Aus Gadget-Header)"
+
+#: templates/pygowave_server/gadgets/my_gadgets.html:102
+#: templates/pygowave_server/gadgets/my_gadgets.html:114
+msgid "Submit"
+msgstr "Abschicken"
+
+#: templates/pygowave_server/gadgets/my_gadgets.html:110
+msgid "A Gadget with this title already exists."
+msgstr "Ein Gadget mit diesem Titel existiert bereits."
+
+#: templates/pygowave_server/gadgets/my_gadgets.html:111
+msgid "You may change the title or leave it to overwrite the existing Gadget."
+msgstr "Du kannst den Titel ändern oder das bestehende Gadget überschreiben."
+
+#: templates/pygowave_server/gadgets/my_gadgets.html:111
+msgid "Please enter a new title."
+msgstr "Bitte gib einen neuen Titel ein."
+
+#: templates/pygowave_server/gadgets/my_gadgets.html:114
+msgid "Cancel"
+msgstr "Abbrechen"
+
+#: templates/pygowave_server/waves/invalid_wave.html:5
+#: templates/pygowave_server/waves/invalid_wave.html:9
+msgid "Error: Invalid Wave ID"
+msgstr "Fehler: Ungültige Wave-ID"
+
+#: templates/pygowave_server/waves/invalid_wave.html:11
+msgid ""
+"\n"
+"Sorry, the desired Wave could not be found. It may have been deleted or simply\n"
+"was never created before.\n"
+msgstr ""
+"\n"
+"Entschuldigung, aber die gewünschte Wave konnte nicht gefunden werden. Sie könnte gelöscht worden sein\n"
+"oder wurde einfach noch gar nicht erstellt.\n"
+
+#: templates/pygowave_server/waves/no_permission.html:5
+#: templates/pygowave_server/waves/no_permission.html:9
+msgid "Error: No Permission"
+msgstr "Fehler: Keine Erlaubnis"
+
+#: templates/pygowave_server/waves/no_permission.html:11
+msgid ""
+"\n"
+"Sorry, you do not have permission to view this Wave. You must be added by the\n"
+"people who participate in this Wave.\n"
+msgstr ""
+"\n"
+"Entschuldigung, aber du hast keine Berechtigung diese Wave anzuzeigen. Du musst\n"
+"von den Leuten, die an der Wave teilnehmen, hizugefügt werden.\n"
+
+#: templates/pygowave_server/waves/on_the_wave.html:7
+#: templatetags/pgw_nav.py:74
+msgid "On the Wave"
+msgstr "Auf der Welle"
+
+#: templates/pygowave_server/waves/on_the_wave.html:45
+#: templates/pygowave_server/waves/on_the_wave.html:46
+#: templates/pygowave_server/waves/on_the_wave.html:47
+msgid "Leave Wave"
+msgstr "Wave verlassen"
+
+#: templates/pygowave_server/waves/on_the_wave.html:50
+#: templates/pygowave_server/waves/on_the_wave.html:51
+#: templates/pygowave_server/waves/on_the_wave.html:52
+msgid "Debug"
+msgstr "Debug"
+
+#: templates/pygowave_server/waves/on_the_wave.html:57
+msgid ""
+"\n"
+"\tHints: Click on the \"+\" to add a friend to your wave. The search currently\n"
+"\tcovers the whole database of users. You cannot remove other people but you\n"
+"\tcan remove yourself from a wave by clicking the \"Leave Wave\" button on the\n"
+"\tright hand side. Again, this application is experimental and may not work\n"
+"\tas expected.\n"
+"\t"
+msgstr ""
+"\n"
+"Hinweise: Klicke auf das \"+\" um einen Freund zur Wave hinzuzufügen. Die Suche umfasst zur Zeit die gesamte Benutzerdatenbank. Du kannst keine anderen Leute entfernen, aber Du kannst dich aus einer Wave entfernen, indem du auf den \"Wave verlassen\"-Button\n"
+"auf der rechten Seite klickst. Wie immer ist diese Anwendung experimentell und funktioniert eventuell nicht wie erwartet."
+
+#: templates/pygowave_server/waves/wave_list.html:5 templatetags/pgw_nav.py:69
+msgid "All Waves"
+msgstr "Alle Waves"
+
+#: templates/pygowave_server/waves/wave_list.html:9
+msgid "New Wave"
+msgstr "Neue Wave"
+
+#: templates/pygowave_server/waves/wave_list.html:14
+msgid "Create"
+msgstr "Erstellen"
+
+#: templates/pygowave_server/waves/wave_list.html:18
+msgid "Existing Waves"
+msgstr "Bereits vorhandene Waves"
+
+#: templates/pygowave_server/waves/wave_list.html:22
+msgid "Creator"
+msgstr "Erstellt von"
+
+#: templates/pygowave_server/waves/wave_list.html:22
+msgid "Participants"
+msgstr "Wave-Teilnehmer"
+
+#: templates/pygowave_server/waves/wave_list.html:22
+msgid "Created"
+msgstr "Erstellungszeit"
+
+#: templates/pygowave_server/waves/wave_list.html:33
+msgid "There are currently no Waves to which you participate."
+msgstr "Es gibt zur Zeit keine Waves, an denen du teilnimmst."
+
+#: templatetags/pgw_nav.py:30
+msgid "Home"
+msgstr "Home"
+
+#: templatetags/pgw_nav.py:47
+msgid "Gadgets"
+msgstr "Gadgets"
+
+#: templatetags/pgw_nav.py:64
+msgid "Waves"
+msgstr "Waves"

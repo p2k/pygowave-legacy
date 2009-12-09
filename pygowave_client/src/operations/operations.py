@@ -23,7 +23,7 @@ limitations under the License.
 """
 
 from pycow.decorators import Class, Implements
-from pycow.utils import Events
+from pycow.utils import Events, Array
 
 # Currently supported and official operations
 DOCUMENT_INSERT = 'DOCUMENT_INSERT'
@@ -32,18 +32,18 @@ DOCUMENT_ELEMENT_INSERT = 'DOCUMENT_ELEMENT_INSERT'
 DOCUMENT_ELEMENT_DELETE = 'DOCUMENT_ELEMENT_DELETE'
 WAVELET_ADD_PARTICIPANT = 'WAVELET_ADD_PARTICIPANT'
 WAVELET_REMOVE_PARTICIPANT = 'WAVELET_REMOVE_PARTICIPANT'
+WAVELET_APPEND_BLIP = 'WAVELET_APPEND_BLIP'
+BLIP_CREATE_CHILD = 'BLIP_CREATE_CHILD'
+BLIP_DELETE = 'BLIP_DELETE'
 
 # Currently supported, but non-official operations
 DOCUMENT_ELEMENT_DELTA = 'DOCUMENT_ELEMENT_DELTA'
 DOCUMENT_ELEMENT_SETPREF = 'DOCUMENT_ELEMENT_SETPREF'
 
 # Currently not supported operations
-#WAVELET_APPEND_BLIP = 'WAVELET_APPEND_BLIP'
 #WAVELET_CREATE = 'WAVELET_CREATE'
 #WAVELET_DATADOC_SET = 'WAVELET_DATADOC_SET'
 #WAVELET_SET_TITLE = 'WAVELET_SET_TITLE'
-#BLIP_CREATE_CHILD = 'BLIP_CREATE_CHILD'
-#BLIP_DELETE = 'BLIP_DELETE'
 #DOCUMENT_ANNOTATION_DELETE = 'DOCUMENT_ANNOTATION_DELETE'
 #DOCUMENT_ANNOTATION_SET = 'DOCUMENT_ANNOTATION_SET'
 #DOCUMENT_ANNOTATION_SET_NORANGE = 'DOCUMENT_ANNOTATION_SET_NORANGE'
@@ -69,6 +69,9 @@ __all__ = [
 	"DOCUMENT_ELEMENT_SETPREF",
 	"WAVELET_ADD_PARTICIPANT",
 	"WAVELET_REMOVE_PARTICIPANT",
+	"WAVELET_APPEND_BLIP",
+	"BLIP_CREATE_CHILD",
+	"BLIP_DELETE",
 ]
 
 @Class
@@ -311,17 +314,20 @@ class OpManager(object):
 	"""
 	# ---------------------------
 	
-	def __init__(self, waveId, waveletId):
+	def __init__(self, waveId, waveletId, contributorId):
 		"""
 		Initializes the op manager with a wave and wavelet ID.
 		
 		@constructor {public} initialize
 		@param {String} waveId The ID of the wave
 		@param {String} waveletId The ID of the wavelet
+		@param {String} contributorId The ID of the contributor (= creator of the Delta)
 		"""
 		self.waveId = waveId
 		self.waveletId = waveletId
-		self.operations = []
+		self.operations = Array()
+		self.lockedBlips = Array()
+		self.contributorId = contributorId
 
 	def isEmpty(self):
 		"""
@@ -330,6 +336,18 @@ class OpManager(object):
 		@function {public Boolean} isEmpty
 		"""
 		return len(self.operations) == 0
+
+	def canFetch(self):
+		"""
+		Returns if the manager holds fetchable operations i.e. that are not
+		locked.
+		
+		@function {public Boolean} canFetch
+		"""
+		for op in self.operations:
+			if not self.lockedBlips.contains(op.blipId):
+				return True
+		return False
 
 	def transform(self, input_op):
 		"""
@@ -462,6 +480,11 @@ class OpManager(object):
 						self.removeOperation(i)
 						i -= 1
 						break
+				elif op.type == BLIP_DELETE and op.blipId != "" and myop.blipId != "": # Kills all other Blip operations!
+					# blipId was already checked by isCompatibleTo
+					self.removeOperation(i)
+					i -= 1
+					break
 				
 				j += 1
 				
@@ -475,10 +498,21 @@ class OpManager(object):
 		
 		@function {public Operation[]} fetch
 		"""
-		ops = self.operations
-		self.fireEvent("beforeOperationsRemoved", [0, len(ops)-1])
-		self.operations = []
-		self.fireEvent("afterOperationsRemoved", [0, len(ops)-1])
+		ops = Array()
+		i = 0
+		s = 0
+		while i < len(self.operations):
+			op = self.operations[i]
+			if self.lockedBlips.contains(op.blipId):
+				if i - s > 0:
+					self.removeOperations(s, i-1)
+					i -= s+1
+				s = i+1
+			else:
+				ops.append(op)
+			i += 1
+		if i - s > 0:
+			self.removeOperations(s, i-1)
 		return ops
 	
 	def put(self, ops):
@@ -509,7 +543,7 @@ class OpManager(object):
 		else:
 			ops = self.operations
 		
-		out = []
+		out = Array()
 		
 		for op in ops:
 			out.append(op.serialize())
@@ -525,19 +559,19 @@ class OpManager(object):
 		@param {Object[]} serial_ops
 		"""
 		
-		ops = []
+		ops = Array()
 		
 		for op in serial_ops:
 			ops.append(Operation.unserialize(op))
 		
 		self.put(ops)
 
-	def __insert(self, newop):
+	def mergeInsert(self, newop):
 		"""
 		Inserts and probably merges an operation into the manager's
 		operation list.
 		
-		@function {private} __insert
+		@function {private} mergeInsert
 		@param {Operation} newop
 		"""
 		
@@ -634,6 +668,62 @@ class OpManager(object):
 		self.operations.pop(index)
 		self.fireEvent("afterOperationsRemoved", [index, index])
 
+	def removeOperations(self, start, end):
+		"""
+		Removes operations between and including the given start and end
+		indexes. Fires signals appropriately.
+		
+		@function {public} removeOperations
+		@param {int} start
+		@param {int} end
+		"""
+		if start < 0 or end < 0 or start > end or start >= len(self.operations) or end >= len(self.operations):
+			return
+		self.fireEvent("beforeOperationsRemoved", [start, end])
+		if start == 0 and end == len(self.operations)-1:
+			self.operations = Array()
+		else:
+			for i in xrange(start, end+1):
+				self.operations.pop(start)
+		self.fireEvent("afterOperationsRemoved", [start, end])
+
+	def updateBlipId(self, tempId, blipId):
+		"""
+		Updates the ID of operations on temporary Blips.
+		
+		@function {public} updateBlipId
+		@param {String} tempId Old temporary ID
+		@param {String} blipId New persistent ID
+		"""
+		i = 0
+		while i < len(self.operations):
+			op = self.operations[i]
+			if op.blipId == tempId:
+				op.blipId = blipId
+				self.fireEvent("operationChanged", i)
+			i += 1
+	
+	def lockBlipOps(self, blipId):
+		"""
+		Prevents the Operations on the Blip with the given ID from being
+		handed over via fetch().
+		
+		@function {public} lockBlipOps
+		@param blipId
+		"""
+		if not self.lockedBlips.contains(blipId):
+			self.lockedBlips.push(blipId)
+	
+	def unlockBlipOps(self, blipId):
+		"""
+		Allows the Operations on the Blip with the given ID from being
+		handed over via fetch().
+		
+		@function {public} unlockBlipOps
+		@param blipId
+		"""
+		self.lockedBlips.erase(blipId)
+
 	# --------------------------------------------------------------------------
 
 	def documentInsert(self, blipId, index, content):
@@ -641,11 +731,11 @@ class OpManager(object):
 		Requests to insert content into a document at a specific location.
 		
 		@function {public} documentInsert
-		@param {String} blipId The blip id that this operation is applied to
+		@param {String} blipId The Blip id that this operation is applied to
 		@param {int} index The position insert the content at in ths document
 		@param {String} content The content to insert
 		"""
-		self.__insert(Operation(
+		self.mergeInsert(Operation(
 			DOCUMENT_INSERT,
 			self.waveId, self.waveletId, blipId,
 			index,
@@ -657,11 +747,11 @@ class OpManager(object):
 		Requests to delete content in a given range.
 		
 		@function {public} documentDelete
-		@param {String} blipId The blip id that this operation is applied to
+		@param {String} blipId The Blip id that this operation is applied to
 		@param {int} start Start of the range
 		@param {int} end End of the range
 		"""
-		self.__insert(Operation(
+		self.mergeInsert(Operation(
 			DOCUMENT_DELETE,
 			self.waveId, self.waveletId, blipId,
 			start,
@@ -673,12 +763,12 @@ class OpManager(object):
 		Requests to insert an element at the given position.
 		
 		@function {public} documentElementInsert
-		@param {String} blipId The blip id that this operation is applied to
+		@param {String} blipId The Blip id that this operation is applied to
 		@param {int} index Position of the new element
 		@param {String} type Element type
 		@param {Object} properties Element properties
 		"""
-		self.__insert(Operation(
+		self.mergeInsert(Operation(
 			DOCUMENT_ELEMENT_INSERT,
 			self.waveId, self.waveletId, blipId,
 			index,
@@ -693,10 +783,10 @@ class OpManager(object):
 		Requests to delete an element from the given position.
 		
 		@function {public} documentElementDelete
-		@param {String} blipId The blip id that this operation is applied to
+		@param {String} blipId The Blip id that this operation is applied to
 		@param {int} index Position of the element to delete
 		"""
-		self.__insert(Operation(
+		self.mergeInsert(Operation(
 			DOCUMENT_ELEMENT_DELETE,
 			self.waveId, self.waveletId, blipId,
 			index,
@@ -708,11 +798,11 @@ class OpManager(object):
 		Requests to apply a delta to the element at the given position.
 		
 		@function {public} documentElementDelta
-		@param {String} blipId The blip id that this operation is applied to
+		@param {String} blipId The Blip id that this operation is applied to
 		@param {int} index Position of the element
 		@param {Object} delta Delta to apply to the element
 		"""
-		self.__insert(Operation(
+		self.mergeInsert(Operation(
 			DOCUMENT_ELEMENT_DELTA,
 			self.waveId, self.waveletId, blipId,
 			index,
@@ -724,12 +814,12 @@ class OpManager(object):
 		Requests to set a UserPref of the element at the given position.
 		
 		@function {public} documentElementSetpref
-		@param {String} blipId The blip id that this operation is applied to
+		@param {String} blipId The Blip id that this operation is applied to
 		@param {int} index Position of the element
 		@param {Object} key Name of the UserPref
 		@param {Object} value Value of the UserPref
 		"""
-		self.__insert(Operation(
+		self.mergeInsert(Operation(
 			DOCUMENT_ELEMENT_SETPREF,
 			self.waveId, self.waveletId, blipId,
 			index,
@@ -741,12 +831,12 @@ class OpManager(object):
 	
 	def waveletAddParticipant(self, id):
 		"""
-		Requests to add a Participant to the wavelet.
+		Requests to add a Participant to the Wavelet.
 		
 		@function {public} waveletAddParticipant
 		@param {String} id ID of the Participant to add
 		"""
-		self.__insert(Operation(
+		self.mergeInsert(Operation(
 			WAVELET_ADD_PARTICIPANT,
 			self.waveId, self.waveletId, "",
 			-1,
@@ -755,14 +845,63 @@ class OpManager(object):
 	
 	def waveletRemoveParticipant(self, id):
 		"""
-		Requests to remove a Participant to the wavelet.
+		Requests to remove a Participant to the Wavelet.
 		
 		@function {public} waveletRemoveParticipant
 		@param {String} id ID of the Participant to remove
 		"""
-		self.__insert(Operation(
+		self.mergeInsert(Operation(
 			WAVELET_REMOVE_PARTICIPANT,
 			self.waveId, self.waveletId, "",
 			-1,
 			id
+		))
+	
+	def waveletAppendBlip(self, tempId):
+		"""
+		Requests to append a new Blip to the Wavelet.
+		
+		@function {public} waveletAppendBlip
+		@param {String} tempId Temporary Blip ID
+		"""
+		self.mergeInsert(Operation(
+			WAVELET_APPEND_BLIP,
+			self.waveId, self.waveletId, "",
+			-1,
+			{
+				"waveId": self.waveId,
+				"waveletId": self.waveletId,
+				"blipId": tempId
+			}
+		))
+	
+	def blipDelete(self, blipId):
+		"""
+		Requests to delete a Blip.
+		
+		@function {public} blipDelete
+		@param {String} blipId The Blip id that this operation is applied to
+		"""
+		self.mergeInsert(Operation(
+			BLIP_DELETE,
+			self.waveId, self.waveletId, blipId
+		))
+	
+	def blipCreateChild(self, blipId, tempId):
+		"""
+		Requests to create a clild Blip.
+		
+		@function {public} blipCreateChild
+		@param {String} blipId The parent Blip
+		@param {String} tempId Temporary Blip ID
+		"""
+		self.mergeInsert(Operation(
+			BLIP_CREATE_CHILD,
+			self.waveId, self.waveletId, blipId,
+			-1,
+			{
+				"waveId": self.waveId,
+				"waveletId": self.waveletId,
+				"blipId": tempId
+			}
 		))

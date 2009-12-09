@@ -1,2 +1,5 @@
 *.pyc
 *.kpf
+*.sqlite3
+settings.py
+cache/*

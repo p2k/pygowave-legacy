@@ -31,7 +31,7 @@ js_info_dict = {
 urlpatterns = patterns('',
 	(r'^admin/(.*)', admin.site.root),
 	url(r'^accounts/register/$', register, name='registration_register', kwargs={"form_class": MyRegistrationForm}),
-	(r'^accounts/', include('registration.urls')),
+	(r'^accounts/', include('registration.backends.default.urls')),
 	(r'^jsi18n/$', 'django.views.i18n.javascript_catalog', js_info_dict),
 	(r'^i18n/', include('django.conf.urls.i18n')),
 	(r'^client/', include('pygowave_client.urls')),

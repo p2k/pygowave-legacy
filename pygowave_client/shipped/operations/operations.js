@@ -27,7 +27,7 @@ window.pygowave = $defined(window.pygowave) ? window.pygowave : {};
 pygowave.operations = (function() {
 	/* from pycow.decorators import Class, Implements */;
 
-	/* from pycow.utils import Events */;
+	/* from pycow.utils import Events, Array */;
 
 	var DOCUMENT_INSERT = "DOCUMENT_INSERT";
 
@@ -40,6 +40,12 @@ pygowave.operations = (function() {
 	var WAVELET_ADD_PARTICIPANT = "WAVELET_ADD_PARTICIPANT";
 
 	var WAVELET_REMOVE_PARTICIPANT = "WAVELET_REMOVE_PARTICIPANT";
+
+	var WAVELET_APPEND_BLIP = "WAVELET_APPEND_BLIP";
+
+	var BLIP_CREATE_CHILD = "BLIP_CREATE_CHILD";
+
+	var BLIP_DELETE = "BLIP_DELETE";
 
 	var DOCUMENT_ELEMENT_DELTA = "DOCUMENT_ELEMENT_DELTA";
 
@@ -291,11 +297,14 @@ pygowave.operations = (function() {
 		 * @constructor {public} initialize
 		 * @param {String} waveId The ID of the wave
 		 * @param {String} waveletId The ID of the wavelet
+		 * @param {String} contributorId The ID of the contributor (= creator of the Delta)
 		 */
-		initialize: function (waveId, waveletId) {
+		initialize: function (waveId, waveletId, contributorId) {
 			this.waveId = waveId;
 			this.waveletId = waveletId;
-			this.operations = [];
+			this.operations = new Array();
+			this.lockedBlips = new Array();
+			this.contributorId = contributorId;
 		},
 
 		/**
@@ -305,6 +314,22 @@ pygowave.operations = (function() {
 		 */
 		isEmpty: function () {
 			return len(this.operations) == 0;
+		},
+
+		/**
+		 * Returns if the manager holds fetchable operations i.e. that are not
+		 * locked.
+		 *
+		 * @function {public Boolean} canFetch
+		 */
+		canFetch: function () {
+			for (var __iter0_ = new _Iterator(this.operations); __iter0_.hasNext();) {
+				var op = __iter0_.next();
+				if (!this.lockedBlips.contains(op.blipId))
+					return true;
+			}
+			delete __iter0_;
+			return false;
 		},
 
 		/**
@@ -454,6 +479,11 @@ pygowave.operations = (function() {
 							break;
 						}
 					}
+					else if (op.type == BLIP_DELETE && op.blipId != "" && myop.blipId != "") {
+						this.removeOperation(i);
+						i--;
+						break;
+					}
 					j++;
 				}
 				i++;
@@ -467,10 +497,24 @@ pygowave.operations = (function() {
 		 * @function {public Operation[]} fetch
 		 */
 		fetch: function () {
-			var ops = this.operations;
-			this.fireEvent("beforeOperationsRemoved", [0, len(ops) - 1]);
-			this.operations = [];
-			this.fireEvent("afterOperationsRemoved", [0, len(ops) - 1]);
+			var ops = new Array();
+			var i = 0;
+			var s = 0;
+			while (i < len(this.operations)) {
+				var op = this.operations[i];
+				if (this.lockedBlips.contains(op.blipId)) {
+					if (i - s > 0) {
+						this.removeOperations(s, i - 1);
+						i -= s + 1;
+					}
+					s = i + 1;
+				}
+				else
+					ops.append(op);
+				i++;
+			}
+			if (i - s > 0)
+				this.removeOperations(s, i - 1);
 			return ops;
 		},
 
@@ -503,7 +547,7 @@ pygowave.operations = (function() {
 				var ops = this.fetch();
 			else
 				ops = this.operations;
-			var out = [];
+			var out = new Array();
 			for (var __iter0_ = new _Iterator(ops); __iter0_.hasNext();) {
 				var op = __iter0_.next();
 				out.append(op.serialize());
@@ -520,7 +564,7 @@ pygowave.operations = (function() {
 		 * @param {Object[]} serial_ops
 		 */
 		unserialize: function (serial_ops) {
-			var ops = [];
+			var ops = new Array();
 			for (var __iter0_ = new _Iterator(serial_ops); __iter0_.hasNext();) {
 				var op = __iter0_.next();
 				ops.append(Operation.unserialize(op));
@@ -533,10 +577,10 @@ pygowave.operations = (function() {
 		 * Inserts and probably merges an operation into the manager's
 		 * operation list.
 		 *
-		 * @function {private} __insert
+		 * @function {private} mergeInsert
 		 * @param {Operation} newop
 		 */
-		__insert: function (newop) {
+		mergeInsert: function (newop) {
 			var op = null;
 			var i = 0;
 			if (newop.type == DOCUMENT_ELEMENT_DELTA) {
@@ -648,40 +692,106 @@ pygowave.operations = (function() {
 		},
 
 		/**
+		 * Removes operations between and including the given start and end
+		 * indexes. Fires signals appropriately.
+		 *
+		 * @function {public} removeOperations
+		 * @param {int} start
+		 * @param {int} end
+		 */
+		removeOperations: function (start, end) {
+			if (start < 0 || end < 0 || start > end || start >= len(this.operations) || end >= len(this.operations))
+				return;
+			this.fireEvent("beforeOperationsRemoved", [start, end]);
+			if (start == 0 && end == (len(this.operations) - 1))
+				this.operations = new Array();
+			else {
+				for (var __iter0_ = new XRange(start, end + 1); __iter0_.hasNext();) {
+					var i = __iter0_.next();
+					this.operations.pop(start);
+				}
+				delete __iter0_;
+			}
+			this.fireEvent("afterOperationsRemoved", [start, end]);
+		},
+
+		/**
+		 * Updates the ID of operations on temporary Blips.
+		 *
+		 * @function {public} updateBlipId
+		 * @param {String} tempId Old temporary ID
+		 * @param {String} blipId New persistent ID
+		 */
+		updateBlipId: function (tempId, blipId) {
+			var i = 0;
+			while (i < len(this.operations)) {
+				var op = this.operations[i];
+				if (op.blipId == tempId) {
+					op.blipId = blipId;
+					this.fireEvent("operationChanged", i);
+				}
+				i++;
+			}
+		},
+
+		/**
+		 * Prevents the Operations on the Blip with the given ID from being
+		 * handed over via fetch().
+		 *
+		 * @function {public} lockBlipOps
+		 * @param blipId
+		 */
+		lockBlipOps: function (blipId) {
+			if (!this.lockedBlips.contains(blipId))
+				this.lockedBlips.push(blipId);
+		},
+
+		/**
+		 * Allows the Operations on the Blip with the given ID from being
+		 * handed over via fetch().
+		 *
+		 * @function {public} unlockBlipOps
+		 * @param blipId
+		 */
+		unlockBlipOps: function (blipId) {
+			this.lockedBlips.erase(blipId);
+		},
+
+		/**
 		 * Requests to insert content into a document at a specific location.
 		 *
 		 * @function {public} documentInsert
-		 * @param {String} blipId The blip id that this operation is applied to
+		 * @param {String} blipId The Blip id that this operation is applied to
 		 * @param {int} index The position insert the content at in ths document
 		 * @param {String} content The content to insert
 		 */
 		documentInsert: function (blipId, index, content) {
-			this.__insert(new Operation(DOCUMENT_INSERT, this.waveId, this.waveletId, blipId, index, content));
+			this.mergeInsert(new Operation(DOCUMENT_INSERT, this.waveId, this.waveletId, blipId, index, content));
 		},
 
 		/**
 		 * Requests to delete content in a given range.
 		 *
 		 * @function {public} documentDelete
-		 * @param {String} blipId The blip id that this operation is applied to
+		 * @param {String} blipId The Blip id that this operation is applied to
 		 * @param {int} start Start of the range
 		 * @param {int} end End of the range
 		 */
 		documentDelete: function (blipId, start, end) {
-			this.__insert(new Operation(DOCUMENT_DELETE, this.waveId, this.waveletId, blipId, start, end - start));
+			this.mergeInsert(new Operation(DOCUMENT_DELETE, this.waveId, this.waveletId, blipId, start, end - start));
 		},
 
 		/**
 		 * Requests to insert an element at the given position.
 		 *
 		 * @function {public} documentElementInsert
-		 * @param {String} blipId The blip id that this operation is applied to
+		 * @param {String} blipId The Blip id that this operation is applied to
 		 * @param {int} index Position of the new element
 		 * @param {String} type Element type
 		 * @param {Object} properties Element properties
 		 */
 		documentElementInsert: function (blipId, index, type, properties) {
-			this.__insert(new Operation(DOCUMENT_ELEMENT_INSERT, this.waveId, this.waveletId, blipId, index, {
+			this.mergeInsert(new Operation(DOCUMENT_ELEMENT_INSERT, this.waveId, this.waveletId, blipId, index, {
 				type: type,
 				properties: properties
 			}));
@@ -691,59 +801,98 @@ pygowave.operations = (function() {
 		 * Requests to delete an element from the given position.
 		 *
 		 * @function {public} documentElementDelete
-		 * @param {String} blipId The blip id that this operation is applied to
+		 * @param {String} blipId The Blip id that this operation is applied to
 		 * @param {int} index Position of the element to delete
 		 */
 		documentElementDelete: function (blipId, index) {
-			this.__insert(new Operation(DOCUMENT_ELEMENT_DELETE, this.waveId, this.waveletId, blipId, index, null));
+			this.mergeInsert(new Operation(DOCUMENT_ELEMENT_DELETE, this.waveId, this.waveletId, blipId, index, null));
 		},
 
 		/**
 		 * Requests to apply a delta to the element at the given position.
 		 *
 		 * @function {public} documentElementDelta
-		 * @param {String} blipId The blip id that this operation is applied to
+		 * @param {String} blipId The Blip id that this operation is applied to
 		 * @param {int} index Position of the element
 		 * @param {Object} delta Delta to apply to the element
 		 */
 		documentElementDelta: function (blipId, index, delta) {
-			this.__insert(new Operation(DOCUMENT_ELEMENT_DELTA, this.waveId, this.waveletId, blipId, index, delta));
+			this.mergeInsert(new Operation(DOCUMENT_ELEMENT_DELTA, this.waveId, this.waveletId, blipId, index, delta));
 		},
 
 		/**
 		 * Requests to set a UserPref of the element at the given position.
 		 *
 		 * @function {public} documentElementSetpref
-		 * @param {String} blipId The blip id that this operation is applied to
+		 * @param {String} blipId The Blip id that this operation is applied to
 		 * @param {int} index Position of the element
 		 * @param {Object} key Name of the UserPref
 		 * @param {Object} value Value of the UserPref
 		 */
 		documentElementSetpref: function (blipId, index, key, value) {
-			this.__insert(new Operation(DOCUMENT_ELEMENT_SETPREF, this.waveId, this.waveletId, blipId, index, {
+			this.mergeInsert(new Operation(DOCUMENT_ELEMENT_SETPREF, this.waveId, this.waveletId, blipId, index, {
 				key: key,
 				value: value
 			}));
 		},
 
 		/**
-		 * Requests to add a Participant to the wavelet.
+		 * Requests to add a Participant to the Wavelet.
 		 *
 		 * @function {public} waveletAddParticipant
 		 * @param {String} id ID of the Participant to add
 		 */
 		waveletAddParticipant: function (id) {
-			this.__insert(new Operation(WAVELET_ADD_PARTICIPANT, this.waveId, this.waveletId, "", -1, id));
+			this.mergeInsert(new Operation(WAVELET_ADD_PARTICIPANT, this.waveId, this.waveletId, "", -1, id));
 		},
 
 		/**
-		 * Requests to remove a Participant to the wavelet.
+		 * Requests to remove a Participant to the Wavelet.
 		 *
 		 * @function {public} waveletRemoveParticipant
 		 * @param {String} id ID of the Participant to remove
 		 */
 		waveletRemoveParticipant: function (id) {
-			this.__insert(new Operation(WAVELET_REMOVE_PARTICIPANT, this.waveId, this.waveletId, "", -1, id));
+			this.mergeInsert(new Operation(WAVELET_REMOVE_PARTICIPANT, this.waveId, this.waveletId, "", -1, id));
+		},
+
+		/**
+		 * Requests to append a new Blip to the Wavelet.
+		 *
+		 * @function {public} waveletAppendBlip
+		 * @param {String} tempId Temporary Blip ID
+		 */
+		waveletAppendBlip: function (tempId) {
+			this.mergeInsert(new Operation(WAVELET_APPEND_BLIP, this.waveId, this.waveletId, "", -1, {
+				waveId: this.waveId,
+				waveletId: this.waveletId,
+				blipId: tempId
+			}));
+		},
+
+		/**
+		 * Requests to delete a Blip.
+		 *
+		 * @function {public} blipDelete
+		 * @param {String} blipId The Blip id that this operation is applied to
+		 */
+		blipDelete: function (blipId) {
+			this.mergeInsert(new Operation(BLIP_DELETE, this.waveId, this.waveletId, blipId));
+		},
+
+		/**
+		 * Requests to create a clild Blip.
+		 *
+		 * @function {public} blipCreateChild
+		 * @param {String} blipId The parent Blip
+		 * @param {String} tempId Temporary Blip ID
+		 */
+		blipCreateChild: function (blipId, tempId) {
+			this.mergeInsert(new Operation(BLIP_CREATE_CHILD, this.waveId, this.waveletId, blipId, -1, {
+				waveId: this.waveId,
+				waveletId: this.waveletId,
+				blipId: tempId
+			}));
 		}
 	});
 
@@ -756,6 +905,9 @@ pygowave.operations = (function() {
 		DOCUMENT_ELEMENT_DELTA: DOCUMENT_ELEMENT_DELTA,
 		DOCUMENT_ELEMENT_SETPREF: DOCUMENT_ELEMENT_SETPREF,
 		WAVELET_ADD_PARTICIPANT: WAVELET_ADD_PARTICIPANT,
-		WAVELET_REMOVE_PARTICIPANT: WAVELET_REMOVE_PARTICIPANT
+		WAVELET_REMOVE_PARTICIPANT: WAVELET_REMOVE_PARTICIPANT,
+		WAVELET_APPEND_BLIP: WAVELET_APPEND_BLIP,
+		BLIP_CREATE_CHILD: BLIP_CREATE_CHILD,
+		BLIP_DELETE: BLIP_DELETE
 	};
 })();

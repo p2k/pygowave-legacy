@@ -97,7 +97,7 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 				content: this._content,
 				width: 450,
 				height: 300,
-				x: $(window).getSize().x - 490,
+				x: $(window).getSize().x - 535,
 				y: 20,
 				headerStartColor: [95, 163, 237],
 				headerStopColor: [85, 144, 210],
@@ -215,7 +215,7 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			var cols = row.getChildren();
 			
 			cols[0].set('text', entry.type);
-			cols[1].set('text', entry.blip_id);
+			cols[1].set('text', entry.blipId);
 			cols[2].set('text', entry.index);
 			cols[3].set('text', JSON.encode(entry.property).substring(0, 30));
 		},
@@ -344,6 +344,17 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		 */
 		connectBlipEditor: function (wgt) {
 			wgt.addEvent("currentTextRangeChanged", this._onCurrentTextRangeChanged);
+		},
+		
+		/**
+		 * Disconnect a blip editor to the status bar.<br/>
+		 * Currently captures text range changes.
+		 * @function {public} connectBlipEditor
+		 * @param {pygowave.view.BlipEditorWidget} wgt A blip editor instance
+		 */
+		disconnectBlipEditor: function (wgt) {
+			wgt.removeEvent("currentTextRangeChanged", this._onCurrentTextRangeChanged);
+			this._textRange.set('text', "");
 		},
 		
 		/**

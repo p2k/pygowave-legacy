@@ -25,40 +25,27 @@ import settings
 
 setup(
 	name = "PyGoWave",
-	version = "0.4.dev",
+	version = "0.4",
 	packages = (
-		"pygowave",
-		"pygowave.pygowave_server",
-		"pygowave.pygowave_server.common",
-		"pygowave.pygowave_server.common.pycow",
-		"pygowave.pygowave_server.templatetags",
-		"pygowave.pygowave_client",
-		"pygowave.pygowave_client.templatetags",
-		"pygowave.pygowave_rpc"
-		),
+		"pygowave_server",
+		"pygowave_server.common",
+		"pygowave_server.common.pycow",
+		"pygowave_server.templatetags",
+		"pygowave_client",
+		"pygowave_client.templatetags",
+		"pygowave_rpc"
+	),
 	package_data = {
 		'': ["locale/*/*/*"],
-		'pygowave': [
-			"LICENSE",
-			"NOTICE",
-			"*.tac",
-			"*.wsgi",
-			"media/avatars/default.png",
-			"media/css/*.css",
-			"media/images/*.png",
-			"media/images/*.gif",
-			"media/images/compat/*.png",
-			"media/js/*.js",
-			"templates/*.html",
-			"templates/*/*.html",
-			"templates/*/*/*.html"
+		'pygowave_server': [
+			"templates/pygowave_server/*.html",
+			"templates/pygowave_server/*/*.html"
 		],
-		'pygowave.pygowave_client': [
+		'pygowave_client': [
 			"build.xml",
 			"jgrousedoc.properties",
 			"src/*/*",
-			"cache/model/model.js",
-			"cache/operations/operations.js"
+			"shipped/*/*.js",
 		],
 	},
 	
@@ -68,7 +55,6 @@ setup(
 		'twisted==8.2.0',
 		'orbited>=0.7.10',
 		'uuid>=1.2',
-		'lxml>=2.2.2',
 		'PIL>=1.1.6',
 		'anyjson>=0.2.1',
 		'simplejson>=2.0.9',
@@ -76,7 +62,8 @@ setup(
 	],
 	extras_require = {
 		'amqp-rpc-server': ['carrot>=0.5.1', 'amqplib>=0.6'],
-		'mysql': ['mysql-python>=1.2.3']
+		'mysql': ['mysql-python>=1.2.3'],
+		'lxml': ['lxml>=2.2.2']
 	},
 	
 	author = "p2k",

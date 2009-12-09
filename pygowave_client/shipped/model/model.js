@@ -27,7 +27,7 @@ window.pygowave = $defined(window.pygowave) ? window.pygowave : {};
 pygowave.model = (function() {
 	/* from pycow.decorators import Class, Implements */;
 
-	/* from pycow.utils import Events, Options, Hash */;
+	/* from pycow.utils import Events, Options, Array, Hash */;
 
 	/* from hashlib import sha1 as sha_constructor */;
 
@@ -332,7 +332,7 @@ pygowave.model = (function() {
 		 * @constructor {private} initialize
 		 * @param {Blip} blip The element's parent Blip
 		 * @param {int} id ID of the element, setting this to null will assign
-		 * a new temporaty ID
+		 * a new temporary ID
 		 * @param {int} position Index where this element resides
 		 * @param {int} type Type of the element
 		 * @param {Object} properties The element's properties
@@ -538,7 +538,6 @@ pygowave.model = (function() {
 	var Blip = new Class({
 		Implements: [Options, Events],
 		options: {
-			creator: null,
 			is_root: false,
 			last_modified: null,
 			version: 0,
@@ -579,15 +578,37 @@ pygowave.model = (function() {
 		 *
 		 * @event onOutOfSync
 		 */
+		
+		/**
+		 * Fired when the Blip's last modification date/time changed.
+		 *
+		 * @event onLastModifiedChanged
+		 * @param {Date} date
+		 */
+		
+		/**
+		 * Fired when the Blip's ID changed; should only happen on temporary Blips.
+		 *
+		 * @event onIdChanged
+		 * @param {String} oldId
+		 * @param {String} newId
+		 */
+		
+		/**
+		 * Fired when a new contributor has been added.
+		 *
+		 * @event onContributorAdded
+		 * @param {String} id His/her/its ID
+		 */
 		,
 
 		/**
 		 * Called on instantiation. Documented for internal purposes.
 		 * @constructor {private} initialize
 		 * @param {Wavelet} wavelet Parent Wavelet object
-		 * @param {String} id ID of this Blip
+		 * @param {String} id ID of this Blip, setting this to an empty string will
+		 * assign a new temporary ID
 		 * @param {Object} options Information about the Blip. Possible values:
-		 * @... {Participant} creator Creator of this Blip
 		 * @... {Boolean} is_root True if this is the root Blip; if this value
 		 * is set and the parent Wavelet does not have a root Blip yet,
 		 * this Blip is set as the Wavelet's root Blip
@@ -598,23 +619,45 @@ pygowave.model = (function() {
 		 * @param {optional Element[]} elements Element objects which initially
 		 * reside in this Blip
 		 * @param {optional Blip} parent Parent Blip if this is a nested Blip
+		 * @param {optional Participant} creator Creator of this Blip
+		 * @param {optional Participant[]} contributors Contributors of this Blip
 		 */
-		initialize: function (wavelet, id, options, content, elements, parent) {
+		initialize: function (wavelet, id, options, content, elements, parent, creator, contributors) {
 			if (!$defined(content)) content = "";
-			if (!$defined(elements)) elements = [];
+			if (!$defined(elements)) elements = null;
 			if (!$defined(parent)) parent = null;
+			if (!$defined(creator)) creator = null;
+			if (!$defined(contributors)) contributors = null;
 			this.setOptions(options);
 			this._wavelet = wavelet;
-			this._id = id;
+			this._creator = creator;
+			this._contributors = new Hash();
+			if (contributors == null) {
+				if (this._creator != null)
+					this._contributors.set(this._creator.id(), this._creator);
+			}
+			else {
+				for (var __iter0_ = new _Iterator(contributors); __iter0_.hasNext();) {
+					var c = __iter0_.next();
+					this._contributors.set(c.id(), c);
+				}
+				delete __iter0_;
+			}
+			if (id == "")
+				this._id = Blip.newTempId();
+			else
+				this._id = id;
 			this._parent = parent;
 			this._content = content;
+			if (elements == null)
+				var elements = new Array();
 			this._elements = elements;
 			for (var __iter0_ = new _Iterator(this._elements); __iter0_.hasNext();) {
 				var element = __iter0_.next();
 				element.setBlip(this);
 			}
 			delete __iter0_;
-			this._annotations = [];
+			this._annotations = new Array();
 			this._outofsync = false;
 		},
 
@@ -625,6 +668,20 @@ pygowave.model = (function() {
 		 */
 		id: function () {
 			return this._id;
+		},
+
+		/**
+		 * Sets the ID of this Blip. Mainly used for temporary Blips.
+		 *
+		 * @function {public} setId
+		 * @param {String} id The new id
+		 */
+		setId: function (id) {
+			if (id != this._id) {
+				var oldId = this._id;
+				this._id = id;
+				this.fireEvent("idChanged", [oldId, id]);
+			}
 		},
 
 		/**
@@ -642,6 +699,14 @@ pygowave.model = (function() {
 		 */
 		isRoot: function () {
 			return this.options.is_root;
+		},
+
+		/**
+		 * Returns the creator of this Blip.
+		 * @function {public Participant} creator
+		 */
+		creator: function () {
+			return this._creator;
 		},
 
 		/**
@@ -685,8 +750,8 @@ pygowave.model = (function() {
 		 * @param {int} end End index
 		 */
 		elementsWithin: function (start, end) {
-			var lst = [];
-			for (var __iter0_ = new XRange(len(this._elements)); __iter0_.hasNext();) {
+			var lst = new Array();
+			for (var __iter0_ = new XRange(this._elements.length); __iter0_.hasNext();) {
 				var i = __iter0_.next();
 				var elt = this._elements[i];
 				if (elt.position() >= start && elt.position() < end)
@@ -706,6 +771,28 @@ pygowave.model = (function() {
 		},
 
 		/**
+		 * Returns all contributors to this Blip.
+		 *
+		 * @function {public Participant[]} allContributors
+		 */
+		allContributors: function () {
+			return this._contributors.getValues();
+		},
+
+		/**
+		 * Add a contributor to this Blip if he is not already contributing.
+		 *
+		 * @function {public} addContributor
+		 * @param {Participant} contributor
+		 */
+		addContributor: function (contributor) {
+			if (!this._contributors.has(contributor.id())) {
+				this._contributors.set(contributor.id(), contributor);
+				this.fireEvent("contributorAdded", contributor.id());
+			}
+		},
+
+		/**
 		 * Insert a text at the specified index. This moves annotations and
 		 * elements as appropriate.<br/>
 		 * Note: This sets the wavelet status to 'dirty'.
@@ -713,10 +800,12 @@ pygowave.model = (function() {
 		 * @function {public} insertText
 		 * @param {int} index Index of insertion
 		 * @param {String} text Text to be inserted
+		 * @param {Participant} contributor Participant who contributed this action
 		 * @param {optional Boolean} noevent Set to true if no event should be generated
 		 */
-		insertText: function (index, text, noevent) {
+		insertText: function (index, text, contributor, noevent) {
 			if (!$defined(noevent)) noevent = false;
+			this.addContributor(contributor);
 			this._content = this._content.slice(0, index) + text + this._content.slice(index);
 			var length = len(text);
 			for (var __iter0_ = new _Iterator(this._elements); __iter0_.hasNext();) {
@@ -746,10 +835,12 @@ pygowave.model = (function() {
 		 * @function {public} deleteText
 		 * @param {int} index Index of deletion
 		 * @param {int} length Number of characters to delete
+		 * @param {Participant} contributor Participant who contributed this action
 		 * @param {optional Boolean} noevent Set to true if no event should be generated
 		 */
-		deleteText: function (index, length, noevent) {
+		deleteText: function (index, length, contributor, noevent) {
 			if (!$defined(noevent)) noevent = false;
+			this.addContributor(contributor);
 			this._content = this._content.slice(0, index) + this._content.slice(index + length);
 			for (var __iter0_ = new _Iterator(this._elements); __iter0_.hasNext();) {
 				var elt = __iter0_.next();
@@ -779,11 +870,13 @@ pygowave.model = (function() {
 		 * @param {int} index Position of the new element
 		 * @param {String} type Element type
 		 * @param {Object} properties Element properties
+		 * @param {Participant} contributor Participant who contributed this action
 		 * @param {optional Boolean} noevent Set to true if no event should be generated
 		 */
-		insertElement: function (index, type, properties, noevent) {
+		insertElement: function (index, type, properties, contributor, noevent) {
 			if (!$defined(noevent)) noevent = false;
-			this.insertText(index, "\n", true);
+			this.addContributor(contributor);
+			this.insertText(index, "\n", contributor, true);
 			var elt = null;
 			if (type == 2)
 				elt = new GadgetElement(this, null, index, properties);
@@ -802,10 +895,12 @@ pygowave.model = (function() {
 		 *
 		 * @function {public} deleteElement
 		 * @param {int} index Position of the element to delete
+		 * @param {Participant} contributor Participant who contributed this action
 		 * @param {optional Boolean} noevent Set to true if no event should be generated
 		 */
-		deleteElement: function (index, noevent) {
+		deleteElement: function (index, contributor, noevent) {
 			if (!$defined(noevent)) noevent = false;
+			this.addContributor(contributor);
 			for (var __iter0_ = new XRange(len(this._elements)); __iter0_.hasNext();) {
 				var i = __iter0_.next();
 				var elt = this._elements[i];
@@ -815,7 +910,7 @@ pygowave.model = (function() {
 				}
 			}
 			delete __iter0_;
-			this.deleteText(index, 1, true);
+			this.deleteText(index, 1, contributor, true);
 			if (!noevent)
 				this.fireEvent("deleteElement", index);
 		},
@@ -827,8 +922,10 @@ pygowave.model = (function() {
 		 * @function {public} applyElementDelta
 		 * @param {int} index Position of the element
 		 * @param {Object} delta Delta to apply to the element
+		 * @param {Participant} contributor Participant who contributed this action
 		 */
-		applyElementDelta: function (index, delta) {
+		applyElementDelta: function (index, delta, contributor) {
+			this.addContributor(contributor);
 			for (var __iter0_ = new _Iterator(this._elements); __iter0_.hasNext();) {
 				var elt = __iter0_.next();
 				if (elt.position() == index) {
@@ -846,10 +943,12 @@ pygowave.model = (function() {
 		 * param {int} index Position of the element
 		 * @param {Object} key Name of the UserPref
 		 * @param {Object} value Value of the UserPref
+		 * @param {Participant} contributor Participant who contributed this action
 		 * @param {optional Boolean} noevent Set to true if no event should be generated
 		 */
-		setElementUserpref: function (index, key, value, noevent) {
+		setElementUserpref: function (index, key, value, contributor, noevent) {
 			if (!$defined(noevent)) noevent = false;
+			this.addContributor(contributor);
 			for (var __iter0_ = new _Iterator(this._elements); __iter0_.hasNext();) {
 				var elt = __iter0_.next();
 				if (elt.position() == index) {
@@ -866,6 +965,26 @@ pygowave.model = (function() {
 		 */
 		content: function () {
 			return this._content;
+		},
+
+		/**
+		 * Returns the date/time of the last modification of this Blip.
+		 * @function {public Date} lastModified
+		 */
+		lastModified: function () {
+			return this.options.last_modified;
+		},
+
+		/**
+		 * Sets the date/time of the last modification of this Blip.
+		 * @function {public Date} setLastModified
+		 * @param {Date} value
+		 */
+		setLastModified: function (value) {
+			if (this.options.last_modified != value) {
+				this.options.last_modified = value;
+				this.fireEvent("lastModifiedChanged", value);
+			}
 		},
 
 		/**
@@ -892,6 +1011,12 @@ pygowave.model = (function() {
 				return true;
 		}
 	});
+	Blip.newTempId = function () {
+		Blip.lastTempId++;
+		return "TBD_%02d".sprintf(Blip.lastTempId);
+	};
+
+	Blip.lastTempId = 0;
 
 	/**
 	 * Models a Wavelet on a Wave.<br/>
@@ -920,6 +1045,12 @@ pygowave.model = (function() {
 		 * @event onBlipInserted
 		 * @param {int} index Index of the inserted Blip
 		 * @param {String} blip_id ID of the inserted Blip
+		 */
+		
+		/**
+		 * Fired if a Blip was deleted.
+		 * @event onBlipDeleted
+		 * @param {String} blip_id ID of the deleted Blip
 		 */
 		
 		/**
@@ -1117,11 +1248,15 @@ pygowave.model = (function() {
 		 * @param {optional String} content Content of the Blip
 		 * @param {optional Element[]} elements Element objects which initially
 		 * reside in this Blip
+		 * @param {optional Participant} creator Creator of the Blip
+		 * @param {optional Participant[]} contributors Contributors of the Blip
 		 */
-		appendBlip: function (id, options, content, elements) {
+		appendBlip: function (id, options, content, elements, creator, contributors) {
 			if (!$defined(content)) content = "";
 			if (!$defined(elements)) elements = [];
-			return this.insertBlip(len(this._blips), id, options, content, elements);
+			if (!$defined(creator)) creator = null;
+			if (!$defined(contributors)) contributors = null;
+			return this.insertBlip(len(this._blips), id, options, content, elements, creator, contributors);
 		},
 
 		/**
@@ -1136,14 +1271,38 @@ pygowave.model = (function() {
 		 * @param {optional String} content Content of the Blip
 		 * @param {optional Element[]} elements Element objects which initially
 		 * reside in this Blip
+		 * @param {optional Participant} creator Creator of the Blip
+		 * @param {optional Participant[]} contributors Contributors of the Blip
 		 */
-		insertBlip: function (index, id, options, content, elements) {
+		insertBlip: function (index, id, options, content, elements, creator, contributors) {
 			if (!$defined(content)) content = "";
 			if (!$defined(elements)) elements = [];
-			var blip = new Blip(this, id, options, content, elements);
+			if (!$defined(creator)) creator = null;
+			if (!$defined(contributors)) contributors = null;
+			var blip = new Blip(this, id, options, content, elements, null, creator, contributors);
 			this._blips.insert(index, blip);
-			this.fireEvent("blipInserted", [index, id]);
+			this.fireEvent("blipInserted", [index, blip.id()]);
 			return blip;
+		},
+
+		/**
+		 * Delete a Blip by its id.<br/>
+		 * Note: Fires {@link pygowave.model.Wavelet.onBlipDeleted onBlipDeleted}
+		 *
+		 * @function {public} deleteBlip
+		 * @param {String} id Blip ID
+		 */
+		deleteBlip: function (id) {
+			for (var __iter0_ = new XRange(len(this._blips)); __iter0_.hasNext();) {
+				var i = __iter0_.next();
+				var blip = this._blips[i];
+				if (blip.id() == id) {
+					this._blips.pop(i);
+					this.fireEvent("blipDeleted", id);
+					break;
+				}
+			}
+			delete __iter0_;
 		},
 
 		/**
@@ -1291,31 +1450,60 @@ pygowave.model = (function() {
 		 *
 		 * @function {public} applyOperations
 		 * @param {pygowave.operations.Operation[]} ops List of operations to apply
+		 * @param {Date} timestamp Timestamp of the delta
+		 * @param {String} contributorId ID of the participant who sent the Operations
 		 */
-		applyOperations: function (ops, participants) {
+		applyOperations: function (ops, timestamp, contributorId) {
+			var pp = this._wave.participantProvider();
+			var contributor = pp.participant(contributorId);
 			for (var __iter0_ = new _Iterator(ops); __iter0_.hasNext();) {
 				var op = __iter0_.next();
 				if (op.blipId != "") {
 					var blip = this.blipById(op.blipId);
+					if (blip == null)
+						continue;
 					if (op.type == pygowave.operations.DOCUMENT_DELETE)
-						blip.deleteText(op.index, op.property);
+						blip.deleteText(op.index, op.property, contributor);
 					else if (op.type == pygowave.operations.DOCUMENT_INSERT)
-						blip.insertText(op.index, op.property);
+						blip.insertText(op.index, op.property, contributor);
 					else if (op.type == pygowave.operations.DOCUMENT_ELEMENT_DELETE)
-						blip.deleteElement(op.index);
+						blip.deleteElement(op.index, contributor);
 					else if (op.type == pygowave.operations.DOCUMENT_ELEMENT_INSERT)
-						blip.insertElement(op.index, op.property.type, op.property.properties);
+						blip.insertElement(op.index, op.property.type, op.property.properties, contributor);
 					else if (op.type == pygowave.operations.DOCUMENT_ELEMENT_DELTA)
-						blip.applyElementDelta(op.index, op.property);
+						blip.applyElementDelta(op.index, op.property, contributor);
 					else if (op.type == pygowave.operations.DOCUMENT_ELEMENT_SETPREF)
-						blip.setElementUserpref(op.index, op.property.key, op.property.value);
+						blip.setElementUserpref(op.index, op.property.key, op.property.value, contributor);
+					else if (op.type == pygowave.operations.BLIP_DELETE) {
+						this.deleteBlip(op.blipId);
+						continue;
+					}
+					blip.setLastModified(timestamp);
 				}
 				else if (op.type == pygowave.operations.WAVELET_ADD_PARTICIPANT)
-					this.addParticipant(participants[op.property]);
+					this.addParticipant(pp.participant(op.property));
 				else if (op.type == pygowave.operations.WAVELET_REMOVE_PARTICIPANT)
 					this.removeParticipant(op.property);
+				else if (op.type == pygowave.operations.WAVELET_APPEND_BLIP)
+					this.appendBlip(op.property.blipId, {
+						last_modified: timestamp
+					}, "", [], contributor);
 			}
 			delete __iter0_;
+			this.setLastModified(timestamp);
+		},
+
+		/**
+		 * Updates the ID of operations on temporary Blips.
+		 *
+		 * @function {public} updateBlipId
+		 * @param {String} tempId Old temporary ID
+		 * @param {String} blipId New persistent ID
+		 */
+		updateBlipId: function (tempId, blipId) {
+			var blip = this.blipById(tempId);
+			if (blip != null)
+				blip.setId(blipId);
 		},
 
 		/**
@@ -1323,14 +1511,29 @@ pygowave.model = (function() {
 		 * @function {public} loadBlipsFromSnapshot
 		 * @param {Object} blips The JSON-serialized snapshot to load
 		 * @param {String} rootBlipId ID to identify the root Blip
-		 * @param {Hash} participants A map of participant objects
 		 */
-		loadBlipsFromSnapshot: function (blips, rootBlipId, participants) {
+		loadBlipsFromSnapshot: function (blips, rootBlipId) {
+			var pp = this._wave.participantProvider();
+			var created = new Hash();
 			for (var __iter0_ = new _Iterator(blips); __iter0_.hasNext();) {
 				var blip = __iter0_.next();
 				var blip_id = __iter0_.key();
+				created.set(blip.creationTime, blip_id);
+			}
+			delete __iter0_;
+			var order = created.getKeys();
+			order.sort();
+			for (var __iter0_ = new _Iterator(order); __iter0_.hasNext();) {
+				var timestamp = __iter0_.next();
+				blip_id = created[timestamp];
+				blip = blips[blip_id];
+				var contributors = new Array();
+				for (var __iter1_ = new _Iterator(blip.contributors); __iter1_.hasNext();) {
+					var cid = __iter1_.next();
+					contributors.append(pp.participant(cid));
+				}
+				delete __iter1_;
 				var blip_options = {
-					creator: participants[blip.creator],
 					is_root: blip_id == rootBlipId,
 					last_modified: blip.lastModifiedTime,
 					version: blip.version,
@@ -1345,7 +1548,7 @@ pygowave.model = (function() {
 						blip_elements.append(new Element(null, serialelement.id, serialelement.index, serialelement.type, serialelement.properties));
 				}
 				delete __iter1_;
-				var blipObj = this.appendBlip(blip_id, blip_options, blip.content, blip_elements);
+				var blipObj = this.appendBlip(blip_id, blip_options, blip.content, blip_elements, pp.participant(blip.creator), contributors);
 			}
 			delete __iter0_;
 		}
@@ -1375,12 +1578,15 @@ pygowave.model = (function() {
 		 * @constructor {public} initialize
 		 * @param {String} waveId ID of the Wave
 		 * @param {String} viewerId ID of the viewer
+		 * @param {Object} participantProvider A ParticipantProvider object.
+		 * it must have a method "participant(id)" to get Participant objects.
 		 */
-		initialize: function (waveId, viewerId) {
+		initialize: function (waveId, viewerId, participantProvider) {
 			this._rootWavelet = null;
 			this._waveId = waveId;
 			this._viewerId = viewerId;
 			this._wavelets = new Hash();
+			this._pp = participantProvider;
 		},
 
 		/**
@@ -1402,17 +1608,34 @@ pygowave.model = (function() {
 		},
 
 		/**
-		 * Load the wave's contents from a JSON-serialized snapshot and a map of
-		 * participant objects.
+		 * Returns the the ParticipantProvider object.
+		 *
+		 * @function {public Object} participantProvider
+		 */
+		participantProvider: function () {
+			return this._pp;
+		},
+
+		/**
+		 * Sets the IParticipantProvider object.
+		 *
+		 * @function {public} setParticipantProvider
+		 * @param {Object} participantProvider
+		 */
+		setParticipantProvider: function (participantProvider) {
+			this._pp = participantProvider;
+		},
+
+		/**
+		 * Load the wave's contents from a JSON-serialized snapshot.
 		 *
 		 * @function {public} loadFromSnapshot
 		 * @param {Object} obj The JSON-serialized snapshot to load
-		 * @param {Hash} participants A map of participant objects
 		 */
-		loadFromSnapshot: function (obj, participants) {
+		loadFromSnapshot: function (obj) {
 			var rootWavelet = obj.wavelet;
 			var wvl_options = {
-				creator: participants[rootWavelet.creator],
+				creator: this._pp.participant(rootWavelet.creator),
 				is_root: true,
 				created: rootWavelet.creationTime,
 				last_modified: rootWavelet.lastModifiedTime,
@@ -1422,10 +1645,10 @@ pygowave.model = (function() {
 			var rootWaveletObj = this.createWavelet(rootWavelet.waveletId, wvl_options);
 			for (var __iter0_ = new _Iterator(rootWavelet.participants); __iter0_.hasNext();) {
 				var part_id = __iter0_.next();
-				rootWaveletObj.addParticipant(participants[part_id]);
+				rootWaveletObj.addParticipant(this._pp.participant(part_id));
 			}
 			delete __iter0_;
-			rootWaveletObj.loadBlipsFromSnapshot(obj.blips, rootWavelet.rootBlipId, participants);
+			rootWaveletObj.loadBlipsFromSnapshot(obj.blips, rootWavelet.rootBlipId);
 		},
 
 		/**

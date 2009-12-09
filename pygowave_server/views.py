@@ -30,11 +30,9 @@ from django.utils import simplejson
 
 from pygowave_server.forms import ParticipantProfileForm, GadgetRegistryForm, DuplicateGadgetForm, NewWaveForm
 from pygowave_server.models import Participant, Gadget, Wave, GadgetElement
-from pygowave_server.engine import GadgetLoader
 
 from datetime import datetime, timedelta
 import urllib2
-from lxml.etree import XMLSyntaxError
 
 def index(request):
 	auth_fail = False
@@ -272,6 +270,12 @@ def gadget_loader(request):
 	Load a gadget from any URL.
 	
 	"""
+	try:
+		from lxml.etree import XMLSyntaxError
+	except ImportError:
+		return render_to_response('pygowave_server/gadgets/gadget_error.html', {"error_message": _(u"This server currently does not support Gadgets (lxml package missing).")}, context_instance=RequestContext(request))
+	
+	from pygowave_server.engine import GadgetLoader
 	
 	if not request.GET.has_key("url"):
 		return render_to_response('pygowave_server/gadgets/gadget_error.html', {"error_message": _(u"No URL specified.")})

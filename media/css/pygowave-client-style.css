@@ -18,6 +18,16 @@
 	margin: 0;
 }
 
+.wavelet_toolbar .separator
+{
+	float: left;
+	width: 5px;
+	height: 22px;
+	background-image: url(../images/separator.png);
+	background-repeat: no-repeat;
+	background-position: center;
+}
+
 .wavelet_toolbar .toolbar_button
 {
 	float: left;
@@ -50,12 +60,45 @@
 	padding: 3px 1px 1px 3px;
 }
 
+.wavelet_toolbar .toolbar_button.disabled
+{
+	cursor: default;
+}
+
+.wavelet_toolbar .toolbar_button.disabled .toolbar_text
+{
+	color: #BBBBBB;
+}
+
+.wavelet_toolbar .toolbar_button.disabled:hover
+{
+	background: transparent;
+	border: none;
+	padding: 3px;
+}
+
+.wavelet_toolbar .toolbar_button.disabled:active
+{
+	background: transparent;
+	border: none;
+	padding: 3px;
+}
+
 .wavelet_toolbar .toolbar_button .wavelet_toolbar_add_gadget
 {
 	float: left;
 	height: 16px;
 	width: 16px;
 	background-image: url(../images/blip_editor_toolbarbuttons.png);
+	background-repeat: no-repeat;
+}
+
+.wavelet_toolbar .toolbar_button .wavelet_toolbar_reply
+{
+	float: left;
+	height: 16px;
+	width: 16px;
+	background-image: url(../images/reply-all.png);
 	background-repeat: no-repeat;
 }
 
@@ -233,9 +276,18 @@
 	background-image: url(../images/document_status.png);
 }
 
-.wavelet_status_bar .document.clean {background-position: 0 0;}
-.wavelet_status_bar .document.dirty {background-position: 0 -16px;}
-.wavelet_status_bar .document.invalid {background-position: 0 -32px;}
+.wavelet_status_bar .document.clean
+{
+	background-position: 0 0;
+}
+.wavelet_status_bar .document.dirty
+{
+	background-position: 0 -16px;
+}
+.wavelet_status_bar .document.invalid
+{
+	background-position: 0 -32px;
+}
 
 .blip_container_widget
 {
@@ -246,28 +298,26 @@
 	background-color: #FFFFFF;
 }
 
-.blip_container_widget hr
+.blip_container_widget > .blip_container_widget
 {
-	height: 1px;
-	background-image: url(../images/dot-hr.gif);
-	background-repeat: repeat-x;
-	border: none;
-	background-color: transparent;
-	margin-left: 1px;
-	margin-right: 1px;
+	margin-left: 25px;
+	border-left: 1px dotted #CCCCCC;
 }
 
 .blip_editor_widget
 {
 	width: 100%;
 	height: auto;
+	min-height: 35px;
 	cursor: text;
 	overflow: visible;
 	font-size: 1.1em;
 	outline: none;
 	padding-top: 2px;
-	border-bottom: 1px solid #B8C6D9;
+	padding-bottom: 2px;
 	position: relative;
+	margin-top: 4px;
+	border-bottom: 1px dotted #CCCCCC;
 }
 
 .blip_editor_widget p
@@ -320,6 +370,88 @@
 	float:right;
 	cursor: pointer;
 	z-index: 2;
+}
+
+.blip_editor_control.blip_infobox
+{
+	position: absolute;
+	text-align: right;
+	right: 3px;
+	height: 16px;
+	width: 90px;
+}
+
+.blip_editor_control .blip_dropdown
+{
+	float: right;
+	height: 16px;
+	width: 16px;
+	background-repeat: no-repeat;
+	background-image: url(../images/document-edit.png);
+	cursor: pointer;
+	margin-left: 3px;
+}
+
+.blip_editor_control.blip_edit_controls
+{
+	width: 100%;
+	height: 30px;
+	padding-top: 5px;
+}
+
+.blip_editor_control .blip_draft_check
+{
+	float: right;
+	margin-right: 6px;
+	padding-top: 4px;
+}
+
+.blip_editor_control .blip_draft_check .box
+{
+	float: left;
+	height: 14px;
+	width: 14px;
+	border: 1px solid #93B4D9;
+	margin-right: 2px;
+	cursor: pointer;
+	background-color: #F5F5F5;
+	background-image: url(../images/checkbox_bg.png);
+	background-repeat: no-repeat;
+	background-position: center;
+}
+
+.blip_editor_control .blip_draft_check .box.checked
+{
+	background-image: url(../images/checkbox_checked.png);
+}
+
+.blip_editor_control.blip_contributors
+{
+	float: left;
+	margin-left: 6px;
+	margin-right: 3px;
+	margin-top: 1px;
+}
+
+.blip_editor_control.blip_contributors > *
+{
+	float: left;
+}
+
+.blip_editor_control.blip_contributor_names
+{
+	float: left;
+	color: #BBBBBB;
+	font-weight: bold;
+	font-size: 0.9em;
+	margin-right: 3px;
+}
+
+.blip_editor_control.blip_contributor_names.for_root_blip
+{
+	margin-left: 5px;
+	float: none;
+	margin-bottom: 4px;
 }
 
 .search_widget
@@ -484,6 +616,7 @@
 	background-image: url(../images/generic_error.png);
 	background-repeat: no-repeat;
 	background-position: 4px 4px;
+	overflow: hidden;
 }
 
 .error_overlay .msg
@@ -499,6 +632,8 @@
 {
 	margin-top: 3px;
 	margin-bottom: 0px;
+	position: absolute;
+	right: 0;
 }
 
 .wavelet_add_gadget .description

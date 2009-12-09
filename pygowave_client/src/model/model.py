@@ -22,7 +22,7 @@ limitations under the License.
 """
 
 from pycow.decorators import Class, Implements
-from pycow.utils import Events, Options, Hash
+from pycow.utils import Events, Options, Array, Hash
 
 from hashlib import sha1 as sha_constructor
 
@@ -310,7 +310,7 @@ class Element(object):
 		@constructor {private} initialize
 		@param {Blip} blip The element's parent Blip
 		@param {int} id ID of the element, setting this to null will assign
-		             a new temporaty ID
+		             a new temporary ID
 		@param {int} position Index where this element resides
 		@param {int} type Type of the element
 		@param {Object} properties The element's properties
@@ -507,11 +507,10 @@ class Blip(object):
 	"""
 	
 	options = {
-		"creator": None,
 		"is_root": False,
 		"last_modified": None,
 		"version": 0,
-		"submitted": False
+		"submitted": False,
 	}
 	
 	# --- Event documentation ---
@@ -550,16 +549,38 @@ class Blip(object):
 	
 	@event onOutOfSync
 	"""
+	
+	"""
+	Fired when the Blip's last modification date/time changed.
+	
+	@event onLastModifiedChanged
+	@param {Date} date
+	"""
+	
+	"""
+	Fired when the Blip's ID changed; should only happen on temporary Blips.
+	
+	@event onIdChanged
+	@param {String} oldId
+	@param {String} newId
+	"""
+	
+	"""
+	Fired when a new contributor has been added.
+	
+	@event onContributorAdded
+	@param {String} id His/her/its ID
+	"""
 	# ---------------------------
 	
-	def __init__(self, wavelet, id, options, content = "", elements = [], parent = None):
+	def __init__(self, wavelet, id, options, content = "", elements = None, parent = None, creator = None, contributors = None):
 		"""
 		Called on instantiation. Documented for internal purposes.
 		@constructor {private} initialize
 		@param {Wavelet} wavelet Parent Wavelet object
-		@param {String} id ID of this Blip
+		@param {String} id ID of this Blip, setting this to an empty string will
+			assign a new temporary ID
 		@param {Object} options Information about the Blip. Possible values:
-		@... {Participant} creator Creator of this Blip
 		@... {Boolean} is_root True if this is the root Blip; if this value
 		     is set and the parent Wavelet does not have a root Blip yet,
 		     this Blip is set as the Wavelet's root Blip
@@ -570,18 +591,33 @@ class Blip(object):
 		@param {optional Element[]} elements Element objects which initially
 		       reside in this Blip
 		@param {optional Blip} parent Parent Blip if this is a nested Blip
+		@param {optional Participant} creator Creator of this Blip
+		@param {optional Participant[]} contributors Contributors of this Blip
 		"""
 		self.setOptions(options)
 		self._wavelet = wavelet
-		self._id = id
+		self._creator = creator
+		self._contributors = Hash()
+		if contributors == None:
+			if self._creator != None:
+				self._contributors.set(self._creator.id(), self._creator)
+		else:
+			for c in contributors:
+				self._contributors.set(c.id(), c)
+		if id == "":
+			self._id = Blip.newTempId()
+		else:
+			self._id = id
 		self._parent = parent
 		
 		self._content = content
+		if elements == None:
+			elements = Array()
 		self._elements = elements
 		for element in self._elements:
 			element.setBlip(self)
 		
-		self._annotations = []
+		self._annotations = Array()
 		
 		self._outofsync = False
 	
@@ -592,6 +628,18 @@ class Blip(object):
 		@function {public String} id
 		"""
 		return self._id
+	
+	def setId(self, id):
+		"""
+		Sets the ID of this Blip. Mainly used for temporary Blips.
+		
+		@function {public} setId
+		@param {String} id The new id
+		"""
+		if id != self._id:
+			oldId = self._id
+			self._id = id
+			self.fireEvent("idChanged", [oldId, id])
 	
 	def wavelet(self):
 		"""
@@ -607,6 +655,13 @@ class Blip(object):
 		@function {public Boolean} isRoot
 		"""
 		return self.options["is_root"]
+
+	def creator(self):
+		"""
+		Returns the creator of this Blip.
+		@function {public Participant} creator
+		"""
+		return self._creator
 
 	def elementById(self, id):
 		"""
@@ -645,8 +700,8 @@ class Blip(object):
 		@param {int} end End index
 		"""
 		
-		lst = []
-		for i in xrange(len(self._elements)):
+		lst = Array()
+		for i in xrange(self._elements.length):
 			elt = self._elements[i]
 			if elt.position() >= start and elt.position() < end:
 				lst.append(elt)
@@ -662,7 +717,27 @@ class Blip(object):
 		
 		return self._elements
 
-	def insertText(self, index, text, noevent = False):
+	def allContributors(self):
+		"""
+		Returns all contributors to this Blip.
+		
+		@function {public Participant[]} allContributors
+		"""
+		return self._contributors.getValues()
+
+	def addContributor(self, contributor):
+		"""
+		Add a contributor to this Blip if he is not already contributing.
+		
+		@function {public} addContributor
+		@param {Participant} contributor
+		"""
+		
+		if not self._contributors.has(contributor.id()):
+			self._contributors.set(contributor.id(), contributor)
+			self.fireEvent("contributorAdded", contributor.id())
+
+	def insertText(self, index, text, contributor, noevent = False):
 		"""
 		Insert a text at the specified index. This moves annotations and
 		elements as appropriate.<br/>
@@ -671,8 +746,11 @@ class Blip(object):
 		@function {public} insertText
 		@param {int} index Index of insertion
 		@param {String} text Text to be inserted
+		@param {Participant} contributor Participant who contributed this action
 		@param {optional Boolean} noevent Set to true if no event should be generated
 		"""
+		
+		self.addContributor(contributor)
 		
 		self._content = self._content[:index] + text + self._content[index:]
 		
@@ -691,7 +769,7 @@ class Blip(object):
 		if not noevent:
 			self.fireEvent("insertText", [index, text])
 	
-	def deleteText(self, index, length, noevent = False):
+	def deleteText(self, index, length, contributor, noevent = False):
 		"""
 		Delete text at the specified index. This moves annotations and
 		elements as appropriate.<br/>
@@ -700,8 +778,11 @@ class Blip(object):
 		@function {public} deleteText
 		@param {int} index Index of deletion
 		@param {int} length Number of characters to delete
+		@param {Participant} contributor Participant who contributed this action
 		@param {optional Boolean} noevent Set to true if no event should be generated
 		"""
+		
+		self.addContributor(contributor)
 		
 		self._content = self._content[:index] + self._content[index+length:]
 		
@@ -718,7 +799,7 @@ class Blip(object):
 		if not noevent:
 			self.fireEvent("deleteText", [index, length])
 	
-	def insertElement(self, index, type, properties, noevent = False):
+	def insertElement(self, index, type, properties, contributor, noevent = False):
 		"""
 		Insert an element at the specified index. This implicitly adds a
 		protected newline character at the index.<br/>
@@ -728,10 +809,13 @@ class Blip(object):
 		@param {int} index Position of the new element
 		@param {String} type Element type
 		@param {Object} properties Element properties
+		@param {Participant} contributor Participant who contributed this action
 		@param {optional Boolean} noevent Set to true if no event should be generated
 		"""
 		
-		self.insertText(index, "\n", True)
+		self.addContributor(contributor)
+		
+		self.insertText(index, "\n", contributor, True)
 		elt = None
 		if type == 2:
 			elt = GadgetElement(self, None, index, properties)
@@ -743,7 +827,7 @@ class Blip(object):
 		if not noevent:
 			self.fireEvent("insertElement", index)
 	
-	def deleteElement(self, index, noevent = False):
+	def deleteElement(self, index, contributor, noevent = False):
 		"""
 		Delete an element at the specified index. This implicitly deletes the
 		protected newline character at the index.<br/>
@@ -751,19 +835,22 @@ class Blip(object):
 		
 		@function {public} deleteElement
 		@param {int} index Position of the element to delete
+		@param {Participant} contributor Participant who contributed this action
 		@param {optional Boolean} noevent Set to true if no event should be generated
 		"""
+		
+		self.addContributor(contributor)
 		
 		for i in xrange(len(self._elements)):
 			elt = self._elements[i]
 			if elt.position() == index:
 				self._elements.pop(i)
 				break
-		self.deleteText(index, 1, True)
+		self.deleteText(index, 1, contributor, True)
 		if not noevent:
 			self.fireEvent("deleteElement", index)
 	
-	def applyElementDelta(self, index, delta):
+	def applyElementDelta(self, index, delta, contributor):
 		"""
 		Apply an element delta. Currently only for gadget elements.<br/>
 		Note: This action always emits stateChange.
@@ -771,14 +858,17 @@ class Blip(object):
 		@function {public} applyElementDelta
 		@param {int} index Position of the element
 		@param {Object} delta Delta to apply to the element
+		@param {Participant} contributor Participant who contributed this action
 		"""
+		
+		self.addContributor(contributor)
 		
 		for elt in self._elements:
 			if elt.position() == index:
 				elt.applyDelta(delta)
 				break
 	
-	def setElementUserpref(self, index, key, value, noevent = False):
+	def setElementUserpref(self, index, key, value, contributor, noevent = False):
 		"""
 		Set an UserPref of an element. Currently only for gadget elements.
 		
@@ -786,8 +876,11 @@ class Blip(object):
 		param {int} index Position of the element
 		@param {Object} key Name of the UserPref
 		@param {Object} value Value of the UserPref
+		@param {Participant} contributor Participant who contributed this action
 		@param {optional Boolean} noevent Set to true if no event should be generated
 		"""
+		
+		self.addContributor(contributor)
 		
 		for elt in self._elements:
 			if elt.position() == index:
@@ -800,6 +893,23 @@ class Blip(object):
 		@function {public String} content
 		"""
 		return self._content
+	
+	def lastModified(self):
+		"""
+		Returns the date/time of the last modification of this Blip.
+		@function {public Date} lastModified
+		"""
+		return self.options.last_modified
+	
+	def setLastModified(self, value):
+		"""
+		Sets the date/time of the last modification of this Blip.
+		@function {public Date} setLastModified
+		@param {Date} value
+		"""
+		if self.options["last_modified"] != value:
+			self.options["last_modified"] = value
+			self.fireEvent("lastModifiedChanged", value)
 	
 	def checkSync(self, sum):
 		"""
@@ -822,6 +932,13 @@ class Blip(object):
 			return False
 		else:
 			return True
+	
+	@staticmethod
+	def newTempId():
+		Blip.lastTempId += 1
+		return "TBD_%02d" % (Blip.lastTempId,)
+
+Blip.lastTempId = 0
 
 @Implements(Options, Events)
 @Class
@@ -854,6 +971,12 @@ class Wavelet(object):
 	@event onBlipInserted
 	@param {int} index Index of the inserted Blip
 	@param {String} blip_id ID of the inserted Blip
+	"""
+	
+	"""
+	Fired if a Blip was deleted.
+	@event onBlipDeleted
+	@param {String} blip_id ID of the deleted Blip
 	"""
 	
 	"""
@@ -1018,7 +1141,7 @@ class Wavelet(object):
 			ret[id] = participant.toGadgetFormat()
 		return ret
 	
-	def appendBlip(self, id, options, content = "", elements = []):
+	def appendBlip(self, id, options, content = "", elements = [], creator = None, contributors = None):
 		"""
 		Convenience function for inserting a new Blip at the end.
 		For options see the {@link pygowave.model.Blip.initialize Blip constructor}.<br/>
@@ -1030,10 +1153,12 @@ class Wavelet(object):
 		@param {optional String} content Content of the Blip
 		@param {optional Element[]} elements Element objects which initially
 		    reside in this Blip
+		@param {optional Participant} creator Creator of the Blip
+		@param {optional Participant[]} contributors Contributors of the Blip
 		"""
-		return self.insertBlip(len(self._blips), id, options, content, elements)
+		return self.insertBlip(len(self._blips), id, options, content, elements, creator, contributors)
 
-	def insertBlip(self, index, id, options, content = "", elements = []):
+	def insertBlip(self, index, id, options, content = "", elements = [], creator = None, contributors = None):
 		"""
 		Insert a new Blip at the specified index.
 		For options see the {@link pygowave.model.Blip.initialize Blip constructor}.<br/>
@@ -1046,11 +1171,29 @@ class Wavelet(object):
 		@param {optional String} content Content of the Blip
 		@param {optional Element[]} elements Element objects which initially
 		    reside in this Blip
+		@param {optional Participant} creator Creator of the Blip
+		@param {optional Participant[]} contributors Contributors of the Blip
 		"""
-		blip = Blip(self, id, options, content, elements)
+		blip = Blip(self, id, options, content, elements, None, creator, contributors)
 		self._blips.insert(index, blip)
-		self.fireEvent('blipInserted', [index, id])
+		self.fireEvent('blipInserted', [index, blip.id()])
 		return blip
+	
+	def deleteBlip(self, id):
+		"""
+		Delete a Blip by its id.<br/>
+		Note: Fires {@link pygowave.model.Wavelet.onBlipDeleted onBlipDeleted}
+		
+		@function {public} deleteBlip
+		@param {String} id Blip ID
+		"""
+		
+		for i in xrange(len(self._blips)):
+			blip = self._blips[i]
+			if blip.id() == id:
+				self._blips.pop(i)
+				self.fireEvent("blipDeleted", id)
+				break
 	
 	def blipByIndex(self, index):
 		"""
@@ -1170,48 +1313,86 @@ class Wavelet(object):
 		else:
 			self._setStatus("invalid")
 	
-	def applyOperations(self, ops, participants):
+	def applyOperations(self, ops, timestamp, contributorId):
 		"""
 		Apply the operations on the wavelet.
 		
 		@function {public} applyOperations
 		@param {pygowave.operations.Operation[]} ops List of operations to apply
+		@param {Date} timestamp Timestamp of the delta
+		@param {String} contributorId ID of the participant who sent the Operations
 		"""
+		
+		pp = self._wave.participantProvider()
+		contributor = pp.participant(contributorId)
 		
 		for op in ops:
 			if op.blipId != "":
 				blip = self.blipById(op.blipId)
+				if blip == None:
+					continue
 				if op.type == pygowave.operations.DOCUMENT_DELETE:
-					blip.deleteText(op.index, op.property)
+					blip.deleteText(op.index, op.property, contributor)
 				elif op.type == pygowave.operations.DOCUMENT_INSERT:
-					blip.insertText(op.index, op.property)
+					blip.insertText(op.index, op.property, contributor)
 				elif op.type == pygowave.operations.DOCUMENT_ELEMENT_DELETE:
-					blip.deleteElement(op.index)
+					blip.deleteElement(op.index, contributor)
 				elif op.type == pygowave.operations.DOCUMENT_ELEMENT_INSERT:
-					blip.insertElement(op.index, op.property["type"], op.property["properties"])
+					blip.insertElement(op.index, op.property["type"], op.property["properties"], contributor)
 				elif op.type == pygowave.operations.DOCUMENT_ELEMENT_DELTA:
-					blip.applyElementDelta(op.index, op.property)
+					blip.applyElementDelta(op.index, op.property, contributor)
 				elif op.type == pygowave.operations.DOCUMENT_ELEMENT_SETPREF:
-					blip.setElementUserpref(op.index, op.property["key"], op.property["value"])
+					blip.setElementUserpref(op.index, op.property["key"], op.property["value"], contributor)
+				elif op.type == pygowave.operations.BLIP_DELETE:
+					self.deleteBlip(op.blipId)
+					continue
+				blip.setLastModified(timestamp)
 			else:
 				if op.type == pygowave.operations.WAVELET_ADD_PARTICIPANT:
-					self.addParticipant(participants[op.property])
+					self.addParticipant(pp.participant(op.property))
 				elif op.type == pygowave.operations.WAVELET_REMOVE_PARTICIPANT:
 					self.removeParticipant(op.property)
+				elif op.type == pygowave.operations.WAVELET_APPEND_BLIP:
+					self.appendBlip(op.property["blipId"], {"last_modified": timestamp}, "", [], contributor)
+		
+		self.setLastModified(timestamp)
 	
-	def loadBlipsFromSnapshot(self, blips, rootBlipId, participants):
+	def updateBlipId(self, tempId, blipId):
+		"""
+		Updates the ID of operations on temporary Blips.
+		
+		@function {public} updateBlipId
+		@param {String} tempId Old temporary ID
+		@param {String} blipId New persistent ID
+		"""
+		blip = self.blipById(tempId)
+		if blip != None:
+			blip.setId(blipId)
+	
+	def loadBlipsFromSnapshot(self, blips, rootBlipId):
 		"""
 		Load the blips from a snapshot.
 		@function {public} loadBlipsFromSnapshot
 		@param {Object} blips The JSON-serialized snapshot to load
 		@param {String} rootBlipId ID to identify the root Blip
-		@param {Hash} participants A map of participant objects
 		"""
 		
+		pp = self._wave.participantProvider()
+		
+		# Ordering
+		created = Hash()
 		for blip_id, blip in blips.iteritems():
-			#TODO: handle Blip contributors
+			created.set(blip["creationTime"], blip_id)
+		order = created.getKeys()
+		order.sort()
+		
+		for timestamp in order:
+			blip_id = created[timestamp]
+			blip = blips[blip_id]
+			contributors = Array()
+			for cid in blip["contributors"]:
+				contributors.append(pp.participant(cid))
 			blip_options = {
-				"creator": participants[blip["creator"]],
 				"is_root": blip_id == rootBlipId,
 				"last_modified": blip["lastModifiedTime"],
 				"version": blip["version"],
@@ -1223,7 +1404,7 @@ class Wavelet(object):
 					blip_elements.append(GadgetElement(None, serialelement["id"], serialelement["index"], serialelement["properties"]))
 				else:
 					blip_elements.append(Element(None, serialelement["id"], serialelement["index"], serialelement["type"], serialelement["properties"]))
-			blipObj = self.appendBlip(blip_id, blip_options, blip["content"], blip_elements)
+			blipObj = self.appendBlip(blip_id, blip_options, blip["content"], blip_elements, pp.participant(blip["creator"]), contributors)
 
 @Implements(Events)
 @Class
@@ -1249,17 +1430,20 @@ class WaveModel(object):
 	"""
 	# ---------------------------
 	
-	def __init__(self, waveId, viewerId):
+	def __init__(self, waveId, viewerId, participantProvider):
 		"""
 		Called on instantiation.
 		@constructor {public} initialize
 		@param {String} waveId ID of the Wave
 		@param {String} viewerId ID of the viewer
+		@param {Object} participantProvider A ParticipantProvider object.
+			it must have a method "participant(id)" to get Participant objects.
 		"""
 		self._rootWavelet = None
 		self._waveId = waveId
 		self._viewerId = viewerId
 		self._wavelets = Hash()
+		self._pp = participantProvider
 
 	def id(self):
 		"""
@@ -1277,20 +1461,35 @@ class WaveModel(object):
 		"""
 		return self._viewerId
 
-	def loadFromSnapshot(self, obj, participants):
+	def participantProvider(self):
 		"""
-		Load the wave's contents from a JSON-serialized snapshot and a map of
-		participant objects.
+		Returns the the ParticipantProvider object.
+		
+		@function {public Object} participantProvider
+		"""
+		return self._pp
+
+	def setParticipantProvider(self, participantProvider):
+		"""
+		Sets the IParticipantProvider object.
+		
+		@function {public} setParticipantProvider
+		@param {Object} participantProvider
+		"""
+		self._pp = participantProvider
+
+	def loadFromSnapshot(self, obj):
+		"""
+		Load the wave's contents from a JSON-serialized snapshot.
 		
 		@function {public} loadFromSnapshot
 		@param {Object} obj The JSON-serialized snapshot to load
-		@param {Hash} participants A map of participant objects
 		"""
 		
 		rootWavelet = obj["wavelet"]
 		
 		wvl_options = {
-			"creator": participants[rootWavelet["creator"]],
+			"creator": self._pp.participant(rootWavelet["creator"]),
 			"is_root": True,
 			"created": rootWavelet["creationTime"],
 			"last_modified": rootWavelet["lastModifiedTime"],
@@ -1301,9 +1500,9 @@ class WaveModel(object):
 		rootWaveletObj = self.createWavelet(rootWavelet["waveletId"], wvl_options)
 		
 		for part_id in rootWavelet["participants"]:
-			rootWaveletObj.addParticipant(participants[part_id])
+			rootWaveletObj.addParticipant(self._pp.participant(part_id))
 		
-		rootWaveletObj.loadBlipsFromSnapshot(obj["blips"], rootWavelet["rootBlipId"], participants);
+		rootWaveletObj.loadBlipsFromSnapshot(obj["blips"], rootWavelet["rootBlipId"]);
 
 	def createWavelet(self, id, options):
 		"""

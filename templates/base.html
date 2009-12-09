@@ -2,6 +2,7 @@
 {% get_current_language as LANGUAGE_CODE %}
 {% get_current_language_bidi as LANGUAGE_BIDI %}
 {% block doctype %}<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">{% endblock %}
+{% load analytics %}
 
 <html xmlns="http://www.w3.org/1999/xhtml">
 
@@ -21,21 +22,7 @@
 	<script type="text/javascript" src="{{ MEDIA_URL }}js/mocha.js"></script>
 	<script type="text/javascript" src="{{ MEDIA_URL }}js/mocha-tabify.js"></script>
 {% block additional_header %}{% endblock %}
-	
-{% if not IS_LOCAL %}
-	<!-- Begin Google Analytics Code-->
-	<script type="text/javascript">
-	var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
-	document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
-	</script>
-	<script type="text/javascript">
-	try {
-		var pageTracker = _gat._getTracker("UA-9157095-3");
-		pageTracker._trackPageview();
-	} catch(err) {}
-	</script>
-	<!-- End Google Analytics Code-->
-{% endif %}
+{% tracker_code %}
 </head>
 
 <body>

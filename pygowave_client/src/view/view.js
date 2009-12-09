@@ -82,6 +82,23 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 				this._rootBlip = blipwgt;
 			
 			return blipwgt;
+		},
+		
+		/**
+		 * Remove a BlipEditorWidget with the specified Blip ID.
+		 *
+		 * @function {public} deleteBlip
+		 * @param {int} id 
+		 */
+		deleteBlip: function (id) {
+			for (var i = 0; i < this._blips.length; i++) {
+				var blipwgt = this._blips[i];
+				if (blipwgt.blip().id() == id) {
+					this._blips.pop(i);
+					blipwgt.destroy();
+					break;
+				}
+			}
 		}
 	});
 	
@@ -112,6 +129,7 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			this._addParticipantWidget = new AddParticipantWidget(this._view, wavelet.id(), this._participantsDiv);
 			this._toolBar = new ToolbarWidget(contentElement, 'wavelet_toolbar');
 			this._blipContainerWidget = new BlipContainerWidget(this._view, contentElement);
+			this._blipEditors = new Hash();
 			this._activeBlipEditor = null;
 			this._statusBar = new WaveletStatusBar(wavelet, contentElement);
 			this.updateParticipants();
@@ -119,6 +137,12 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			// Connect event listeners
 			wavelet.addEvent('participantsChanged', this.updateParticipants.bind(this));
 			wavelet.addEvent('blipInserted', this._onBlipInserted.bind(this));
+			wavelet.addEvent('blipDeleted', this._onBlipDeleted.bind(this));
+			
+			// Bind others
+			this._onBlipEditing = this._onBlipEditing.bind(this);
+			this._onBlipDone = this._onBlipDone.bind(this);
+			this._onBlipIdChanged = this._onBlipIdChanged.bind(this);
 			
 			// Build toolbar
 			this._addGadgetWindow = null;
@@ -174,13 +198,54 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		/**
 		 * Callback on Blip insertion
 		 * @function {private} _onBlipInserted
-		 * @param {int} index index Index of the inserted Blip
+		 * @param {int} index Index of the inserted Blip
 		 * @param {String} blip_id ID of the inserted Blip
 		 */
 		_onBlipInserted: function (index, blip_id) {
-			var blipwgt = this._blipContainerWidget.insertBlip(index, this._wavelet.blipByIndex(index));
-			this._activeBlipEditor = blipwgt; //TODO change this if multiple blips supported
-			this._statusBar.connectBlipEditor(blipwgt);
+			var blip = this._wavelet.blipByIndex(index);
+			var editor = this._blipContainerWidget.insertBlip(index, blip);
+			this._blipEditors.set(blip_id, editor);
+			editor.addEvents({
+				blipEditing: this._onBlipEditing,
+				blipDone: this._onBlipDone,
+				deleteBlip: this._onDeleteBlip
+			});
+			blip.addEvent('idChanged', this._onBlipIdChanged);
+			if (blip.id().startswith("TBD_"))
+				editor.editBlip();
+		},
+		/**
+		 * Callback on Blip deletion
+		 * @function {private} _onBlipDeleted
+		 * @param {String} blipId ID of the deleted Blip
+		 */
+		_onBlipDeleted: function (blipId) {
+			var editor = this._blipEditors.get(blipId);
+			if (!$defined(editor))
+				return;
+			if (editor == this._activeBlipEditor)
+				this._activeBlipEditor.finishBlip();
+			this._blipEditors.erase(blipId);
+			editor.removeEvents({
+				blipEditing: this._onBlipEditing,
+				blipDone: this._onBlipDone,
+				deleteBlip: this._onDeleteBlip
+			});
+			editor.blip().removeEvent('idChanged', this._onBlipIdChanged);
+			this._blipContainerWidget.deleteBlip(blipId);
+		},
+		/**
+		 * Callback if the ID of a Blip changed
+		 * @function {private} _onBlipIdChanged
+		 * @param {String} oldId
+		 * @param {String} newId
+		 */
+		_onBlipIdChanged: function (oldId, newId) {
+			var editor = this._blipEditors.get(oldId);
+			if (!$defined(editor))
+				return;
+			this._blipEditors.erase(oldId);
+			this._blipEditors.set(newId, editor);
 		},
 		
 		/**
@@ -202,10 +267,19 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		 * @function {private} _buildToolbar
 		 */
 		_buildToolbar: function () {
-			this._toolBar.addButton(new ToolbarButton("add_gadget", {
+			this._toolBar.addButton(new ToolbarButton("reply", {
+				icon_class: "wavelet_toolbar_reply",
+				label: gettext("Reply"),
+				tiptext: gettext("Reply to this Wavelet"),
+				onClick: function () {
+					this._view.fireEvent('appendBlip', this._wavelet.id());
+				}.bind(this)
+			}));
+			this._toolBar.addSeparator();
+			var gadgetButton = new ToolbarButton("add_gadget", {
 				icon_class: "wavelet_toolbar_add_gadget",
 				label: gettext("Add Gadget"),
-				tiptext: gettext("Add a gadget to the blip"),
+				tiptext: gettext("Add a Gadget to the Blip"),
 				onClick: function () {
 					if (this._addGadgetWindow == null) {
 						this._addGadgetWindow = new AddGadgetWindow(this._view, this._wavelet.id());
@@ -215,7 +289,9 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 					else
 						MochaUI.focusWindow(this._addGadgetWindow.windowEl);
 				}.bind(this)
-			}));
+			});
+			gadgetButton.setEnabled(false);
+			this._toolBar.addButton(gadgetButton);
 		},
 		
 		/**
@@ -225,6 +301,35 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		 */
 		activeBlipEditorWidget: function () {
 			return this._activeBlipEditor;
+		},
+		
+		/**
+		 * Callback from BlipEditorWidget on editing.
+		 *
+		 * @function {private} _onBlipEditing
+		 * @param {String} blipId
+		 */
+		_onBlipEditing: function (blipId) {
+			var editor = this._blipEditors.get(blipId);
+			if (this._activeBlipEditor == editor)
+				return;
+			if (this._activeBlipEditor != null)
+				this._activeBlipEditor.finishBlip();
+			this._activeBlipEditor = editor;
+			this._statusBar.connectBlipEditor(editor);
+			this._toolBar.items.get("add_gadget").setEnabled(true);
+		},
+		/**
+		 * Callback from BlipEditorWidget on editing finished.
+		 *
+		 * @function {private} _onBlipDone
+		 * @param {String} blipId
+		 */
+		_onBlipDone: function (blipId) {
+			var editor = this._blipEditors.get(blipId);
+			this._activeBlipEditor = null;
+			this._toolBar.items.get("add_gadget").setEnabled(false);
+			this._statusBar.disconnectBlipEditor(editor);
 		}
 	});
 	
@@ -330,7 +435,7 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		 * Fired if the user wants to leave a wavelet.
 		 *
 		 * @event onLeaveWavelet
-		 * @param {String} waveletId ID of the Wave
+		 * @param {String} waveletId ID of the Wavelet
 		 */
 		
 		/**
@@ -345,6 +450,38 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		/**
 		 * Fired if the view was busy and now is ready to receive modification.
 		 * @event onReady
+		 */
+		
+		/**
+		 * Fired if the user wants to append a Blip to the Wavelet.
+		 *
+		 * @event onAppendBlip
+		 * @param {String} waveletId ID of the Wavelet
+		 */
+		
+		/**
+		 * Fired if the user wants to create a child Blip.
+		 *
+		 * @event onCreateChildBlip
+		 * @param {String} waveletId ID of the Wavelet
+		 * @param {String} blipId ID of the parent Blip
+		 */
+		
+		/**
+		 * Fired if the user wants to delete a Blip.
+		 *
+		 * @event onDeleteBlip
+		 * @param {String} waveletId ID of the Wavelet
+		 * @param {String} blipId ID of the Blip
+		 */
+		
+		/**
+		 * Fired if the Blip should be set/unset to draft mode.
+		 *
+		 * @event onDraftBlip
+		 * @param {String} waveletId ID of the Wavelet
+		 * @param {String} blipId ID of the Blip
+		 * @param {bool} enabled True, if draft mode should be enabled
 		 */
 		// ---------------------------
 		

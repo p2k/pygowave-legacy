@@ -57,13 +57,13 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		},
 		
 		/**
-		 * Add a seperator to the toolbar.
+		 * Add a separator to the toolbar.
 		 *
-		 * @function {public} addSeperator
+		 * @function {public} addSeparator
 		 */
-		addSeperator: function () {
+		addSeparator: function () {
 			this.sep_count++;
-			this.items.set('seperator_%d'.sprintf(this.sep_count), new Element('div', {'class': 'seperator'}).inject(this.contentElement));
+			this.items.set('separator_%d'.sprintf(this.sep_count), new Element('div', {'class': 'separator'}).inject(this.contentElement));
 		},
 		
 		/**
@@ -139,7 +139,7 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		 * @function {private} _onClick
 		 */
 		_onClick: function (e) {
-			if (!this.disabled) {
+			if (this._enabled) {
 				this.toggle();
 				this.fireEvent('click', e);
 			}

@@ -24,7 +24,7 @@
 from types import FunctionType, ClassType
 import copy, re, simplejson
 
-__all__ = ["Events", "Options"]
+__all__ = ["Events", "Options", "Array", "Hash", "JSON"]
 
 class Events(object):
 	def addEvent(self, type, fn, internal = False):
@@ -96,6 +96,47 @@ class Options(object):
 			del self.options[option]
 		return self
 
+class Array(list):
+	@property
+	def length(self):
+		return self.__len__()
+	
+	def contains(self, value):
+		return self.__contains__(value)
+	
+	def sort(self):
+		list.sort(self)
+		return self
+	
+	def reverse(self):
+		list.reverse(self)
+		return self
+	
+	def indexOf(self, value):
+		try:
+			return self.index(value)
+		except ValueError:
+			return -1
+	
+	def lastIndexOf(self, value):
+		l = list(self)
+		l.reverse()
+		try:
+			return self.__len__() - l.index(value)
+		except ValueError:
+			return -1
+	
+	def push(self, value):
+		self.append(value)
+	
+	def erase(self, value):
+		try:
+			while True:
+				self.remove(value)
+		except ValueError:
+			pass
+		return self
+
 class Hash(dict):
 	def set(self, key, value):
 		self[key] = value
@@ -120,6 +161,12 @@ class Hash(dict):
 	
 	def extend(self, other):
 		self.update(other)
+	
+	def erase(self, key):
+		try:
+			del self[key]
+		except:
+			pass
 
 class JSON(object):
 	def encode(self, obj):

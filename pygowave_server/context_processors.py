@@ -20,19 +20,20 @@ from django.conf import settings
 
 def server(request):
 	"""
-	Puts IS_LOCAL setting, the VERSION and the Orbited configuration into context.
+	Puts DEVELOPER_MODE setting, the VERSION and the Orbited configuration
+	into context.
 	
 	"""
-	if settings.ORBITED_PORT == "auto":
+	if getattr(settings, "ORBITED_PORT", "auto") == "auto":
 		oport = request.META["SERVER_PORT"]
 	else:
 		oport = settings.ORBITED_PORT
 	return {
-		'IS_LOCAL': settings.IS_LOCAL,
-		'ORBITED_SERVER': settings.ORBITED_SERVER,
+		'DEVELOPER_MODE': getattr(settings, "DEVELOPER_MODE", ""),
+		'ORBITED_SERVER': getattr(settings, "ORBITED_SERVER", "localhost"),
 		'ORBITED_PORT': oport,
-		'VERSION': settings.VERSION,
-		'PING_INTERVAL_SECONDS': settings.PING_INTERVAL_SECONDS
+		'VERSION': getattr(settings, "VERSION", "(not set)"),
+		'PING_INTERVAL_SECONDS': getattr(settings, "PING_INTERVAL_SECONDS", 20)
 	}
 
 def storage_urls(request):
@@ -40,4 +41,7 @@ def storage_urls(request):
 	Puts AVATAR_URL and GADGET_URL into context.
 	
 	"""
-	return {'AVATAR_URL': settings.AVATAR_URL, 'GADGET_URL': settings.GADGET_URL}
+	return {
+		'AVATAR_URL': getattr(settings, "AVATAR_URL", "/media/avatars/"),
+		'GADGET_URL': getattr(settings, "GADGET_URL", "/media/gadgets/")
+	}

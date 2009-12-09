@@ -23,8 +23,8 @@
  * <p>PyGoWave Client is designed with the Model-View-Controller design
  * pattern.</p>
  * <p>To set up PyGoWave Client for proper operation, you must include
- * Orbited.js and stomp.js before any of these scripts. Then include all three
- * libraries in arbitrary order. (TODO...)</p>
+ * Orbited.js and stomp.js before any of these scripts. Then include all
+ * libraries in order. (TODO...)</p>
  * 
  * @project PyGoWave Client
  * @author p2k - patrick.p2k.schneider@gmail.com
@@ -47,6 +47,69 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
  */
 (function () {
 	// -- Private classes --
+	
+	/**
+	 * Small middleware class to prevent the model from doing bad things.
+	 * @class {private} pygowave.controller.ParticipantProvider
+	 */
+	var ParticipantProvider = new Class({
+		Implements: Events,
+		
+		// --- Event documentation ---
+		/**
+		 * Fired on wavelet opening.
+		 * @event onParticipantRequest
+		 * @param {String} id ID of the Participant
+		 */
+		// ---------------------------
+		
+		/**
+		 * Called on instantiation.
+		 * @constructor {public} initialize
+		 */
+		initialize: function () {
+			this._participants = new Hash();
+			this._todo = new Array();
+			this._collecting = false;
+		},
+		
+		/**
+		 * Get a Participant object by its ID
+		 * @function {pygowave.model.Participant} participant
+		 * @param {String} id ID of the Participant
+		 */
+		participant: function (id) {
+			if (!this._participants.has(id)) {
+				this._participants.set(id, new pygowave.model.Participant(id));
+				if (this._collecting) {
+					if (!this._todo.contains(id))
+						this._todo.append(id);
+				}
+				else
+					this.fireEvent("participantRequest", id);
+			}
+			return this._participants.get(id);
+		},
+		
+		/**
+		 * Start collecting Participant requests
+		 * @function {public} collect
+		 */
+		collect: function () {
+			this._collecting = true;
+		},
+		
+		/**
+		 * Stop collecting and fetch Participants to retrieve
+		 * @function {public String[]} fetch
+		 */
+		fetch: function () {
+			this._collecting = false;
+			var todo = this._todo;
+			this._todo = new Array();
+			return todo;
+		}
+	});
 	
 	// -- Public classes --
 	
@@ -107,14 +170,20 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 			this._iview.addEvent('searchForParticipant', this._onSearchForParticipant.bind(this));
 			this._iview.addEvent('addParticipant', this._onAddParticipant.bind(this));
 			this._iview.addEvent('leaveWavelet', this._onLeaveWavelet.bind(this));
+			this._iview.addEvent('appendBlip', this._onAppendBlip.bind(this));
+			this._iview.addEvent('deleteBlip', this._onDeleteBlip.bind(this));
+			this._iview.addEvent('draftBlip', this._onDraftBlip.bind(this));
 			this._iview.addEvent('refreshGadgetList', this._onRefreshGadgetList.bind(this));
 			this._iview.addEvent('ready', this._onViewReady.bind(this));
 			
 			this.waves = new Hash();
 			this.waves.set(model.id(), model);
-			
 			this.wavelets = new Hash();
-			this.participants = new Hash();
+			
+			this.pp = new ParticipantProvider();
+			this.pp.addEvent("participantRequest", this._onParticipantRequest.bind(this));
+			model.setParticipantProvider(this.pp);
+			
 			this._cachedGadgetList = null;
 			this._deferredMessageBundles = new Array();
 			this._processingDeferred = false;
@@ -211,8 +280,12 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 							break;
 						case "PARTICIPANT_SEARCH":
 							if (msg.property.result == "OK") {
-								this._collateParticipants(msg.property.data);
-								this._iview.updateSearchResults(this._getParticipants(msg.property.data));
+								this.pp.collect();
+								var participants = new Array();
+								for (var it = new _Iterator(msg.property.data); it.hasNext(); )
+									participants.push(this.pp.participant(it.next()));
+								this._retrieveParticipants(this.pp.fetch());
+								this._iview.updateSearchResults(participants);
 							}
 							else if (msg.property.result == "TOO_SHORT")
 								this._iview.invalidSearch(msg.property.data);
@@ -232,30 +305,31 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 				return;
 			}
 			
-			for (var it = new _Iterator(msg);it.hasNext();) {
+			for (var it = new _Iterator(msg); it.hasNext(); ) {
 				msg = it.next();
 				switch (msg.type) {
 					case "WAVELET_OPEN":
 						this._setupPingTimer();
-						this._collateParticipants(msg.property.wavelet.participants);
-						
+						this.pp.collect();
 						var wave_id = msg.property.wavelet.waveId;
 						var wave_model = this.waves[wave_id];
-						wave_model.loadFromSnapshot(msg.property, this.participants);
+						wave_model.loadFromSnapshot(msg.property);
 						wavelet_model = wave_model.wavelet(wavelet_id);
 						this.wavelets[wavelet_id] = {
 							model: wavelet_model,
 							pending: false,
-							blocked: false
+							blocked: false,
+							draftblips: new Array()
 						};
 						this._setupOpManagers(wave_id, wavelet_id);
+						this._retrieveParticipants(this.pp.fetch());
 						this.fireEvent("waveletOpened", [wave_id, wavelet_id]);
 						break;
 					case "OPERATION_MESSAGE_BUNDLE_ACK":
-						this._queueMessageBundle(wavelet_model, "ACK", msg.property.version, msg.property.blipsums);
+						this._queueMessageBundle(wavelet_model, true, msg.property.newblips, msg.property.version, msg.property.blipsums, msg.property.timestamp, this.options.viewerId);
 						break;
 					case "OPERATION_MESSAGE_BUNDLE":
-						this._queueMessageBundle(wavelet_model, msg.property.operations, msg.property.version, msg.property.blipsums);
+						this._queueMessageBundle(wavelet_model, false, msg.property.operations, msg.property.version, msg.property.blipsums, msg.property.timestamp, msg.property.contributor);
 						break;
 					case "GADGET_LIST":
 						this._cachedGadgetList = msg.property;
@@ -266,6 +340,14 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 						break;
 				}
 			}
+		},
+		
+		/**
+		 * Returns the Participant object of the viewer.
+		 * @function {public pygowave.model.Participant} viewer
+		 */
+		viewer: function () {
+			return this.pp.participant(this.options.viewerId);
 		},
 		
 		/**
@@ -310,7 +392,7 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 		 */
 		openWavelet: function (wave_id, wavelet_id) {
 			if (!this.waves.has(wave_id))
-				this.waves[wave_id] = new pygowave.model.WaveModel(wave_id, this.options.viewerId);
+				this.waves[wave_id] = new pygowave.model.WaveModel(wave_id, this.options.viewerId, this.pp);
 			
 			this.conn.subscribeWavelet(wavelet_id);
 		},
@@ -361,42 +443,25 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 			});
 		},
 		/**
-		 * Collate the internal participant "database" with the given ID list.
-		 * New participants will be retrieved and updated later.
-		 * @function {private} _collateParticipants
+		 * Request and retrieve new participant information from the server.
+		 * @function {private} _retrieveParticipants
 		 * @param {String[]} id_list List of participant IDs
 		 */
-		_collateParticipants: function (id_list) {
-			var todo = new Array();
-			for (var it = new _Iterator(id_list);it.hasNext();) {
-				var id = it.next();
-				if (!this.participants.has(id)) {
-					this.participants.set(id, new pygowave.model.Participant(id));
-					todo.append(id);
-				}
-			}
-			
-			if (todo.length > 0) {
+		_retrieveParticipants: function (id_list) {
+			if (id_list.length > 0) {
 				this.conn.sendJson("manager", {
 					type: "PARTICIPANT_INFO",
-					property: todo
+					property: id_list
 				});
 			}
 		},
-		
 		/**
-		 * Return all Participant objects with matching ID.
-		 * @function {private pygowave.model.Participant[]} _getParticipants
-		 * @param {String[]} id_list List of participant IDs
+		 * Callback from ParticipantProvider on a new request
+		 * @function {private} _onParticipantRequest
+		 * @param {String} id ID of the Participant to retrieve
 		 */
-		_getParticipants: function (id_list) {
-			var out = new Array();
-			for (var it = new _Iterator(id_list);it.hasNext();) {
-				var id = it.next();
-				if (this.participants.has(id))
-					out.append(this.participants[id]);
-			}
-			return out;
+		_onParticipantRequest: function (id) {
+			this._retrieveParticipants([id]);
 		},
 		
 		/**
@@ -405,17 +470,12 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 		 * @param {Object} pmap Participants map
 		 */
 		_processParticipantsInfo: function (pmap) {
+			this.pp.collect();
 			for (var it = new _Iterator(pmap); it.hasNext(); ) {
 				var pdata = it.next(), id = it.key();
-				var obj;
-				if (this.participants.has(id))
-					obj = this.participants[id];
-				else {
-					obj = new pygowave.model.Participant(id);
-					this.participants.set(id, obj);
-				}
-				obj.updateData(pdata);
+				this.pp.participant(id).updateData(pdata);
 			}
+			this.pp.fetch(); // Trash
 		},
 		
 		/**
@@ -469,6 +529,9 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 			if (mpending.isEmpty())
 				mpending.put(mcached.fetch());
 			
+			if (mpending.isEmpty())
+				return;
+			
 			if (!this.isBlocked(wavelet_id)) {
 				this.wavelets[wavelet_id].pending = true;
 				if ($defined(this._pendingTimer))
@@ -493,22 +556,28 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 		 *
 		 * @function {private} _queueMessageBundle
 		 * @param {pygowave.model.Wavelet} wavelet Reference to a Wavelet model
-		 * @param {Object[]} serial_ops Serialized operations
+		 * @param {bool} ack True, if this is a ACK message
+		 * @param {Object[]} serial_ops Serialized operations or new Blips map (ACK only)
 		 * @param {int} version New version after this bundle
 		 * @param {Object} blipsums Checksums to compare the wavelet to
+		 * @param {Date} timestamp Timestamp of the delta
+		 * @param {String} contributor ID of the participant who contributed the message bundle
 		 */
-		_queueMessageBundle: function (wavelet, serial_ops, version, blipsums) {
+		_queueMessageBundle: function (wavelet, ack, serial_ops, version, blipsums, timestamp, contributor) {
 			while (this._processingDeferred); // Busy waiting
 			if (this._iview.isBusy()) {
 				this._deferredMessageBundles.push({
 					wavelet: wavelet,
+					ack: ack,
 					serial_ops: serial_ops,
 					version: version,
-					blipsums: blipsums
+					blipsums: blipsums,
+					timestamp: timestamp,
+					contributor: contributor
 				});
 			}
 			else
-				this._processMessageBundle(wavelet, serial_ops, version, blipsums);
+				this._processMessageBundle(wavelet, ack, serial_ops, version, blipsums, timestamp, contributor);
 		},
 		/**
 		 * Process a message bundle from the server. Do transformation and
@@ -516,16 +585,19 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 		 * 
 		 * @function {private} _processOperations
 		 * @param {pygowave.model.Wavelet} wavelet Wavelet model
+		 * @param {bool} ack True, if this is a ACK message
 		 * @param {Object[]} serial_ops Serialized operations
 		 * @param {int} version New version after this bundle
 		 * @param {Object} blipsums Checksums to compare the wavelet to
+		 * @param {Date} timestamp Timestamp of the delta
+		 * @param {String} contributor ID of the participant who contributed the message bundle
 		 */
-		_processMessageBundle: function (wavelet, serial_ops, version, blipsums) {
+		_processMessageBundle: function (wavelet, ack, serial_ops, version, blipsums, timestamp, contributor) {
 			var mpending = this.wavelets[wavelet.id()].mpending;
 			var mcached = this.wavelets[wavelet.id()].mcached;
 			
-			if (serial_ops != "ACK") {
-				var delta = new pygowave.operations.OpManager(wavelet.waveId(), wavelet.id());
+			if (!ack) {
+				var delta = new pygowave.operations.OpManager(wavelet.waveId(), wavelet.id(), contributor);
 				delta.unserialize(serial_ops);
 				
 				var ops = new Array();
@@ -537,24 +609,18 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 						// Transform cached operations, save results
 						ops.extend(mcached.transform(tr.next()));
 					}
+					delete tr;
 				}
-				
-				// Check for new participants
-				var newParticipants = new Array();
-				for (var op_it = new _Iterator(ops); op_it.hasNext(); ) {
-					var op = op_it.next();
-					if (op.type == pygowave.operations.WAVELET_ADD_PARTICIPANT)
-						newParticipants.push(op.property);
-				}
-				if (newParticipants.length > 0)
-					this._collateParticipants(newParticipants);
+				delete incoming;
 				
 				// Apply operations
-				wavelet.applyOperations(ops, this.participants);
+				this.pp.collect();
+				wavelet.applyOperations(ops, timestamp, contributor);
+				this._retrieveParticipants(this.pp.fetch());
 				
 				// Set version and checkup
 				wavelet.options.version = version;
-				if (!this.hasPendingOperations(wavelet.id()))
+				if (!this.hasPendingOperations(wavelet.id()) && mcached.isEmpty())
 					wavelet.checkSync(blipsums);
 			}
 			else { // ACK message
@@ -562,8 +628,26 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 				this._pendingTimer = null;
 				wavelet.options.version = version;
 				mpending.fetch(); // Clear
-				if (!mcached.isEmpty())
-					this._transferOperations(wavelet.id()); // Send cached
+				
+				// Update Blip IDs
+				var draftblips = this.wavelets[wavelet.id()].draftblips;
+				for (var tempId = new _Iterator(serial_ops); tempId.hasNext(); ) {
+					var blipId = tempId.next();
+					wavelet.updateBlipId(tempId.key(), blipId);
+					mcached.unlockBlipOps(tempId.key());
+					mcached.updateBlipId(tempId.key(), blipId);
+					if (draftblips.contains(tempId.key())) {
+						draftblips.erase(tempId.key());
+						draftblips.append(blipId);
+						mcached.lockBlipOps(blipId);
+					}
+				}
+				delete tempId;
+				
+				if (!mcached.isEmpty()) {
+					if (mcached.canFetch())
+						this._transferOperations(wavelet.id()); // Send cached
+				}
 				else {
 					// All done, we can do a check-up
 					wavelet.checkSync(blipsums);
@@ -581,7 +665,7 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 				this._processingDeferred = true;
 				for (var it = new _Iterator(this._deferredMessageBundles); it.hasNext(); ) {
 					var bundle = it.next();
-					this._processMessageBundle(bundle.wavelet, bundle.serial_ops, bundle.version, bundle.blipsums);
+					this._processMessageBundle(bundle.wavelet, bundle.ack, bundle.serial_ops, bundle.version, bundle.blipsums, bundle.timestamp, bundle.contributor);
 				}
 				this._deferredMessageBundles.empty();
 				this._processingDeferred = false;
@@ -600,7 +684,9 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 		 */
 		_onTextInserted: function (waveletId, blipId, index, content) {
 			this.wavelets[waveletId].mcached.documentInsert(blipId, index, content);
-			this.wavelets[waveletId].model.blipById(blipId).insertText(index, content, true);
+			var blip = this.wavelets[waveletId].model.blipById(blipId);
+			blip.insertText(index, content, this.viewer(), true);
+			blip.setLastModified($time());
 		},
 		/**
 		 * Callback from view on text deletion.<br/>
@@ -614,7 +700,9 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 		 */
 		_onTextDeleted: function (waveletId, blipId, start, end) {
 			this.wavelets[waveletId].mcached.documentDelete(blipId, start, end);
-			this.wavelets[waveletId].model.blipById(blipId).deleteText(start, end-start, true);
+			var blip = this.wavelets[waveletId].model.blipById(blipId);
+			blip.deleteText(start, end-start, this.viewer(), true);
+			blip.setLastModified($time());
 		},
 		/**
 		 * Callback from view on element insertion.<br/>
@@ -629,7 +717,9 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 		 */
 		_onElementInsert: function (waveletId, blipId, index, type, properties) {
 			this.wavelets[waveletId].mcached.documentElementInsert(blipId, index, type, properties);
-			this.wavelets[waveletId].model.blipById(blipId).insertElement(index, type, properties);
+			var blip = this.wavelets[waveletId].model.blipById(blipId);
+			blip.insertElement(index, type, properties, this.viewer());
+			blip.setLastModified($time());
 		},
 		/**
 		 * Callback from view on element deletion.<br/>
@@ -642,7 +732,9 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 		 */
 		_onElementDelete: function (waveletId, blipId, index) {
 			this.wavelets[waveletId].mcached.documentElementDelete(blipId, index);
-			this.wavelets[waveletId].model.blipById(blipId).deleteElement(index, true);
+			var blip = this.wavelets[waveletId].model.blipById(blipId);
+			blip.deleteElement(index, this.viewer(), true);
+			blip.setLastModified($time());
 		},
 		/**
 		 * Callback from view on element delta submission.
@@ -654,7 +746,9 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 		 */
 		_onElementDeltaSubmitted: function (waveletId, blipId, index, delta) {
 			this.wavelets[waveletId].mcached.documentElementDelta(blipId, index, delta);
-			this.wavelets[waveletId].model.blipById(blipId).applyElementDelta(index, delta);
+			var blip = this.wavelets[waveletId].model.blipById(blipId);
+			blip.applyElementDelta(index, delta, this.viewer());
+			blip.setLastModified($time());
 		},
 		/**
 		 * Callback from view on element UserPref setting.
@@ -667,7 +761,9 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 		 */
 		_onElementSetUserpref: function (waveletId, blipId, index, key, value) {
 			this.wavelets[waveletId].mcached.documentElementSetpref(blipId, index, key, value);
-			this.wavelets[waveletId].model.blipById(blipId).setElementUserpref(index, key, value, true);
+			var blip = this.wavelets[waveletId].model.blipById(blipId);
+			blip.setElementUserpref(index, key, value, this.viewer(), true);
+			blip.setLastModified($time());
 		},
 		/**
 		 * Callback from view on searching.
@@ -692,8 +788,7 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 			if (this.wavelets[waveletId].model.participant(participantId))
 				return; // Do nothing
 			this.wavelets[waveletId].mcached.waveletAddParticipant(participantId);
-			this._collateParticipants([participantId]);
-			this.wavelets[waveletId].model.addParticipant(this.participants[participantId]);
+			this.wavelets[waveletId].model.addParticipant(this.pp.participant(participantId));
 		},
 		/**
 		 * Callback from view to leave the (root) wavelet.
@@ -709,6 +804,51 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 			(function () {
 				window.location.href = self.options.waveOverviewUrl;
 			}).delay(25);
+		},
+		/**
+		 * Callback from view to append a new Blip.
+		 * @function {private} _onAppendBlip
+		 * @param {String} waveletId
+		 */
+		_onAppendBlip: function (waveletId) {
+			var newBlip = this.wavelets[waveletId].model.appendBlip("", {last_modified: $time()}, "", [], this.viewer());
+			this.wavelets[waveletId].mcached.waveletAppendBlip(newBlip.id());
+			this.wavelets[waveletId].mcached.lockBlipOps(newBlip.id());
+		},
+		/**
+		 * Callback from view to delete a Blip.
+		 * @function {private} _onDeleteBlip
+		 * @param {String} waveletId
+		 * @param {String} blipId
+		 */
+		_onDeleteBlip: function (waveletId, blipId) {
+			this.wavelets[waveletId].mcached.blipDelete(blipId);
+			this.wavelets[waveletId].draftblips.erase(blipId);
+			this.wavelets[waveletId].model.deleteBlip(blipId);
+		},
+		/**
+		 * Callback from view to set/unset draft mode on a Blip.
+		 * @function {private} _onDraftBlip
+		 * @param {String} waveletId
+		 * @param {String} blipId
+		 * @param {bool} enabled
+		 */
+		_onDraftBlip: function (waveletId, blipId, enabled) {
+			var draftblips = this.wavelets[waveletId].draftblips;
+			if (!enabled && draftblips.contains(blipId)) {
+				draftblips.erase(blipId);
+				if (!blipId.startswith("TBD_")) {
+					var mcached = this.wavelets[waveletId].mcached;
+					mcached.unlockBlipOps(blipId);
+					if (mcached.canFetch() && !this.hasPendingOperations(waveletId))
+						this._transferOperations(waveletId);
+				}
+			}
+			else if (enabled && !draftblips.contains(blipId)) {
+				draftblips.append(blipId);
+				if (!blipId.startswith("TBD_"))
+					this.wavelets[waveletId].mcached.lockBlipOps(blipId);
+			}
 		},
 		/**
 		 * Callback from view on gadget adding.

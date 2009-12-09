@@ -20,7 +20,11 @@ import os.path
 
 STATIC_LOAD_ORDER = (
 	(
-		"utils", ("sha1",)
+		"utils",
+		(
+			"sha1",
+			"monthname",
+		)
 	),
 	(
 		"model", ("model",)
@@ -48,7 +52,7 @@ STATIC_LOAD_ORDER = (
 
 SRC_FOLDER = os.path.dirname(os.path.abspath(__file__)) + os.path.sep + "src" + os.path.sep
 
-CACHE_FOLDER = os.path.dirname(os.path.abspath(__file__)) + os.path.sep + "cache" + os.path.sep
+SHIPPED_FOLDER = os.path.dirname(os.path.abspath(__file__)) + os.path.sep + "shipped" + os.path.sep
 
 RFC_1123_DATETIME = "%a, %d %b %Y %H:%M:%S GMT"
 

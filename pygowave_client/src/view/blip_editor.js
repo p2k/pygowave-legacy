@@ -31,6 +31,7 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 	var Widget = pygowave.view.Widget;
 	var Selection = pygowave.view.Selection;
 	var GadgetElementWidget = pygowave.view.GadgetElementWidget;
+	var ParticipantWidget = pygowave.view.ParticipantWidget;
 	
 	/**
 	 * An editable div which generates events for the controller and is able to
@@ -52,6 +53,20 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		 */
 		
 		/**
+		 * Fired if Blip editing was started.
+		 *
+		 * @event onBlipEditing
+		 * @param {String} blipId
+		 */
+		
+		/**
+		 * Fired if Blip editing was finished.
+		 *
+		 * @event onBlipDone
+		 * @param {String} blipId
+		 */
+		
+		/**
 		 * Called on instantiation.
 		 * @constructor {public} initialize
 		 * @param {WaveView} view A reference back to the main view
@@ -68,6 +83,9 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			this._lastContent = "";
 			this._errDiv = null;
 			this._firstKeyPress = false;
+			this._editing = false;
+			this._contributorViewWidgets = new Array();
+			this._contributorObjects = new Hash();
 			
 			var contentElement = new Element('div', {
 				'class': 'blip_editor_widget',
@@ -85,7 +103,15 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			this._onMouseUp = this._onMouseUp.bind(this);
 			this._onMouseDown = this._onMouseDown.bind(this);
 			this._onOutOfSync = this._onOutOfSync.bind(this);
+			this._onLastModifiedChanged = this._onLastModifiedChanged.bind(this);
+			this._onContributorAdded = this._onContributorAdded.bind(this);
+			this._updateContributorNames = this._updateContributorNames.bind(this);
 			this.deleteElementWidgetAt = this.deleteElementWidgetAt.bind(this);
+			
+			this.editBlip = this.editBlip.bind(this);
+			this.finishBlip = this.finishBlip.bind(this);
+			this.deleteBlip = this.deleteBlip.bind(this);
+			this.toggleDraft = this.toggleDraft.bind(this);
 			
 			this.parent(parentElement, contentElement, where);
 		},
@@ -118,7 +144,9 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 				deleteText: this._onDeleteText,
 				outOfSync: this._onOutOfSync,
 				insertElement: this._onInsertElement,
-				deleteElement: this._onDeleteElement
+				deleteElement: this._onDeleteElement,
+				lastModifiedChanged: this._onLastModifiedChanged,
+				contributorAdded: this._onContributorAdded
 			});
 			
 			this.contentElement.addEvents({
@@ -130,7 +158,7 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			$(window).addEvents({
 				mouseup: this._onMouseUp,
 				mousedown: this._onMouseDown
-			})
+			});
 			
 			if (ok)
 				this._onSyncCheckTimer = this._onSyncCheck.periodical(2000, this);
@@ -149,6 +177,11 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			this.parent();
 			this._lastRange = null;
 			this._lastContent = "";
+			this._editing = false;
+			this._draftMode = false;
+			for (var it = new _Iterator(this._contributorObjects); it.hasNext(); )
+				it.next().removeEvent("dataChanged", this._updateContributorNames);
+			this._contributorObjects.empty();
 			this._blip.removeEvents({
 				insertText: this._onInsertText,
 				deleteText: this._onDeleteText,
@@ -162,10 +195,11 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 				keyup: this._onKeyUp,
 				contextmenu: this._onContextMenu
 			});
+			this._infobox_dropdown.removeEvent("click", this.editBlip);
 			$(window).removeEvents({
 				mouseup: this._onMouseUp,
 				mousedown: this._onMouseDown
-			})
+			});
 			$clear(this._onSyncCheckTimer);
 		},
 		
@@ -191,9 +225,16 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 				ew.removeEvent('deleteClicked', this.deleteElementWidgetAt);
 				ew.destroy();
 			}
+			delete it;
 			this._elements.empty();
+			for (var it = new _Iterator(this._contributorViewWidgets); it.hasNext(); )
+				it.next().destroy();
+			delete it;
+			this._contributorViewWidgets.empty();
 			for (var it = new _Iterator(this.contentElement.getChildren()); it.hasNext(); )
 				it.next().destroy();
+			delete it;
+			this._editControls = null;
 			
 			this.contentElement.setStyle("opacity", 1);
 			this._removeErrorOverlay();
@@ -203,6 +244,7 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 				var element = it.next();
 				elementPosMap.set(element.position(), element);
 			}
+			delete it;
 			
 			// Build up
 			var content = this._blip.content().replace(/  /g, "\u00a0\u00a0");
@@ -232,9 +274,153 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 				return false;
 			}
 			
-			this.contentElement.contentEditable = "true";
+			// Add contributors
+			if (!this._blip.isRoot()) {
+				this._contributorNames = new Element('span', {'class': "blip_editor_control"});
+				this._contributorViews = new Element('div', {'class': "blip_editor_control"});
+				this._contributorViews.addClass("blip_contributors");
+				this._contributorViews.contentEditable = "false";
+				
+				var c = this._blip.creator();
+				var cid = c.id();
+				this._addContributorView(c);
+				for (var it = new _Iterator(this._blip.allContributors()); it.hasNext(); ) {
+					c = it.next();
+					if (c.id() != cid)
+						this._addContributorView(c);
+				}
+				delete it;
+			}
+			else {
+				this._contributorNames = new Element('div', {'class': "blip_editor_control"});
+				this._contributorNames.addClass("for_root_blip");
+			}
+			this._contributorNames.addClass("blip_contributor_names");
+			this._contributorNames.contentEditable = "false";
+			this._updateContributorNames();
+			this._contributorNames.inject(this.contentElement, "top");
+			if (!this._blip.isRoot())
+				this._contributorViews.inject(this.contentElement, "top");
+			
+			// Add other controls/infos
+			this._infobox = new Element('div', {'class': "blip_editor_control"});
+			this._infobox.addClass("blip_infobox");
+			this._infobox.contentEditable = "false";
+			this._infotext = new Element('span').inject(this._infobox);
+			this._onLastModifiedChanged(this._blip.lastModified());
+			this._infobox_dropdown = new Element('div', {
+				'class': "blip_editor_control",
+				'title': gettext("Edit Blip")
+			});
+			this._infobox_dropdown.addClass("blip_dropdown");
+			this._infobox_dropdown.inject(this._infobox);
+			this._infobox.inject(this.contentElement, "top");
+			
+			//TODO: Real dropdown
+			this._infobox_dropdown.addEvent('click', this.editBlip);
+			
+			if (this._editing) {
+				this._editing = false;
+				this.editBlip();
+			}
 			return true;
 		},
+		/**
+		 * Starts editing the Blip
+		 * @function {public} editBlip
+		 */
+		editBlip: function () {
+			if (this._editing)
+				return;
+			this.contentElement.contentEditable = "true";
+			if ($defined(this._editControls)) {
+				this._editControls.setStyle("top", "");
+				this._editControls.setStyle("position", "");
+				this._editControls.setStyle("visibility", "visible");
+			}
+			else {
+				this._editControls = new Element('div',  {
+					'class': "blip_editor_control"
+				});
+				this._editControls.addClass("blip_edit_controls");
+				if (!this._blip.isRoot()) {
+					new Element("button", {
+						'type': "button",
+						'class': "mochaButton",
+						'text': gettext("Delete")
+					}).addEvent('click', this.deleteBlip).inject(this._editControls);
+				}
+				new Element("button", {
+					'type': "button",
+					'class': "mochaButton",
+					'text': gettext("Done")
+				}).addEvent('click', this.finishBlip).inject(this._editControls);
+				var draftCheckDiv = new Element("div", {
+					'class': 'blip_draft_check',
+					'text': gettext("Draft"),
+					'title': gettext("Not yet implemented by Google...")
+				});
+				this._draftCheck = new Element("div", {
+					'class': "box"
+				}).addEvent('click', this.toggleDraft).inject(draftCheckDiv, "top");
+				if (this._draftMode)
+					this._draftCheck.addClass("checked");
+				draftCheckDiv.inject(this._editControls);
+				this._editControls.inject(this.contentElement, "bottom");
+				this._editControls.contentEditable = "false";
+			}
+			this._editing = true;
+			this.fireEvent("blipEditing", this._blip.id());
+			var ret = this._walkDown(this.contentElement, this._blip.content().length);
+			var sel = new Selection(ret[0], ret[1], ret[0], ret[1]);
+			sel.select();
+			this._lastRange = this.currentTextRange(this.contentElement);
+			if ($defined(this._lastRange))
+				this._lastValidRange = this._lastRange;
+		},
+		/**
+		 * Stop editing the Blip
+		 * @function {public} finishBlip
+		 */
+		finishBlip: function () {
+			if (!this._editing)
+				return;
+			this.toggleDraft(false);
+			this._editControls.setStyle("visibility", "hidden");
+			this._editControls.setStyle("position", "absolute");
+			this._editControls.setStyle("top", "0");
+			this.contentElement.contentEditable = "false";
+			this._editing = false;
+			this.fireEvent("blipDone", this._blip.id());
+		},
+		/**
+		 * Deletes the Blip (does nothing on root Blips).
+		 * @function {public} deleteBlip
+		 */
+		deleteBlip: function () {
+			if (this._blip.isRoot())
+				return;
+			if (this._editing)
+				this.finishBlip();
+			this._view.fireEvent('deleteBlip', [this._blip.wavelet().id(), this._blip.id()]);
+		},
+		/**
+		 * Toggles Draft mode
+		 * @function {public} toggleDraft
+		 * @param {optional bool} enabled
+		 */
+		toggleDraft: function (enabled) {
+			if ($type(enabled) != "boolean")
+				this._draftMode = !this._draftMode;
+			else
+				this._draftMode = enabled;
+			if (this._draftMode)
+				this._draftCheck.addClass("checked");
+			else
+				this._draftCheck.removeClass("checked");
+			this._view.fireEvent('draftBlip', [this._blip.wavelet().id(), this._blip.id(), this._draftMode]);
+		},
+		
 		/**
 		 * Places an overlay over the editor and displays an error message with
 		 * a button.
@@ -465,6 +651,8 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		 * @param {Object} e Event object
 		 */
 		_processKey: function(e) {
+			if (!this._editing)
+				return;
 			var newRange = this.currentTextRange(e.target);
 			if (!$defined(newRange))
 				return;
@@ -764,6 +952,73 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		_onOutOfSync: function () {
 			this._displayErrorOverlay('checksum_fail');
 		},
+		/**
+		 * Callback from model if the Blip's date/time of last modification
+		 * changed.
+		 *
+		 * @function {private} _onLastModifiedChanged
+		 * @param {param} date
+		 */
+		_onLastModifiedChanged: function (date) {
+			var formattedDate = "?";
+			var blipDate = new Date(date);
+			var now = new Date();
+			if (now.getYear() == blipDate.getYear()) {
+				if (now.getMonth() == blipDate.getMonth() && now.getDate() == blipDate.getDate())
+					formattedDate = "%02d:%02d".sprintf(blipDate.getHours(), blipDate.getMinutes());
+				else
+					formattedDate = "%s %d".sprintf(monthname(blipDate.getMonth()), blipDate.getDate());
+			}
+			else {
+				var yr = blipDate.getFullYear();
+				yr = yr - (parseInt(yr / 100) * 100);
+				formattedDate = "%s %d, '%02d".sprintf(monthname(blipDate.getMonth()), blipDate.getDate(), yr);
+			}
+			this._infotext.set("text", formattedDate);
+		},
+		/**
+		 * Callback from model if a contributor has been added.
+		 *
+		 * @function {private} _onContributorAdded
+		 * @param {String} id His/her/its ID
+		 */
+		_onContributorAdded: function (id) {
+			if (!this._blip.isRoot())
+				this._addContributorView(this._blip.wavelet().participant(id));
+			this._updateContributorNames();
+		},
+		_addContributorView: function (c) {
+			var wgt = new ParticipantWidget(this._view, this._contributorViews, c, 'small');
+			this._contributorViewWidgets.push(wgt);
+		},
+		_updateContributorNames: function () {
+			var c = this._blip.creator();
+			var cid = c.id();
+			var names = new Array();
+			if (c.displayName() != "")
+				names.push(c.displayName());
+			else
+				names.push(cid);
+			for (var it = new _Iterator(this._blip.allContributors()); it.hasNext(); ) {
+				c = it.next();
+				if (c.id() != cid) {
+					if (c.displayName() != "")
+						names.push(c.displayName());
+					else
+						names.push(c.id());
+				}
+				if (!this._contributorObjects.has(c.id())) {
+					c.aaarrgghh = true;
+					c.addEvent("dataChanged", this._updateContributorNames);
+					this._contributorObjects.set(c.id(), c);
+				}
+			}
+			if (names.length == 1)
+				names = names[0];
+			else
+				names = names.slice(0, names.length-1).join(", ") + " " + gettext("and") + " " + names[names.length-1];
+			this._contributorNames.set('text', names+':');
+		},
 		
 		/**
 		 * Utility function. Splits up a textnode in a paragraph at the
@@ -814,7 +1069,10 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 					if ($type(node) == "element") {
 						if (node.get('tag') == "br" || (node.get('tag') == "div" && node.hasClass("gadget_element")))
 							offset++;
-						else {
+						else if (node.get('tag') == "span" && node.hasClass("blip_editor_control")) {
+							/*pass*/
+						}
+						else if (node.get('tag') != "div" || !node.hasClass("blip_editor_control")) {
 							if (node.get('tag') == "p")
 								offset++;
 							// descend
@@ -849,8 +1107,9 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			var elt = body.firstChild, next;
 			
 			while ($type(elt) == "element" && elt.get('tag') != "p") { // gadget_element at start
+				if (!elt.hasClass('blip_editor_control'))
+					offset--;
 				elt = this._nextTextOrPara(elt, true, true);
-				offset--;
 			}
 			if (offset < 0 || elt == null)
 				return [new Element("p"), 0]; // Panic
@@ -901,7 +1160,8 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			var next;
 			if (descend
 					&& $type(elt) == "element"
-					&& (elt.get('tag') != "div" || !elt.hasClass("gadget_element"))
+					&& (elt.get('tag') != "span" || !elt.hasClass("blip_editor_control"))
+					&& (elt.get('tag') != "div" || (!elt.hasClass("gadget_element") && !elt.hasClass("blip_editor_control")))
 					&& $defined(elt.firstChild))
 				next = elt.firstChild;
 			else
@@ -921,7 +1181,9 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 					elt = next;
 					if (ge_stop && elt.get('tag') == "div" && elt.hasClass("gadget_element"))
 						return elt;
-					if ((elt.get('tag') != "div" || !elt.hasClass("gadget_element")) && $defined(elt.firstChild))
+					if ($defined(elt.firstChild)
+							&& (elt.get('tag') != "div" || (!elt.hasClass("gadget_element") && !elt.hasClass("blip_editor_control")))
+							&& (elt.get('tag') != "span" || !elt.hasClass("blip_editor_control")))
 						next = elt.firstChild;
 					else
 						next = elt.nextSibling;

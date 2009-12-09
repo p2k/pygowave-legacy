@@ -45,7 +45,7 @@ __all__ = ["PyGoWaveClientMessageProcessor"]
 # GADGET_LIST (sync)
 # OPERATION_MESSAGE_BUNDLE (OT)
 #   WAVELET_ADD_PARTICIPANT
-#   WAVELET_REMOVE_SELF
+#   WAVELET_REMOVE_PARTICIPANT
 #   DOCUMENT_INSERT
 #   DOCUMENT_DELETE
 #   DOCUMENT_ELEMENT_INSERT
@@ -255,7 +255,7 @@ class PyGoWaveClientMessageProcessor(object):
 			
 			elif message["type"] == "OPERATION_MESSAGE_BUNDLE":
 				# Build OpManager
-				newdelta = OpManager(wavelet.wave.id, wavelet.id)
+				newdelta = OpManager(wavelet.wave.id, wavelet.id, participant.id)
 				newdelta.unserialize(message["property"]["operations"])
 				version = message["property"]["version"]
 				
@@ -279,7 +279,7 @@ class PyGoWaveClientMessageProcessor(object):
 					i += 1
 				
 				# Apply
-				wavelet.applyOperations(newdelta.operations)
+				newblips = wavelet.applyOperations(newdelta.operations, participant)
 				
 				# Send manager messages for added participants
 				for id in added:
@@ -289,14 +289,35 @@ class PyGoWaveClientMessageProcessor(object):
 				wavelet.version += 1
 				wavelet.save()
 				
-				Delta.createByOpManager(newdelta, wavelet.version).save()
+				delta = Delta.createByOpManager(newdelta, wavelet.version)
+				delta.save()
 				
 				# Create tentative checksums
 				blipsums = wavelet.blipsums()
 				
 				# Respond
-				self.emit(pconn, "OPERATION_MESSAGE_BUNDLE_ACK", {"version": wavelet.version, "blipsums": blipsums})
-				self.broadcast(wavelet, "OPERATION_MESSAGE_BUNDLE", {"version": wavelet.version, "operations": newdelta.serialize(), "blipsums": blipsums}, [pconn])
+				self.emit(
+					pconn,
+					"OPERATION_MESSAGE_BUNDLE_ACK",
+					{
+						"version": wavelet.version,
+						"blipsums": blipsums,
+						"timestamp": delta.timestampMs(),
+						"newblips": newblips
+					}
+				)
+				self.broadcast(
+					wavelet,
+					"OPERATION_MESSAGE_BUNDLE",
+					{
+						"version": wavelet.version,
+						"operations": newdelta.serialize(),
+						"blipsums": blipsums,
+						"timestamp": delta.timestampMs(),
+						"contributor": newdelta.contributorId
+					},
+					[pconn]
+				)
 				
 				self.logger.debug("[%s/%s@%s] Processed delta #%d -> v%d" % (participant.name, pconn.id, wavelet.wave.id, version, wavelet.version))
 				

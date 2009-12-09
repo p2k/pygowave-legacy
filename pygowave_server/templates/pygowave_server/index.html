@@ -19,13 +19,33 @@
 		</table>
 	</form>
 </div>
-<h1>{% trans "Welcome to PyGoWave Server!" %}</h1>
+<h1>{% trans "Welcome to PyGoWave!" %}</h1>
+<p>
 {% blocktrans %}
-<p>You are looking at the start page of a very ambitious project. This is still
-early alpha and may be unreliable and inaccurate for the time being.</p>
-<p>I know, the style is a quick-and-dirty-rip-off from Google, but it serves
-the purpose right now.</p>
+PyGoWave is the next generation communication platform for the web
+coded in <a href="http://www.python.org">Python</a>.<br/>
+It is similar to its big brother <a href="http://wave.google.com">Google Wave</a>
+and aims to be a comparable and compatible alternative.
 {% endblocktrans %}
+</p>
+
+{% if DEVELOPER_MODE %}
+<p>
+{% blocktrans %}
+This is a development server, not intended for production use.
+Happy hacking!
+{% endblocktrans %}
+</p>
+{% else %}
+<p>
+{% blocktrans %}
+This is not the official server, but one of (probably) many free
+participating servers around the world. Do not hesitate to sign up, we are a
+big family.
+{% endblocktrans %}
+</p>
+{% endif %}
+
 <p>
 {% blocktrans count online_count as online_count %}
 Currently, there is <b>{{ online_count }}</b> user online out of
@@ -39,8 +59,7 @@ Currently, there are <b>{{ online_count }}</b> users online out of
 <p>
 {% blocktrans %}
 Disclaimer: This is highly experimental. By using this software you are
-completely on your own. No warranty for anything. Also note, that you are being
-tracked by Google Analytics. I am just too curious :)
+completely on your own. No warranty for anything.
 {% endblocktrans %}
 </p>
 {% endblock %}
