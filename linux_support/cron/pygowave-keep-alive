@@ -2,7 +2,7 @@
 
 import subprocess, re
 
-r = re.compile(' *([0-9]+) *([0-9.]+) *python amqp_rpc_server.py')
+r = re.compile(' *([0-9]+) *([0-9.]+) +.*pygowave-rpc.*')
 
 pslist = subprocess.Popen(["ps", "-eo", "pid,pmem,args"], stdout=subprocess.PIPE).communicate()[0].split("\n")
 

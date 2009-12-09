@@ -21,8 +21,6 @@ ez_setup.use_setuptools()
 
 from setuptools import setup, find_packages
 
-import settings
-
 setup(
 	name = "PyGoWave",
 	version = "0.4",
