@@ -46,7 +46,7 @@
 		<img src="{{ MEDIA_URL }}images/leave.png" height="22" width="22" alt="{% trans "Leave Wave" %}" />
 		{% if not LANGUAGE_BIDI %}<div>{% trans "Leave Wave" %}</div>{% endif %}
 	</button>
-{% if xxDEVELOPER_MODE %}
+{% if DEVELOPER_MODE %}
 	<button id="debug_button" class="mochaButton mochaImageButton" type="button">
 		{% if LANGUAGE_BIDI %}<div>{% trans "Debug" %}</div>{% endif %}
 		<img src="{{ MEDIA_URL }}images/debug.png" height="22" width="22" alt="{% trans "Debug" %}" />
@@ -69,7 +69,7 @@
 		<!-- The content is dynamically rendered through our client script. -->
 	</div>
 	<script type="text/javascript">
-{% if xDEVELOPER_MODE %}
+{% if DEVELOPER_MODE %}
 		$("debug_button").set("disabled", "disabled");
 {% endif %}
 		$("leave_button").set("disabled", "disabled");
@@ -112,14 +112,14 @@
 			);
 			
 			controller.connect();
-{% if xDEVELOPER_MODE %}
+{% if DEVELOPER_MODE %}
 			// Debugging
 			$("debug_button").addEvent("click", function () {
 				ov = new pygowave.view.OperationsViewer(controller, controller.options.initialWavelet);
 			});
 {% endif %}
 			controller.addEvent("waveletOpened", function (wave_id, wavelet_id) {
-{% if xDEVELOPER_MODE %}
+{% if DEVELOPER_MODE %}
 				$("debug_button").set("disabled", "");
 {% endif %}
 				$("leave_button").set("disabled", "");

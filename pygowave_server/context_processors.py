@@ -45,3 +45,21 @@ def storage_urls(request):
 		'AVATAR_URL': getattr(settings, "AVATAR_URL", "/media/avatars/"),
 		'GADGET_URL': getattr(settings, "GADGET_URL", "/media/gadgets/")
 	}
+
+def user_profile(request):
+	"""
+	Puts user_profile into context if available.
+	
+	"""
+	
+	profile = None
+	
+	if request.user.is_authenticated():
+		from models import Participant
+		
+		try:
+			profile = Participant.objects.get(user__id=request.user.id)
+		except ObjectDoesNotExist:
+			pass
+	
+	return {'user_profile': profile}

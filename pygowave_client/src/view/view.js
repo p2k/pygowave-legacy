@@ -343,6 +343,7 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		options: {
 			gadgetLoaderUrl: "about:blank",
 			defaultThumbnailUrl: "about:blank",
+			marginBottom: 25,
 			rtl: false
 		},
 		
@@ -495,6 +496,8 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		 *      to have the gadget URL appended
 		 * @... {String} defaultThumbnailUrl URL to a thumbnail image to be used
 		 *      if the participant has not uploaded his own.
+		 * @... {int} marginBottom Margin to keep between the windows' bottom and
+		 *      the WaveletView.
 		 * @... {Boolean} rtl Set to true, if you want to enable rendering
 		 *      for right-to-left languages.
 		 */
@@ -690,7 +693,7 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			var coords = this.container.getCoordinates();
 			if (viewport.y < coords.top + 150)
 				viewport.y = coords.top + 150;
-			this.container.setStyle("height", viewport.y - coords.top - 25);
+			this.container.setStyle("height", viewport.y - coords.top - this.options.marginBottom);
 			this.rootWaveletWidget.fitWidget();
 		},
 		

@@ -127,6 +127,7 @@ TEMPLATE_CONTEXT_PROCESSORS = (
 	#"django.core.context_processors.request",
 	"pygowave_server.context_processors.server",
 	"pygowave_server.context_processors.storage_urls",
+	"pygowave_server.context_processors.user_profile",
 )
 
 ROOT_URLCONF = 'urls'

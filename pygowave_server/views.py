@@ -70,11 +70,7 @@ def index(request):
 def home(request):
 	online_count = Participant.objects.online_count()
 	users_count = User.objects.filter(is_active=True).count()
-	try:
-		profile = Participant.objects.get(user__id=request.user.id)
-	except ObjectDoesNotExist:
-		profile = None
-	return render_to_response('pygowave_server/home.html', {"username": profile.name, "profile": profile, "online_count": online_count, "users_count": users_count}, context_instance=RequestContext(request))
+	return render_to_response('pygowave_server/home.html', {"online_count": online_count, "users_count": users_count}, context_instance=RequestContext(request))
 
 @login_required
 def settings(request):
