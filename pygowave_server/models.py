@@ -496,7 +496,7 @@ class Blip(models.Model):
 		
 		self.addContributor(contributor)
 		
-		self.insertText(index, "\n")
+		self.insertText(index, "\n", contributor)
 		if type == 2:
 			elt = GadgetElement(blip=self, position=index)
 		else:
@@ -518,7 +518,7 @@ class Blip(models.Model):
 		if elt.type == 2:
 			elt = elt.to_gadget()
 		elt.delete()
-		self.deleteText(index, 1)
+		self.deleteText(index, 1, contributor)
 	
 	@transaction.commit_on_success
 	def applyElementDelta(self, index, delta, contributor):

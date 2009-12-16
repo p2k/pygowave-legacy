@@ -19,7 +19,7 @@
 from twisted.internet.protocol import Protocol, ReconnectingClientFactory
 from twisted.internet.task import LoopingCall
 
-import stomper, anyjson
+import stomper, simplejson
 
 from c2s_mp import PyGoWaveClientMessageProcessor
 
@@ -54,8 +54,7 @@ class StompMessageProcessor(stomper.Engine):
 	
 	def ack(self, message):
 		rkey = message["headers"]["destination"]
-		self.pygo_mp.logger.info("Got "+message["body"])
-		message_data = anyjson.deserialize(message["body"])
+		message_data = simplejson.loads(message["body"].decode("utf-8"))
 		
 		msg_dict = self.pygo_mp.process(rkey, message_data)
 		
@@ -68,7 +67,7 @@ class StompMessageProcessor(stomper.Engine):
 	def send(self, routing_key, message_data):
 		"""Convert a routing_key and data dictionary into a STOMP message."""
 		f = stomper.Frame()
-		f.unpack(stomper.send(routing_key, anyjson.serialize(message_data)))
+		f.unpack(stomper.send(routing_key, simplejson.dumps(message_data)))
 		f.headers["exchange"] = "wavelet.direct"
 		f.headers["content-type"] = "application/json"
 		return f.pack().encode("utf-8")
@@ -88,6 +87,8 @@ class StompClientProtocol(Protocol):
 		self.transport.write(self.mp.connect())
 		self.lc = LoopingCall(self.mp.pygo_mp.purge_connections)
 		self.lc.start(10 * 60) # Purge every 10 minutes
+		self.lc2 = LoopingCall(self.mp.pygo_mp.log_stats)
+		self.lc2.start(60 * 60, now=False) # Stats every 60 minutes
 	
 	def connectionLost(self, reason):
 		if self.lc.running:

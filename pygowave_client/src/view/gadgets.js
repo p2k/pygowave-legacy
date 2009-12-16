@@ -93,7 +93,7 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		 * @function {public} initLoadGadgetList
 		 */
 		initLoadGadgetList: function () {
-			this._view.fireEvent('refreshGadgetList', [this._waveletId, false]);
+			this._view.fireEvent('refreshGadgetList', false);
 		},
 		
 		/**
@@ -175,7 +175,7 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 			this._select.set('disabled', true);
 			this._select.grab(new Element('option', {'text': gettext("Loading..."), 'value': 0}));
 			this.showSpinner(this.spinnerEl);
-			this._view.fireEvent('refreshGadgetList', [this._waveletId, true]);
+			this._view.fireEvent('refreshGadgetList', true);
 		}
 	});
 	
@@ -232,6 +232,7 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 				'class': 'delete_box' + (Browser.Engine.presto ? '_opera' : ''),
 				'title': gettext("Delete Gadget")
 			}).inject(contentElement);
+			this.setDeleteBoxVisible(false);
 			this._deleteBox.addEvent('click', function () {
 				this.fireEvent('deleteClicked', this._gadgetElement.position());
 			}.bind(this));
@@ -279,6 +280,18 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		 */
 		position: function () {
 			return this._gadgetElement.position();
+		},
+		/**
+		 * Shows or hides the delete box.
+		 *
+		 * @function {public} setDeleteBoxVisible
+		 * @param {Boolean} visible True to show, false to hide
+		 */
+		setDeleteBoxVisible: function (visible) {
+			if (visible)
+				this._deleteBox.setStyle("visibility", "visible");
+			else
+				this._deleteBox.setStyle("visibility", "hidden");
 		},
 		
 		/**

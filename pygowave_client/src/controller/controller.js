@@ -290,6 +290,10 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 							else if (msg.property.result == "TOO_SHORT")
 								this._iview.invalidSearch(msg.property.data);
 							break;
+						case "GADGET_LIST":
+							this._cachedGadgetList = msg.property;
+							this._iview.updateGadgetList(msg.property);
+							break;
 						case "WAVELET_REMOVE_PARTICIPANT":
 							if (this.wavelets.has(msg.property.waveletId))
 								this.wavelets[msg.property.waveletId].model.removeParticipant(msg.property.id);
@@ -330,10 +334,6 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 						break;
 					case "OPERATION_MESSAGE_BUNDLE":
 						this._queueMessageBundle(wavelet_model, false, msg.property.operations, msg.property.version, msg.property.blipsums, msg.property.timestamp, msg.property.contributor);
-						break;
-					case "GADGET_LIST":
-						this._cachedGadgetList = msg.property;
-						this._iview.updateGadgetList(msg.property);
 						break;
 					case "ERROR":
 						this._iview.showControllerError(gettext("The server reports the following error:<br/><br/>%s<br/><br/>Wavelet ID: %s<br/>Error Tag: %s").sprintf(msg.property.desc, wavelet_id, msg.property.tag));
@@ -853,15 +853,11 @@ pygowave.controller = $defined(pygowave.controller) ? pygowave.controller : new 
 		/**
 		 * Callback from view on gadget adding.
 		 * @function {private} _onRefreshGadgetList
-		 * @param {String} waveletId ID of the Wavelet
 		 * @param {Boolean} forced True if the user explicitly clicked refresh
 		 */
-		_onRefreshGadgetList: function (waveletId, forced) {
-			if (forced || this._cachedGadgetList == null) {
-				this.conn.sendJson(waveletId, {
-					type: "GADGET_LIST"
-				});
-			}
+		_onRefreshGadgetList: function (forced) {
+			if (forced || this._cachedGadgetList == null)
+				this.conn.sendJson("manager", {type: "GADGET_LIST"});
 			else
 				this._iview.updateGadgetList(this._cachedGadgetList);
 		}

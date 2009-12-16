@@ -19,7 +19,7 @@
 from twisted.internet.protocol import Protocol, ServerFactory
 from twisted.internet.task import LoopingCall
 
-import stomper, anyjson, traceback
+import stomper, simplejson, traceback
 
 from c2s_mp import PyGoWaveClientMessageProcessor
 import logger
@@ -97,6 +97,8 @@ class StompServerFactory(ServerFactory):
 		self.pygo_mp.logger.info("=> PyGoWave RPC Server starting <=")
 		self.lc = LoopingCall(self.pygo_mp.purge_connections)
 		self.lc.start(10 * 60) # Purge every 10 minutes
+		self.lc2 = LoopingCall(self.pygo_mp.log_stats)
+		self.lc2.start(15 * 60, now=False) # Stats every 15 minutes
 		self.pygo_mp.logger.info("=> PyGoWave RPC Server ready <=")
 	
 	def stopFactory(self):
@@ -120,11 +122,12 @@ class StompServerFactory(ServerFactory):
 		del self.subscriptions[proto.id]
 	
 	def send(self, dest_name, body, headers={}):
-		msg_dict = self.pygo_mp.process(dest_name, anyjson.deserialize(body))
+		msg_dict = self.pygo_mp.process(dest_name, simplejson.loads(body.decode("utf-8")))
 		
 		for out_rkey, messages in msg_dict.iteritems():
 			if self.destinations.has_key(out_rkey):
-				self.destinations[out_rkey].sendFrame('MESSAGE', {'destination': str(out_rkey)}, anyjson.serialize(messages).encode("utf-8"))
+				self.destinations[out_rkey].sendFrame('MESSAGE', {'destination': str(out_rkey)}, simplejson.dumps(messages).encode("utf-8"))
 	
 	def __repr__(self):
 		return "StompServerFactory"
+

@@ -279,12 +279,11 @@ def gadget_loader(request):
 	url = request.GET["url"]
 
 	# Directly load hosted gadgets
-	try:
-		gadget_obj = Gadget.objects.get(url=url)
+	gadget_obj = Gadget.objects.filter(url=url)
+	if gadget_obj.count() > 0:
+		gadget_obj = gadget_obj.all()[0]
 		if gadget_obj.is_hosted():
 			url = "file://%s%s" % (django_settings.GADGET_ROOT, gadget_obj.hosted_filename)
-	except ObjectDoesNotExist:
-		pass
 	
 	try:
 		gadget = GadgetLoader(url)
@@ -306,4 +305,18 @@ def gadget_loader(request):
 	else:
 		gadget_id = None
 
-	return render_to_response('pygowave_server/gadgets/gadget_wrapper.html', {"gadget": gadget, "url_parameters": simplejson.dumps(request.GET), "gadget_id": gadget_id}, context_instance=RequestContext(request))
+	if request.GET.has_key("wrapper_script"):
+		wrapper_script_url = request.GET["wrapper_script"]
+	else:
+		wrapper_script_url = django_settings.MEDIA_URL + "js/gadget-wrapper.js"
+
+	return render_to_response(
+		'pygowave_server/gadgets/gadget_wrapper.html',
+		{
+			"gadget": gadget,
+			"url_parameters": simplejson.dumps(request.GET),
+			"gadget_id": gadget_id,
+			"wrapper_script_url": wrapper_script_url
+		},
+		context_instance=RequestContext(request)
+	)

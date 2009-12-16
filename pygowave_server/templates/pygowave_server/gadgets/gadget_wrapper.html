@@ -6,9 +6,8 @@
 
 <head>
 	<title>{% block title %}{{ gadget.title }}{% endblock %}</title>
-	<link rel="icon" href="{{ MEDIA_URL }}images/favicon.ico" type="image/x-icon" />
 	<style type="text/css">html,body{height:100%;width:100%;margin:0;padding:0;}</style>
-	<script type="text/javascript" src="{{ MEDIA_URL }}js/gadget-wrapper.js"></script>{% if gadget.features.wave_preview %}
+	<script type="text/javascript" src="{{ wrapper_script_url }}"></script>{% if gadget.features.wave_preview %}
 	<script type="text/javascript" src="http://wave-api.appspot.com/public/wave.js"></script>{% endif %}
 	<script type="text/javascript">
 		__MODULE_ID__ = {% if gadget_id %}{{ gadget_id }}{% else %}null{% endif %};

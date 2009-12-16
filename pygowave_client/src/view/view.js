@@ -211,8 +211,10 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 				deleteBlip: this._onDeleteBlip
 			});
 			blip.addEvent('idChanged', this._onBlipIdChanged);
-			if (blip.id().startswith("TBD_"))
+			if (blip.id().startswith("TBD_") || (blip.isRoot() && blip.content().length == 0)) {
 				editor.editBlip();
+				new Fx.Scroll(this._blipContainerWidget.contentElement).toBottom();
+			}
 		},
 		/**
 		 * Callback on Blip deletion
@@ -444,7 +446,6 @@ pygowave.view = $defined(pygowave.view) ? pygowave.view : new Hash();
 		 * <br/>Note: This event is fired by a AddGadgetWindow instance.
 		 * 
 		 * @event onRefreshGadgetList
-		 * @param {String} waveletId ID of the Wavelet
 		 * @param {Boolean} forced True if the user explicitly clicked refresh
 		 */
 		

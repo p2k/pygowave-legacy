@@ -90,6 +90,12 @@ class PyGoWaveClientMessageProcessor(object):
 	logger = logging.getLogger("pygowave")
 	conn_lifetime = datetime.timedelta(minutes=getattr(settings, "ACCESS_KEY_TIMEOUT_MINUTES", 2))
 	
+	def __init__(self):
+		self.bundles = 0
+		self.curr_connections = set()
+		self.peak_connections = 0
+		self.total_connections = 0
+
 	def process(self, routing_key, message_data):
 		"""
 		Process a message in JSON format with the given routing key (= sender ID).
@@ -114,6 +120,11 @@ class PyGoWaveClientMessageProcessor(object):
 		if wavelet_id != "login":
 			try:
 				pconn = ParticipantConn.objects.get(tx_key=participant_conn_key)
+				if pconn.id not in self.curr_connections:
+					self.curr_connections.add(pconn.id)
+					self.total_connections += 1
+					if self.peak_connections < len(self.curr_connections):
+						self.peak_connections = len(self.curr_connections)
 			except ObjectDoesNotExist:
 				return self.reply_error(participant_conn_key, wavelet_id, "NO_CONNECTION", "Not logged in or disconnected by server")
 		
@@ -254,6 +265,8 @@ class PyGoWaveClientMessageProcessor(object):
 				return False
 			
 			elif message["type"] == "OPERATION_MESSAGE_BUNDLE":
+				self.bundles += 1
+				
 				# Build OpManager
 				newdelta = OpManager(wavelet.wave.id, wavelet.id, participant.id)
 				newdelta.unserialize(message["property"]["operations"])
@@ -418,6 +431,7 @@ class PyGoWaveClientMessageProcessor(object):
 			
 			elif message["type"] == "DISCONNECT":
 				self.logger.info("[%s/%s@manager] Connection to server closed (by client)" % (participant.name, pconn.id))
+				self.curr_connections.remove(pconn.id)
 				pconn.delete()
 				return False
 			
@@ -551,6 +565,26 @@ class PyGoWaveClientMessageProcessor(object):
 			}
 		}
 	
+	def log_stats(self):
+		"""
+		Writes some statistics to the logfile. This method may be
+		called periodically; stats are reset after each call.
+
+		"""
+		self.logger.info("""[Statistics]
+Bundles processed: %(bundles)s
+Curr. connections: %(curr_connections)s
+Peak connections:  %(peak_connections)s
+Total connections: %(total_connections)s""" % {
+			"bundles": self.bundles,
+			"curr_connections": len(self.curr_connections),
+			"peak_connections": self.peak_connections,
+			"total_connections": self.total_connections,
+		})
+		self.bundles = 0
+		self.peak_connections = len(self.curr_connections)
+		self.total_connections = 0
+	
 	def purge_connections(self):
 		"""
 		This method will check all connections to the server and throw out
@@ -564,5 +598,8 @@ class PyGoWaveClientMessageProcessor(object):
 				for wavelet in conn.wavelets.all():
 					wavelet.participant_conns.remove(conn)
 					self.logger.info("[%s/%s@%s] Connection to wavelet closed (by timeout)" % (conn.participant.name, conn.id, wavelet.wave.id))
+				if conn_id in self.curr_connections:
+					self.curr_connections.remove(conn_id)
 				conn.delete()
 				self.logger.info("[%s/%s] Connection to server closed (by timeout)" % (conn_participant_name, conn_id))
+

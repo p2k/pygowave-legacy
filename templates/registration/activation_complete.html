@@ -7,6 +7,10 @@
 {% block content %}
 	<h1>{% trans "Account activation" %}</h1>
 	<p>
-		{% trans "Sorry, your account could not be activated. Please contact the server administrator." %}
+		{% trans "Congratulations! Your account was activated. Have fun." %}
+		{% track_event "registration" "account activated" %}
+	</p>
+	<p>
+		<a href="{% url django.contrib.auth.views.login %}">{% trans "Login" %} &raquo;</a>
 	</p>
 {% endblock %}

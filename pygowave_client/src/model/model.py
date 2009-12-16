@@ -517,7 +517,7 @@ class Blip(object):
 	"""
 	Fired on text insertion.
 	
-	@event onInsertText
+	@event onInsertedText
 	@param {int} index Offset where the text is inserted
 	@param {String} text The text to be inserted
 	"""
@@ -525,7 +525,7 @@ class Blip(object):
 	"""
 	Fired on text deletion.
 	
-	@event onDeleteText
+	@event onDeletedText
 	@param {int} index Offset where the text is deleted
 	@param {int} length Number of characters to delete
 	"""
@@ -533,14 +533,14 @@ class Blip(object):
 	"""
 	Fired on element insertion.
 	
-	@event onInsertElement
+	@event onInsertedElement
 	@param {int} index Offset where the element is inserted
 	"""
 	
 	"""
 	Fired on element deletion.
 	
-	@event onDeleteElement
+	@event onDeletedElement
 	@param {int} index Offset where the element is deleted
 	"""
 	
@@ -767,7 +767,7 @@ class Blip(object):
 		
 		self._wavelet._setStatus("dirty")
 		if not noevent:
-			self.fireEvent("insertText", [index, text])
+			self.fireEvent("insertedText", [index, text])
 	
 	def deleteText(self, index, length, contributor, noevent = False):
 		"""
@@ -797,7 +797,7 @@ class Blip(object):
 		
 		self._wavelet._setStatus("dirty")
 		if not noevent:
-			self.fireEvent("deleteText", [index, length])
+			self.fireEvent("deletedText", [index, length])
 	
 	def insertElement(self, index, type, properties, contributor, noevent = False):
 		"""
@@ -825,7 +825,7 @@ class Blip(object):
 		
 		self._wavelet._setStatus("dirty")
 		if not noevent:
-			self.fireEvent("insertElement", index)
+			self.fireEvent("insertedElement", index)
 	
 	def deleteElement(self, index, contributor, noevent = False):
 		"""
@@ -848,7 +848,7 @@ class Blip(object):
 				break
 		self.deleteText(index, 1, contributor, True)
 		if not noevent:
-			self.fireEvent("deleteElement", index)
+			self.fireEvent("deletedElement", index)
 	
 	def applyElementDelta(self, index, delta, contributor):
 		"""
