@@ -287,6 +287,7 @@ class PyGoWaveClientMessageProcessor(object):
 							newdelta.removeOperation(i)
 							continue
 						self.broadcast_managers(wavelet, "WAVELET_REMOVE_PARTICIPANT", {"id": op.property}, [pconn], False)
+						pconn.wavelets.remove(wavelet) # Remove connection
 					elif op.type == WAVELET_ADD_PARTICIPANT:
 						added.append(op.property)
 					i += 1
