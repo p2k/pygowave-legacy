@@ -413,10 +413,15 @@ class OpManager(object):
 							else:
 								self.fireEvent("operationChanged", i)
 						else: # op.index + op.length() > end
-							myop.resize(myop.length() - (end - op.index))
-							self.fireEvent("operationChanged", i)
 							op.resize(op.length() - (end - op.index))
 							op.index = myop.index
+							myop.resize(myop.length() - (end - op.index))
+							if myop.isNull():
+								self.removeOperation(i)
+								i -= 1
+								break
+							else:
+								self.fireEvent("operationChanged", i)
 				
 				elif op.isDelete() and myop.isInsert():
 					if op.index < myop.index:
@@ -842,7 +847,7 @@ class OpManager(object):
 	
 	def waveletRemoveParticipant(self, id):
 		"""
-		Requests to remove a Participant to the Wavelet.
+		Requests to remove a Participant from the Wavelet.
 		
 		@function {public} waveletRemoveParticipant
 		@param {String} id ID of the Participant to remove
