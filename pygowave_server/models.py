@@ -458,6 +458,9 @@ class Blip(models.Model):
 		
 		for anno in self.annotations.filter(start__gte=index):
 			anno.start += length
+			anno.save()
+		
+		for anno in self.annotations.filter(end__gte=index):
 			anno.end += length
 			anno.save()
 		
@@ -479,6 +482,9 @@ class Blip(models.Model):
 		
 		for anno in self.annotations.filter(start__gte=index):
 			anno.start -= length
+			anno.save()
+		
+		for anno in self.annotations.filter(end__gte=index):
 			anno.end -= length
 			anno.save()
 		

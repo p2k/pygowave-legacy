@@ -335,9 +335,13 @@ class PyGoWaveClientMessageProcessor(object):
 				
 				self.logger.debug("[%s/%s@%s] Processed delta #%d -> v%d" % (participant.name, pconn.id, wavelet.wave.id, version, wavelet.version))
 				
-				if wavelet.participants.count() == 0: # Oh my god, you killed the Wave! You bastard!
-					self.logger.info("[%s/%s@%s] Wave got killed!" % (participant.name, pconn.id, wavelet.wave.id))
-					wavelet.wave.delete()
+				if wavelet.participants.count() == 0: # Wavelet has no participants -> kill it
+					if wavelet.is_root: # Oh my god, you killed the root Wavelet! You bastard!
+						wavelet.wave.delete()
+						self.logger.info("[%s/%s@%s] Wave got killed!" % (participant.name, pconn.id, wavelet.wave.id))
+					else: # Ok, another one bites the dust
+						wavelet.delete()
+						self.logger.info("[%s/%s@%s] Wavelet got killed!" % (participant.name, pconn.id, wavelet.id))
 				
 			else:
 				self.emit(pconn, "ERROR", {"tag": "UNKNOWN_MESSAGE", "desc": "Type '%s' not recognised" % message["type"]})
