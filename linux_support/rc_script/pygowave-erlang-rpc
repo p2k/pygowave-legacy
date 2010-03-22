@@ -1,0 +1,79 @@
+#!/bin/bash
+
+#
+# rc-script for Arch Linux to launch PyGoWave at system startup
+#
+
+daemon_name="pygowave-erlang-rpc"
+daemon_title="PyGoWave Erlang RPC Server"
+
+. /etc/rc.conf
+. /etc/rc.d/functions
+
+if [ ! -d "/var/log/pygowave" ]; then
+    mkdir /var/log/pygowave
+    chown http /var/log/pygowave
+fi
+if [ ! -d "/var/run/pygowave" ]; then
+    mkdir /var/run/pygowave
+    chown http /var/run/pygowave
+fi
+
+case "$1" in
+  start)
+    stat_busy "Starting $daemon_title"
+
+    PID=0
+    if [ -f /var/run/pygowave/$daemon_name.pid ]; then
+        PID=`cat /var/run/pygowave/$daemon_name.pid`
+    fi
+
+    if [ "$PID" -eq 0 ]; then
+      # RUN
+      /usr/bin/pygowave-erlang-rpc -detached -pidfile /var/run/pygowave/$daemon_name.pid
+      #
+      if [ $? -gt 0 ]; then
+        stat_fail
+        exit 1
+      else
+        add_daemon $daemon_name
+        stat_done
+      fi
+    else
+      stat_fail
+      exit 1
+    fi
+    ;;
+
+  stop)
+    stat_busy "Stopping $daemon_title"
+    PID=0
+    if [ -f /var/run/pygowave/$daemon_name.pid ]; then
+        PID=`cat /var/run/pygowave/$daemon_name.pid`
+    fi
+    # KILL
+    [ "$PID" -ne 0 ] && kill $PID &> /dev/null
+    #
+    if [ $? -gt 0 ]; then
+      rm -f /var/run/pygowave/$daemon_name.pid
+    fi
+    rm_daemon $daemon_name
+    stat_done
+    ;;
+
+  restart)
+    $0 stop
+    sleep 1
+    $0 start
+    ;;
+
+  status)
+    stat_busy "Checking $daemon_title status";
+    ck_status $daemon_name
+    ;;
+
+  *)
+    echo "usage: $0 {start|stop|restart|status}"
+esac
+
+exit 0

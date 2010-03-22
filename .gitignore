@@ -4,3 +4,9 @@
 settings.py
 cache/*
 *.beam
+*.dump
+*/ebin/*.app
+*/ebin/*.boot
+*/ebin/*.script
+*/ebin/*.rel
+deps.mk

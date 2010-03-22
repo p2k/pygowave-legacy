@@ -1,7 +1,7 @@
 
 %%
 %% PyGoWave Server - The Python Google Wave Server
-%% Copyright 2009 Patrick Schneider <patrick.p2k.schneider@gmail.com>
+%% Copyright 2009-2010 Patrick Schneider <patrick.p2k.schneider@gmail.com>
 %%
 %% Licensed under the Apache License, Version 2.0 (the "License");
 %% you may not use this file except in compliance with the License.
@@ -25,7 +25,7 @@
 	delete_pconn/2,
 	create_new_pconn/2,
 	get_timeout_pconns/2,
-	get_or_create_participant/2,
+	get_or_create_participant/3,
 	get_participant/2,
 	save_participant/2,
 	serialize_participant/1,
@@ -49,9 +49,7 @@
 	wave_exists/2,
 	create_delta/4,
 	all_gadgets/1,
-	get_blip/2
-]).
--export([
+	get_blip/2,
 	user_authenticate/2,
 	datetime_to_ms/1,
 	ms_to_datetime/1,
@@ -63,7 +61,6 @@
 -include("operation.hrl").
 
 %% Defines
--include("settings.hrl").
 -define(RANDOM_ID_BASE, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789").
 -define(RANDOM_ID_BASE_COUNT, 62).
 -define(ROOT_WAVELET_ID_SUFFIX, "!conv+root").
@@ -122,7 +119,7 @@ user_authenticate({Username, Password}, DBPoolId) ->
 			error
 	end.
 
-get_or_create_participant({user_id, UserId}, DBPoolId) ->
+get_or_create_participant({user_id, UserId}, DBPoolId, WaveDomain) ->
 	{data, Result} = mysql:execute(DBPoolId,
 		prepare_once(get_or_create_participant_sql1, <<"SELECT id, is_bot, last_contact, name, avatar, profile FROM pygowave_server_participant WHERE user_id = ?">>),
 		[UserId]),
@@ -135,7 +132,7 @@ get_or_create_participant({user_id, UserId}, DBPoolId) ->
 				[UserId]),
 			case mysql:get_result_rows(UResult) of
 				[[Username]] ->
-					NewId = list_to_binary(binary_to_list(Username) ++ "@" ++ ?WAVE_DOMAIN),
+					NewId = list_to_binary(binary_to_list(Username) ++ "@" ++ WaveDomain),
 					mysql:execute(DBPoolId,
 						prepare_once(get_or_create_participant_sql3, <<"INSERT INTO pygowave_server_participant (id, user_id, is_bot, last_contact, name, avatar, profile) VALUES (?, ?, 0, NOW(), ?, '', '')">>),
 						[NewId, UserId, Username]),
@@ -174,7 +171,8 @@ get_participant({user_id, UserId}, DBPoolId) ->
 
 save_participant(Participant=#participant{}, DBPoolId) ->
 	mysql:execute(DBPoolId,
-		prepare_once(save_participant_sql, <<"INSERT INTO pygowave_server_participant (id, user_id, is_bot, last_contact, name, avatar, profile) VALUES (?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE user_id = VALUES(user_id), is_bot = VALUES(is_bot), last_contact = VALUES(last_contact), name = VALUES(name), avatar = VALUES(avatar), profile = VALUES(profile)">>),
+		prepare_once(save_participant_sql, <<"INSERT INTO pygowave_server_participant (id, user_id, is_bot, last_contact, name, avatar, profile) VALUES (?, ?, ?, ?, ?, ?, ?) "
+			"ON DUPLICATE KEY UPDATE user_id = VALUES(user_id), is_bot = VALUES(is_bot), last_contact = VALUES(last_contact), name = VALUES(name), avatar = VALUES(avatar), profile = VALUES(profile)">>),
 		[Participant#participant.id, Participant#participant.user_id, Participant#participant.is_bot, Participant#participant.last_contact, Participant#participant.name, Participant#participant.avatar, Participant#participant.profile]),
 	ok.
 
@@ -198,7 +196,8 @@ get_participant_wavelets({participant, #participant{id=ParticipantId}}, DBPoolId
 
 get_participant_wavelets({participant_id, ParticipantId}, DBPoolId) ->
 	{data, Result} = mysql:execute(DBPoolId,
-		prepare_once(get_participant_wavelets_sql, <<"SELECT w.id, wave_id, creator_id, is_root, root_blip_id, created, last_modified, title, version FROM pygowave_server_wavelet AS w INNER JOIN pygowave_server_wavelet_participants AS wp ON w.id = wp.wavelet_id WHERE wp.participant_id = ?">>),
+		prepare_once(get_participant_wavelets_sql, <<"SELECT w.id, wave_id, creator_id, is_root, root_blip_id, created, last_modified, title, version "
+			"FROM pygowave_server_wavelet AS w INNER JOIN pygowave_server_wavelet_participants AS wp ON w.id = wp.wavelet_id WHERE wp.participant_id = ?">>),
 		[ParticipantId]),
 	map(fun ([WaveletId, WaveId, CreatorId, IsRoot, RootBlipId, Created, LastModified, Title, Version]) ->
 		#wavelet{id=binary_to_list(WaveletId), wave_id=WaveId, creator_id=CreatorId, is_root=IsRoot, root_blip_id=RootBlipId, created=Created, last_modified=LastModified, title=Title, version=Version} end, mysql:get_result_rows(Result)).
@@ -223,7 +222,8 @@ get_wavelet({participant, #participant{id=ParticipantId}, wavelet_id, WaveletId}
 
 get_wavelet({participant_id, ParticipantId, wavelet_id, WaveletId}, DBPoolId) ->
 	{data, Result} = mysql:execute(DBPoolId,
-		prepare_once(get_wavelet_sql, <<"SELECT wave_id, creator_id, is_root, root_blip_id, created, last_modified, title, version FROM pygowave_server_wavelet AS w INNER JOIN pygowave_server_wavelet_participants AS wp ON w.id = wp.wavelet_id WHERE wp.participant_id = ? AND w.id = ?">>),
+		prepare_once(get_wavelet_sql, <<"SELECT wave_id, creator_id, is_root, root_blip_id, created, last_modified, title, version "
+			"FROM pygowave_server_wavelet AS w INNER JOIN pygowave_server_wavelet_participants AS wp ON w.id = wp.wavelet_id WHERE wp.participant_id = ? AND w.id = ?">>),
 		[ParticipantId, WaveletId]),
 	case mysql:get_result_rows(Result) of
 		[[WaveId, CreatorId, IsRoot, RootBlipId, Created, LastModified, Title, Version]] ->
@@ -234,7 +234,8 @@ get_wavelet({participant_id, ParticipantId, wavelet_id, WaveletId}, DBPoolId) ->
 
 get_wavelets({participant, #participant{id=ParticipantId}, wave_id, WaveId}, DBPoolId) ->
 	{data, Result} = mysql:execute(DBPoolId,
-		prepare_once(get_wavelets_sql1, <<"SELECT w.id, creator_id, is_root, root_blip_id, created, last_modified, title, version FROM pygowave_server_wavelet AS w INNER JOIN pygowave_server_wavelet_participants AS wp ON w.id = wp.wavelet_id WHERE wp.participant_id = ? AND w.wave_id = ?">>),
+		prepare_once(get_wavelets_sql1, <<"SELECT w.id, creator_id, is_root, root_blip_id, created, last_modified, title, version "
+			"FROM pygowave_server_wavelet AS w INNER JOIN pygowave_server_wavelet_participants AS wp ON w.id = wp.wavelet_id WHERE wp.participant_id = ? AND w.wave_id = ?">>),
 		[ParticipantId, WaveId]),
 	map(fun ([WaveletId, CreatorId, IsRoot, RootBlipId, Created, LastModified, Title, Version]) ->
 		#wavelet{id=binary_to_list(WaveletId), wave_id=WaveId, creator_id=CreatorId, is_root=IsRoot, root_blip_id=RootBlipId, created=Created, last_modified=LastModified, title=Title, version=Version} end, mysql:get_result_rows(Result));
@@ -380,7 +381,10 @@ get_broadcast_targets({wavelet, Wavelet=#wavelet{}, except_pconn, PConn=#pconn{}
 		both -> 2
 	end,
 	{data, Result} = mysql:execute(DBPoolId,
-		prepare_once(delete_wavelet_sql, <<"SELECT pconn.rx_key FROM pygowave_server_participantconn AS pconn INNER JOIN pygowave_server_wavelet_participants AS wp ON wp.participant_id = pconn.participant_id LEFT JOIN pygowave_server_wavelet_participant_conns AS wpc ON wpc.participantconn_id = pconn.id AND wpc.wavelet_id = wp.wavelet_id WHERE wp.wavelet_id = ? AND pconn.id != ? AND ISNULL(wpc.id) != ?">>),
+		prepare_once(delete_wavelet_sql, <<"SELECT pconn.rx_key FROM pygowave_server_participantconn AS pconn "
+			"INNER JOIN pygowave_server_wavelet_participants AS wp ON wp.participant_id = pconn.participant_id "
+			"LEFT JOIN pygowave_server_wavelet_participant_conns AS wpc ON wpc.participantconn_id = pconn.id AND wpc.wavelet_id = wp.wavelet_id "
+			"WHERE wp.wavelet_id = ? AND pconn.id != ? AND ISNULL(wpc.id) != ?">>),
 		[Wavelet#wavelet.id, PConn#pconn.id, Criteria]),
 	map(fun ([RxKey]) -> binary_to_list(RxKey) end, mysql:get_result_rows(Result)).
 
@@ -466,7 +470,8 @@ create_blip(WaveletId, ParentId, CreatorId, DBPoolId) ->
 			create_blip(WaveletId, ParentId, CreatorId, DBPoolId); % Retry
 		[[0]] ->
 			mysql:execute(DBPoolId,
-				prepare_once(create_blip_sql2, <<"INSERT INTO pygowave_server_blip (id, wavelet_id, parent_id, created, creator_id, version, last_modified, submitted, text) VALUES (?, ?, ?, NOW(), ?, 0, NOW(), 0, \\'\\')">>),
+				prepare_once(create_blip_sql2, <<"INSERT INTO pygowave_server_blip (id, wavelet_id, parent_id, created, creator_id, version, last_modified, submitted, text) "
+					"VALUES (?, ?, ?, NOW(), ?, 0, NOW(), 0, \\'\\')">>),
 				[BlipId, WaveletId, ParentId, CreatorId]),
 			get_blip({wavelet_id, WaveletId, blip_id, BlipId}, DBPoolId)
 	end.
@@ -498,7 +503,7 @@ serialize_blip(Blip=#blip{}, Wavelet=#wavelet{}, DBPoolId) ->
 		{"childBlipIds", get_blip_child_ids({blip, Blip}, DBPoolId)},
 		{"waveId", Wavelet#wavelet.wave_id},
 		{"submitted", Blip#blip.submitted == 1},
-		{"checksum", list_to_binary(string:to_lower(sha1:hexstring(Blip#blip.text)))} % Note: This is tentative and subject to change
+		{"checksum", list_to_binary(sha1_hexstring(Blip#blip.text))} % Note: This is tentative and subject to change
 	]}.
 
 get_blip_elements({blip, Blip=#blip{}}, DBPoolId) ->
@@ -844,7 +849,7 @@ prepare_once(Name, Query) when is_atom(Name) and is_binary(Query) ->
 
 check_pwd(Plain, Enc) ->
 	["sha1", Seed, Hash] = string:tokens(Enc, "$"),
-	Hash == string:to_lower(sha1:hexstring(Seed ++ Plain)).
+	Hash == sha1_hexstring(Seed ++ Plain).
 
 datetime_to_ms({datetime, DateTime}) ->
 	(calendar:datetime_to_gregorian_seconds(DateTime) - 62167219200) * 1000.
@@ -861,13 +866,16 @@ getattr({obj, TupleList}, Name, DefaultValue) ->
 	getattr(TupleList, Name, DefaultValue);
 
 getattr(TupleList, Name, DefaultValue) ->
-	case keyfind(Name, 1, TupleList) of
-		{_, Value} -> Value;
-		false -> DefaultValue
-	end.
+	proplists:get_value(Name, TupleList, DefaultValue).
 
 setattr({obj, TupleList}, Name, Value) ->
 	{obj, setattr(TupleList, Name, Value)};
 
 setattr(TupleList, Name, Value) ->
 	keystore(Name, 1, TupleList, {Name, Value}).
+
+bin2hex(<<>>) -> "";
+bin2hex(<<I:8, Rest/bytes>>) -> lists:flatten(io_lib:format("~2.16.0b", [I])) ++ bin2hex(Rest).
+
+sha1_hexstring(String) ->
+	bin2hex(crypto:sha(String)).

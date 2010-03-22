@@ -1,7 +1,0 @@
-#!/bin/bash
-
-echo "Compiling..."
-make -j3 || exit 1
-
-erl -run stomp_client -noshell
-

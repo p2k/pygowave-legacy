@@ -1,0 +1,21 @@
+#!/usr/bin/env escript
+%% -*- erlang -*-
+
+main([TargetFile]) ->
+    {ok, {application, Application, Properties}} = io:read(''),
+	Version = proplists:get_value(vsn, Properties),
+	AllApps = proplists:get_value(applications, Properties),
+	AppVersions = [determine_version(App) || App <- AllApps] ++ [{Application, Version}],
+	RDesc = {release,
+		{proplists:get_value(description, Properties), Version},
+		{erts, erlang:system_info(version)},
+		AppVersions},
+    file:write_file(
+      TargetFile,
+      io_lib:format("~p.~n", [RDesc])).
+
+determine_version(App) ->
+	application:load(App),
+	{ok, Vsn} = application:get_key(App, vsn),
+	{App, Vsn}.
+

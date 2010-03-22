@@ -1,7 +1,7 @@
  
 %%
 %% PyGoWave Server - The Python Google Wave Server
-%% Copyright 2009 Patrick Schneider <patrick.p2k.schneider@gmail.com>
+%% Copyright 2009-2010 Patrick Schneider <patrick.p2k.schneider@gmail.com>
 %%
 %% Licensed under the Apache License, Version 2.0 (the "License");
 %% you may not use this file except in compliance with the License.
